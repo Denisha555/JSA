@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "499652308146",
+    "project_id": "jump-smash-arena",
+    "storage_bucket": "jump-smash-arena.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:499652308146:android:0b894451e0089a6a6b2dab",
+        "android_client_info": {
+          "package_name": "com.example.flutter_application_1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD9iRDA_nl-usgkg5q9s6lYK9fewh3bCJ4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
