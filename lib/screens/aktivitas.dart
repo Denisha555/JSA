@@ -6,17 +6,6 @@ class HalamanAktivitas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        title: Padding(
-          padding: const EdgeInsets.only(left: 60),
-          child: Text(
-            "Aktivitas",
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-          ),
-        ),
-      ),
-    );
+    return Scaffold(appBar: AppBar(title: Text("Aktivitas")));
   }
 }

@@ -18,7 +18,6 @@ class _HalamanDaftarState extends State<HalamanDaftar> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SingleChildScrollView(
         // utama
         child: Center(

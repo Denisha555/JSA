@@ -7,17 +7,7 @@ class HalamanPriceList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: Padding(
-          padding: const EdgeInsets.only(left: 60),
-          child: Text(
-            "Price List",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
-        backgroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: Text("Price List")),
       body: Column(
         children: [
           Padding(

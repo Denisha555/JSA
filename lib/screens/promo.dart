@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-class HalamanKalender extends StatelessWidget {
-  const HalamanKalender({super.key});
+class HalamanPromo extends StatelessWidget {
+  const HalamanPromo({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kalender'),
+        title: Text("Promo"),
       ),
     );
   }

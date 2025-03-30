@@ -18,7 +18,6 @@ class _HalamanMasukState extends State<HalamanMasuk> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SingleChildScrollView(
         // utama
         child: Center(

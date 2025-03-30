@@ -1,9 +1,61 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/screens/Kalender.dart';
 import 'priceList.dart';
 import 'aktivitas.dart';
 import 'tentangKami.dart';
+import 'promo.dart';
 import 'package:flutter_application_1/main.dart';
 
+class EventPromo {
+  final String imageUrl;
+
+  EventPromo({required this.imageUrl});
+}
+
+List<EventPromo> events = [
+  EventPromo(imageUrl: "https://via.placeholder.com/150"),
+  EventPromo(imageUrl: "https://via.placeholder.com/150"),
+  EventPromo(imageUrl: "https://via.placeholder.com/150"),
+];
+
+class Courts {
+  final String imageUrl;
+  final String name;
+
+  Courts({required this.imageUrl, required this.name});
+}
+
+List<Courts> courts = [
+  Courts(imageUrl: "https://via.placeholder.com/150", name: "Court 1"),
+  Courts(imageUrl: "https://via.placeholder.com/150", name: "Court 2"),
+  Courts(imageUrl: "https://via.placeholder.com/150", name: "Court 3"),
+];
+
+class Riwayat {
+  final String tanggal;
+  final String keterangan;
+
+  Riwayat({required this.tanggal, required this.keterangan});
+}
+
+List<Riwayat> riwayats = [
+  Riwayat(tanggal: "2022-01-01", keterangan: "Lapangan Berhasil Terbooking"),
+  Riwayat(tanggal: "2022-01-02", keterangan: "Lapangan Berhasil Terbooking"),
+  Riwayat(tanggal: "2022-01-03", keterangan: "Lapangan Berhasil Terbooking"),
+];
+
+class Terjadwal {
+  final String tanggal;
+  final String jam;
+  final String lapangan;
+
+  Terjadwal({required this.tanggal, required this.jam, required this.lapangan});
+}
+
+List<Terjadwal> terjadwals = [
+  Terjadwal(tanggal: "2022-01-01", jam: "08:00", lapangan: "Lapangan 1"),
+  Terjadwal(tanggal: "2022-01-02", jam: "10:00", lapangan: "Lapangan 2"),
+];
 
 // halaman utama
 class HalamanUtamaUser extends StatefulWidget {
@@ -188,7 +240,14 @@ class _HalamanUtamaUserState extends State<HalamanUtamaUser> {
                           Padding(
                             padding: const EdgeInsets.only(right: 10),
                             child: ElevatedButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => HalamanPromo(),
+                                  ),
+                                );
+                              },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,
                                 minimumSize: Size(45, 70),
@@ -220,7 +279,14 @@ class _HalamanUtamaUserState extends State<HalamanUtamaUser> {
                           Padding(
                             padding: const EdgeInsets.only(right: 10),
                             child: ElevatedButton(
-                              onPressed: () {},
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => HalamanKalender(),
+                                  ),
+                                );
+                              },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,
                                 minimumSize: Size(45, 70),
@@ -254,12 +320,12 @@ class _HalamanUtamaUserState extends State<HalamanUtamaUser> {
                             child: ElevatedButton(
                               onPressed: () {
                                 Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
                                       (context) => const HalamanAktivitas(),
-                                ),
-                              );
+                                  ),
+                                );
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.white,
