@@ -6,6 +6,18 @@ class HalamanAktivitas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(appBar: AppBar(title: Text("Aktivitas")));
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text("Aktivitas"),
+          bottom: TabBar(tabs: [Tab(text: "Data"), Tab(text: "Pengaturan")]),
+        ),
+        body: Padding(
+          padding: EdgeInsets.all(20),
+          child: ListView(children: [ExpansionTile(title: Text("Data"))]),
+        ),
+      ),
+    );
   }
 }
