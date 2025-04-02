@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'halaman_utama_user.dart';
+import 'halaman_utama_pelanggan.dart';
+import 'package:flutter_application_1/services/firestore_service.dart';
 
 class HalamanDaftar extends StatefulWidget {
   const HalamanDaftar({super.key});
@@ -94,6 +95,7 @@ class _HalamanDaftarState extends State<HalamanDaftar> {
                 padding: const EdgeInsets.all(15.0),
                 child: ElevatedButton(
                   onPressed: () {
+                    // Validasi input username dan password
                     if (usernameController.text.isEmpty) {
                       setState(() {
                         errorTextUsername = "Username tidak boleh kosong";
@@ -107,17 +109,62 @@ class _HalamanDaftarState extends State<HalamanDaftar> {
                         errorTextPassword = "Password minimal 6 karakter";
                       });
                     } else {
+                      // Menghapus pesan error jika input valid
                       setState(() {
                         errorTextUsername = null;
                         errorTextPassword = null;
                       });
-                      Navigator.pop(context);
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HalamanUtamaUser(),
-                        ),
-                      );
+
+                      // Mengecek apakah username sudah terdaftar
+                      FirebaseService()
+                          .checkUser(usernameController.text)
+                          .then((registed) {
+                            if (registed) {
+                              // Jika username sudah terdaftar
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Username sudah terdaftar.'),
+                                ),
+                              );
+                            } else {
+                              // Jika username belum terdaftar
+                              FirebaseService()
+                                  .addUser(
+                                    usernameController.text,
+                                    passwordController.text,
+                                  )
+                                  .then((_) {
+                                    // Setelah user berhasil ditambahkan, arahkan ke halaman utama
+                                    Navigator.pop(
+                                      context,
+                                    ); 
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) =>
+                                                const HalamanUtamaPelanggan(),
+                                      ),
+                                    );
+                                  })
+                                  .catchError((e) {
+                                    // Menangani error saat penambahan user
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Gagal menambahkan user: $e',
+                                        ),
+                                      ),
+                                    );
+                                  });
+                            }
+                          })
+                          .catchError((e) {
+                            // Menangani error saat pengecekan username
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Terjadi kesalahan: $e')),
+                            );
+                          });
                     }
                   },
                   style: ElevatedButton.styleFrom(

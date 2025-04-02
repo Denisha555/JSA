@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'halaman_utama_user.dart';
+import 'halaman_utama_pelanggan.dart';
+import 'package:flutter_application_1/services/firestore_service.dart';
+import 'package:flutter_application_1/screens_admin/halaman_utama_admin.dart';
 
 class HalamanMasuk extends StatefulWidget {
   const HalamanMasuk({super.key});
@@ -94,23 +96,89 @@ class _HalamanMasukState extends State<HalamanMasuk> {
                 padding: const EdgeInsets.only(top: 20),
                 child: ElevatedButton(
                   onPressed: () {
-                    setState(() {
-                      if (usernameController.text.isEmpty) {
+                    // Validasi input
+                    if (usernameController.text.isEmpty) {
+                      setState(() {
                         errorTextUsername = "Username tidak boleh kosong";
-                      } else if (passwordController.text.isEmpty) {
+                      });
+                    } else if (passwordController.text.isEmpty) {
+                      setState(() {
                         errorTextPassword = "Password tidak boleh kosong";
-                      } else {
+                      });
+                    } else {
+                      // Jika tidak ada error, kosongkan error text
+                      setState(() {
                         errorTextUsername = null;
                         errorTextPassword = null;
-                        Navigator.pop(context);
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const HalamanUtamaUser(),
-                          ),
-                        );
-                      }
-                    });
+                      });
+
+                      // Pengecekan username dan password
+                      FirebaseService()
+                          .checkPassword(
+                            usernameController.text,
+                            passwordController.text,
+                          )
+                          .then((valid) {
+                            if (valid) {
+                              // Jika valid, masuk ke halaman utama
+                              Navigator.pop(context);
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) =>
+                                          const HalamanUtamaPelanggan(),
+                                ),
+                              );
+                            } else {
+                              // Jika tidak valid, muncul pesan error
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    'Username atau password tidak sesuai.',
+                                  ),
+                                ),
+                              );
+                            }
+                          })
+                          .catchError((e) {
+                            // Jika terjadi error saat pengecekan
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Terjadi kesalahan: $e')),
+                            );
+                          });
+                    }
+
+                    if (usernameController.text == "admin_1" &&
+                        passwordController.text == "admin_1") {
+                      FirebaseService().checkUser("admin_1").then((registed) {
+                        if (registed) {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HalamanUtamaAdmin(),
+                            ),
+                          );
+                        } else {
+                          FirebaseService().addUser("admin_1", "admin_1").then((
+                            _,
+                          ) {
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const HalamanUtamaAdmin(),
+                              ),
+                            );
+                          });
+                        }
+                      });
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Username atau password salah'),
+                        ),
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color.fromRGBO(133, 170, 211, 1),

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'services/firestore_service.dart';
-import 'screens/daftar.dart';
-import 'screens/masuk.dart';
+import 'screens_pelanggan/daftar.dart';
+import 'screens_pelanggan/masuk.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

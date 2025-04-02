@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screens/Kalender.dart';
+import 'package:flutter_application_1/screens_pelanggan/Kalender.dart';
 import 'price_list.dart';
 import 'aktivitas.dart';
 import 'tentang_kami.dart';
@@ -31,41 +31,15 @@ List<Courts> courts = [
   Courts(imageUrl: "https://via.placeholder.com/150", name: "Court 3"),
 ];
 
-class Riwayat {
-  final String tanggal;
-  final String keterangan;
-
-  Riwayat({required this.tanggal, required this.keterangan});
-}
-
-List<Riwayat> riwayats = [
-  Riwayat(tanggal: "2022-01-01", keterangan: "Lapangan Berhasil Terbooking"),
-  Riwayat(tanggal: "2022-01-02", keterangan: "Lapangan Berhasil Terbooking"),
-  Riwayat(tanggal: "2022-01-03", keterangan: "Lapangan Berhasil Terbooking"),
-];
-
-class Terjadwal {
-  final String tanggal;
-  final String jam;
-  final String lapangan;
-
-  Terjadwal({required this.tanggal, required this.jam, required this.lapangan});
-}
-
-List<Terjadwal> terjadwals = [
-  Terjadwal(tanggal: "2022-01-01", jam: "08:00", lapangan: "Lapangan 1"),
-  Terjadwal(tanggal: "2022-01-02", jam: "10:00", lapangan: "Lapangan 2"),
-];
-
 // halaman utama
-class HalamanUtamaUser extends StatefulWidget {
-  const HalamanUtamaUser({super.key});
+class HalamanUtamaPelanggan extends StatefulWidget {
+  const HalamanUtamaPelanggan({super.key});
 
   @override
-  State<HalamanUtamaUser> createState() => _HalamanUtamaUserState();
+  State<HalamanUtamaPelanggan> createState() => _HalamanUtamaPelanggan();
 }
 
-class _HalamanUtamaUserState extends State<HalamanUtamaUser> {
+class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -96,7 +70,7 @@ class _HalamanUtamaUserState extends State<HalamanUtamaUser> {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const HalamanUtamaUser(),
+                      builder: (context) => const HalamanUtamaPelanggan(),
                     ),
                   );
                 },
@@ -112,7 +86,7 @@ class _HalamanUtamaUserState extends State<HalamanUtamaUser> {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const HalamanUtamaUser(),
+                      builder: (context) => const HalamanUtamaPelanggan(),
                     ),
                   );
                 },
