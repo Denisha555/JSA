@@ -106,53 +106,16 @@ class _HalamanMasukState extends State<HalamanMasuk> {
                         errorTextPassword = "Password tidak boleh kosong";
                       });
                     } else {
-                      // Jika tidak ada error, kosongkan error text
                       setState(() {
                         errorTextUsername = null;
                         errorTextPassword = null;
                       });
-
-                      // Pengecekan username dan password
-                      FirebaseService()
-                          .checkPassword(
-                            usernameController.text,
-                            passwordController.text,
-                          )
-                          .then((valid) {
-                            if (valid) {
-                              // Jika valid, masuk ke halaman utama
-                              Navigator.pop(context);
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) =>
-                                          const HalamanUtamaPelanggan(),
-                                ),
-                              );
-                            } else {
-                              // Jika tidak valid, muncul pesan error
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Username atau password tidak sesuai.',
-                                  ),
-                                ),
-                              );
-                            }
-                          })
-                          .catchError((e) {
-                            // Jika terjadi error saat pengecekan
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Terjadi kesalahan: $e')),
-                            );
-                          });
                     }
 
-                    if (usernameController.text == "admin_1" &&
-                        passwordController.text == "admin_1") {
-                      FirebaseService().checkUser("admin_1").then((registed) {
-                        if (registed) {
+                    // Jika username dan password adalah admin
+                    if (usernameController.text == "admin_1" && passwordController.text == "admin_1") {
+                      FirebaseService().checkUser(usernameController.text).then((registered) {
+                        if (registered) {
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
@@ -160,7 +123,7 @@ class _HalamanMasukState extends State<HalamanMasuk> {
                             ),
                           );
                         } else {
-                          FirebaseService().addUser("admin_1", "admin_1").then((
+                          FirebaseService().addUser(usernameController.text, passwordController.text).then((
                             _,
                           ) {
                             Navigator.pushReplacement(
@@ -172,13 +135,35 @@ class _HalamanMasukState extends State<HalamanMasuk> {
                           });
                         }
                       });
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Username atau password salah'),
-                        ),
-                      );
                     }
+                    // Pengecekan login untuk pelanggan
+                    FirebaseService()
+                        .checkPassword(usernameController.text, passwordController.text)
+                        .then((valid) {
+                          if (valid) {
+                            Navigator.pop(context);
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => const HalamanUtamaPelanggan(),
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Username atau password tidak sesuai.',
+                                ),
+                              ),
+                            );
+                          }
+                        })
+                        .catchError((e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Terjadi kesalahan: $e')),
+                          );
+                        });
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Color.fromRGBO(133, 170, 211, 1),
