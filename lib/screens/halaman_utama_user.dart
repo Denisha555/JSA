@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/screens/Kalender.dart';
-import 'priceList.dart';
+import 'price_list.dart';
 import 'aktivitas.dart';
-import 'tentangKami.dart';
+import 'tentang_kami.dart';
 import 'promo.dart';
 import 'package:flutter_application_1/main.dart';
 
