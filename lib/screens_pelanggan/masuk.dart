@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'halaman_utama_pelanggan.dart';
+import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/screens_admin/halaman_utama_admin.dart';
 
@@ -146,7 +146,7 @@ class _HalamanMasukState extends State<HalamanMasuk> {
                               context,
                               MaterialPageRoute(
                                 builder:
-                                    (context) => const HalamanUtamaPelanggan(),
+                                    (context) => const PilihHalamanPelanggan(),
                               ),
                             );
                           } else {

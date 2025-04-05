@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'halaman_utama_pelanggan.dart';
+import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 
 class HalamanDaftar extends StatefulWidget {
@@ -143,7 +143,7 @@ class _HalamanDaftarState extends State<HalamanDaftar> {
                                       MaterialPageRoute(
                                         builder:
                                             (context) =>
-                                                const HalamanUtamaPelanggan(),
+                                                const PilihHalamanPelanggan(),
                                       ),
                                     );
                                   })

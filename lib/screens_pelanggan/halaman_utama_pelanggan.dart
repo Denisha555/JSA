@@ -3,8 +3,7 @@ import 'package:flutter_application_1/screens_pelanggan/Kalender.dart';
 import 'price_list.dart';
 import 'aktivitas.dart';
 import 'tentang_kami.dart';
-import 'promo.dart';
-import 'package:flutter_application_1/main.dart';
+import 'profile.dart';
 
 class EventPromo {
   final String imageUrl;
@@ -31,83 +30,20 @@ List<Courts> courts = [
   Courts(imageUrl: "https://via.placeholder.com/150", name: "Court 3"),
 ];
 
-// halaman utama
 class HalamanUtamaPelanggan extends StatefulWidget {
   const HalamanUtamaPelanggan({super.key});
 
   @override
-  State<HalamanUtamaPelanggan> createState() => _HalamanUtamaPelanggan();
+  State<HalamanUtamaPelanggan> createState() => _HalamanUtama();
 }
 
-class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
+
+class _HalamanUtama extends State<HalamanUtamaPelanggan> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 10, right: 10),
-              child: SizedBox(
-                height: 90,
-                child: DrawerHeader(
-                  child: Text(
-                    'Dashboard',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: ListTile(
-                leading: Icon(Icons.home),
-                title: Text("Home"),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const HalamanUtamaPelanggan(),
-                    ),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: ListTile(
-                leading: Icon(Icons.account_circle_outlined),
-                title: Text("Profil"),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const HalamanUtamaPelanggan(),
-                    ),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: 10),
-              child: ListTile(
-                leading: Icon(Icons.logout),
-                title: Text("Logout"),
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const MainApp()),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+      appBar: AppBar(
+        title: Text("Dashboard")
       ),
       body: SingleChildScrollView(
         scrollDirection: Axis.vertical,
@@ -159,182 +95,20 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
               ),
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Container(
-                    height: 75,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Padding(
-                      padding: EdgeInsets.all(5),
-                      child: Row(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(right: 10),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => HalamanPriceList(),
-                                  ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                minimumSize: Size(45, 70),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 10),
-                                    child: Image.asset(
-                                      "assets/image/PriceList.jpeg",
-                                      width: 30,
-                                      height: 30,
-                                    ),
-                                  ),
-                                  Text(
-                                    "Price List",
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(right: 10),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => HalamanPromo(),
-                                  ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                minimumSize: Size(45, 70),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 10),
-                                    child: Image.asset(
-                                      "assets/image/Promo.jpeg",
-                                      width: 30,
-                                      height: 30,
-                                    ),
-                                  ),
-                                  Text(
-                                    "Promo",
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(right: 10),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => HalamanKalender(),
-                                  ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                minimumSize: Size(45, 70),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 10),
-                                    child: Image.asset(
-                                      "assets/image/Kalender.jpeg",
-                                      width: 30,
-                                      height: 30,
-                                    ),
-                                  ),
-                                  Text(
-                                    "Kalender",
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.only(right: 10),
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder:
-                                      (context) => const HalamanAktivitas(),
-                                  ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                minimumSize: Size(45, 70),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 10),
-                                    child: Image.asset(
-                                      "assets/image/Riwayat.jpeg",
-                                      width: 30,
-                                      height: 30,
-                                    ),
-                                  ),
-                                  Text(
-                                    "Aktivitas",
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 10,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          ElevatedButton(
+                child: SizedBox(
+                  height: 75,
+                  child: Padding(
+                    padding: EdgeInsets.all(5),
+                    child: Row(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: ElevatedButton(
                             onPressed: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder:
-                                      (context) => const HalamanTentangKami(),
+                                  builder: (context) => HalamanPriceList(),
                                 ),
                               );
                             },
@@ -350,13 +124,13 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                                 Padding(
                                   padding: const EdgeInsets.only(top: 10),
                                   child: Image.asset(
-                                    "assets/image/TentangKami.png",
+                                    "assets/image/PriceList.jpeg",
                                     width: 30,
                                     height: 30,
                                   ),
                                 ),
                                 Text(
-                                  "Tentang Kami",
+                                  "Price List",
                                   style: TextStyle(
                                     color: Colors.black,
                                     fontSize: 10,
@@ -365,8 +139,84 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                               ],
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(right: 10),
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => HalamanKalender(),
+                                ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              minimumSize: Size(45, 70),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 10),
+                                  child: Image.asset(
+                                    "assets/image/Kalender.jpeg",
+                                    width: 30,
+                                    height: 30,
+                                  ),
+                                ),
+                                Text(
+                                  "Booking",
+                                  style: TextStyle(
+                                    color: Colors.black,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (context) => const HalamanTentangKami(),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            minimumSize: Size(45, 70),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 10),
+                                child: Image.asset(
+                                  "assets/image/TentangKami.png",
+                                  width: 30,
+                                  height: 30,
+                                ),
+                              ),
+                              Text(
+                                "Tentang Kami",
+                                style: TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -374,66 +224,23 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Container(
-                  height: 260,
+                  height: 230,
                   decoration: BoxDecoration(
                     color: Color.fromRGBO(133, 170, 211, 1),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
                       Padding(
-                        padding: EdgeInsets.only(top: 10, left: 20),
-                        child: Text(
-                          "Upcoming Events",
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
+                        padding: const EdgeInsets.all(20),
+                        child: Container(
+                          width: 140,
+                          height: 185,
+                          decoration: BoxDecoration(
                             color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                      ),
-                      Row(
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.only(top: 10, left: 20),
-                            child: Container(
-                              width: 140,
-                              height: 185,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.only(top: 10, left: 20),
-                            child: Container(
-                              width: 140,
-                              height: 185,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: EdgeInsets.only(
-                              top: 10,
-                              left: 20,
-                              right: 20,
-                            ),
-                            child: Container(
-                              width: 140,
-                              height: 185,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                     ],
                   ),

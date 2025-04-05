@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
+import 'halaman_utama_pelanggan.dart';
+import 'profile.dart';
 
 class Riwayat {
   final String tanggal;
@@ -28,9 +30,14 @@ List<Terjadwal> terjadwals = [
 ];
 
 // Halaman Aktivitas
-class HalamanAktivitas extends StatelessWidget {
+class HalamanAktivitas extends StatefulWidget {
   const HalamanAktivitas({super.key});
 
+  @override
+  State<HalamanAktivitas> createState() => _HalamanAktivitasState();
+}
+
+class _HalamanAktivitasState extends State<HalamanAktivitas> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(

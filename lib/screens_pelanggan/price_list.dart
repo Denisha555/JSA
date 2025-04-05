@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
 // Halaman Price List
-class HalamanPriceList extends StatelessWidget {
+class HalamanPriceList extends StatefulWidget {
   const HalamanPriceList({super.key});
 
+  @override
+  State<HalamanPriceList> createState() => _HalamanPriceListState();
+}
+
+class _HalamanPriceListState extends State<HalamanPriceList> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
