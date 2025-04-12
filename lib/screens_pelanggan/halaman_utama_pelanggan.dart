@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/screens_pelanggan/Kalender.dart';
 import 'price_list.dart';
-import 'aktivitas.dart';
 import 'tentang_kami.dart';
-import 'profile.dart';
 
 class EventPromo {
   final String imageUrl;
@@ -37,14 +35,11 @@ class HalamanUtamaPelanggan extends StatefulWidget {
   State<HalamanUtamaPelanggan> createState() => _HalamanUtama();
 }
 
-
 class _HalamanUtama extends State<HalamanUtamaPelanggan> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Dashboard")
-      ),
+      appBar: AppBar(title: Text("Dashboard")),
       body: SingleChildScrollView(
         scrollDirection: Axis.vertical,
         child: Padding(
@@ -53,52 +48,67 @@ class _HalamanUtama extends State<HalamanUtamaPelanggan> {
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(right: 10, bottom: 10),
-                    child: Container(
-                      width: 155,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Color.fromRGBO(230, 230, 230, 1),
-                        borderRadius: BorderRadius.circular(10),
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 10),
+                child: Container(
+                  height: 150,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.grey.shade400,
+                        blurRadius: 1.2,
+                        offset: Offset(0, 0.5),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 10, left: 10),
-                        child: Text(
-                          "Lapangan",
-                          style: TextStyle(fontSize: 15, color: Colors.black),
+                    ],
+                  ),
+                  child: Padding(
+                    padding: EdgeInsets.all(20.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.circle, color: Colors.green, size: 15),
+                            SizedBox(width: 10),
+                            Text(
+                              "Terkonfirmasi",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                        Text(
+                          "Lapangan 2 • 10:00 - 12:00 • 20/02/2023",
+                          style: TextStyle(fontSize: 15),
+                        ),
+                        SizedBox(height: 10),
+                        ElevatedButton(
+                          onPressed: () {},
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                          ),
+                          child: Text(
+                            "Batalkan",
+                            style: TextStyle(fontSize: 15, color: Colors.white),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Container(
-                      width: 155,
-                      height: 80,
-                      decoration: BoxDecoration(
-                        color: Color.fromRGBO(230, 230, 230, 1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.only(top: 10, left: 10),
-                        child: Text(
-                          "Jam",
-                          style: TextStyle(fontSize: 15, color: Colors.black),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.only(bottom: 10),
                 child: SizedBox(
                   height: 75,
                   child: Padding(
-                    padding: EdgeInsets.all(5),
+                    padding: EdgeInsets.all(3),
                     child: Row(
                       children: [
                         Padding(
@@ -169,7 +179,7 @@ class _HalamanUtama extends State<HalamanUtamaPelanggan> {
                                   ),
                                 ),
                                 Text(
-                                  "Booking",
+                                  "Kalender",
                                   style: TextStyle(
                                     color: Colors.black,
                                     fontSize: 10,
@@ -289,3 +299,4 @@ class _HalamanUtama extends State<HalamanUtamaPelanggan> {
     );
   }
 }
+

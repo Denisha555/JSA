@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
-import 'halaman_utama_pelanggan.dart';
-import 'profile.dart';
+
 
 class Riwayat {
   final String tanggal;

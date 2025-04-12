@@ -168,7 +168,7 @@ class _HalamanDaftarState extends State<HalamanDaftar> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Color.fromRGBO(133, 170, 211, 1),
+                    backgroundColor: Color.fromRGBO(42, 92, 170, 1),
                     minimumSize: const Size(300, 50),
                   ),
                   child: const Text(
