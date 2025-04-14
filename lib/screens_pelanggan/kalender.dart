@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/constants_file.dart';
 
-// Konstanta warna untuk konsistensi
-const Color primaryColor = Color.fromRGBO(42, 92, 170, 1);
-const Color availableColor = Color(0xFFE0F7E0);
-const Color bookedColor = Color(0xFFFAE0E0);
 
 class HalamanKalender extends StatefulWidget {
   const HalamanKalender({super.key});
@@ -451,13 +448,71 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     );
   }
 
+  // Widget untuk sel header
+  Widget _buildHeaderCell(String text, {double width = 100}) {
+    return Container(
+      width: width,
+      height: 50,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: primaryColor,
+        border: Border.all(color: Colors.white, width: 0.5),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  // Widget untuk sel waktu
+  Widget _buildTimeCell(String time) {
+    return Container(
+      width: 70,
+      height: 50,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Text(
+        time,
+        style: const TextStyle(fontWeight: FontWeight.w500),
+      ),
+    );
+  }
+
+  // Widget untuk sel lapangan
+  Widget _buildCourtCell(String time, String court, bool isBooked) {
+    return GestureDetector(
+      onTap: () => _showBookingDialog(time, court, isBooked),
+      child: Container(
+        width: 100,
+        height: 50,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isBooked ? bookedColor : availableColor,
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child: Text(
+          isBooked ? 'Booked' : 'Available',
+          style: TextStyle(
+            color: isBooked ? Colors.red.shade700 : Colors.green.shade700,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Kalender'),
-        centerTitle: true,
-        elevation: 0,
       ),
       body: Column(
         children: [
@@ -610,63 +665,5 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     );
   }
 
-  // Widget untuk sel header
-  Widget _buildHeaderCell(String text, {double width = 100}) {
-    return Container(
-      width: width,
-      height: 50,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: primaryColor,
-        border: Border.all(color: Colors.white, width: 0.5),
-      ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  // Widget untuk sel waktu
-  Widget _buildTimeCell(String time) {
-    return Container(
-      width: 70,
-      height: 50,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Text(
-        time,
-        style: const TextStyle(fontWeight: FontWeight.w500),
-      ),
-    );
-  }
-
-  // Widget untuk sel lapangan
-  Widget _buildCourtCell(String time, String court, bool isBooked) {
-    return GestureDetector(
-      onTap: () => _showBookingDialog(time, court, isBooked),
-      child: Container(
-        width: 100,
-        height: 50,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isBooked ? bookedColor : availableColor,
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Text(
-          isBooked ? 'Booked' : 'Available',
-          style: TextStyle(
-            color: isBooked ? Colors.red.shade700 : Colors.green.shade700,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
+  
 }

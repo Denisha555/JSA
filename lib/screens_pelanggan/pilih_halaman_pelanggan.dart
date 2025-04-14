@@ -3,13 +3,6 @@ import 'halaman_utama_pelanggan.dart';
 import 'aktivitas.dart';
 import 'profile.dart';
 
-
-final List<Widget> page = [
-  HalamanUtamaPelanggan(),
-  HalamanAktivitas(),
-  HalamanProfil(),
-];
-
 class PilihHalamanPelanggan extends StatefulWidget {
   const PilihHalamanPelanggan({super.key});
 
@@ -19,44 +12,50 @@ class PilihHalamanPelanggan extends StatefulWidget {
 
 class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
   int _selectedIndex = 0;
+  
+  // Daftar halaman dengan type safety
+  static const List<Widget> _pages = <Widget>[
+    HalamanUtamaPelanggan(),
+    HalamanAktivitas(),
+    HalamanProfil(),
+  ];
+
   void _onItemTapped(int index) {
-    switch (index) {
-      case 0: 
-        setState(() {
-          _selectedIndex = 0;
-        });
-      case 1:
-        setState(() {
-          _selectedIndex = 1;
-        });
-      case 2: 
-        setState(() {
-          _selectedIndex = 2;
-        });
-    }
+    setState(() {
+      _selectedIndex = index;
+    });
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: page[_selectedIndex],
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
+      ),
       bottomNavigationBar: BottomNavigationBar(
-      currentIndex: _selectedIndex, 
-      onTap: _onItemTapped, 
-      items: const <BottomNavigationBarItem>[
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.assignment),
-          label: 'Aktivitas',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person),
-          label: 'Profil',
-        ),
-      ],
-    ),
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        selectedItemColor: Colors.blue, 
+        unselectedItemColor: Colors.grey, 
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Beranda',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.assignment),
+            activeIcon: Icon(Icons.history),
+            label: 'Riwayat',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profil',
+          ),
+        ],
+      ),
     );
   }
 }

@@ -16,7 +16,7 @@ class _HalamanPriceListState extends State<HalamanPriceList> {
       body: Column(
         children: [
           Padding(
-            padding: EdgeInsets.only(left: 20, right: 20, top: 10),
+            padding: EdgeInsets.only(left: 20, right: 20, top: 20),
             child: Container(
               width: double.infinity,
               padding: EdgeInsets.all(15),

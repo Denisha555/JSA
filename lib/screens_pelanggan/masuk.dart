@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/screens_admin/halaman_utama_admin.dart';
+import 'package:flutter_application_1/screen_owner/halaman_utama_owner.dart';
+import 'package:flutter_application_1/constants_file.dart';
 
-
-const Color primaryColor = Color.fromRGBO(42, 92, 170, 1);
-const double borderRadius = 30.0;
 
 class HalamanMasuk extends StatefulWidget {
   const HalamanMasuk({super.key});
@@ -14,14 +13,15 @@ class HalamanMasuk extends StatefulWidget {
   State<HalamanMasuk> createState() => _HalamanMasukState();
 }
 
-class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderStateMixin {
+class _HalamanMasukState extends State<HalamanMasuk>
+    with SingleTickerProviderStateMixin {
   bool _obscureText = true;
   bool _isLoading = false;
   TextEditingController usernameController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
   String? errorTextUsername;
   String? errorTextPassword;
-  
+
   // Menambahkan animasi
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -34,23 +34,22 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
       vsync: this,
       duration: const Duration(milliseconds: 800),
     );
-    
+
     _fadeAnimation = CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeIn,
     );
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.2),
       end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeOut,
-    ));
-    
+    ).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeOut),
+    );
+
     _animationController.forward();
   }
-  
+
   @override
   void dispose() {
     usernameController.dispose();
@@ -81,11 +80,16 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
 
     try {
       // Jika username dan password adalah admin
-      if (usernameController.text == "admin_1" && passwordController.text == "admin_1") {
+      if (usernameController.text == "admin_1" &&
+          passwordController.text == "admin_1") {
         try {
-          bool registered = await FirebaseService().checkUser(usernameController.text);
+          bool registered = await FirebaseService().checkUser(
+            usernameController.text,
+          );
+          // jika akun sudah ada
           if (registered) {
             if (mounted) {
+              Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
@@ -93,8 +97,12 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
                 ),
               );
             }
+            // jika akun belum ada tambah data ke database
           } else {
-            await FirebaseService().addUser(usernameController.text, passwordController.text);
+            await FirebaseService().addUser(
+              usernameController.text,
+              passwordController.text,
+            );
             if (mounted) {
               Navigator.pushReplacement(
                 context,
@@ -107,16 +115,61 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
           return;
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Terjadi kesalahan: $e')),
-            );
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
           }
         }
       }
-    
+
+      // jika username dan password adalah owner
+      if (usernameController.text == "owner_1" &&
+          passwordController.text == "owner_1") {
+        try {
+          bool registered = await FirebaseService().checkUser(
+            usernameController.text,
+          );
+          // jika sudah ada akun
+          if (registered) {
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HalamanUtamaOwner(),
+                ),
+              );
+            }
+            // jika belum ada akun tambah data ke database
+          } else {
+            await FirebaseService().addUser(
+              usernameController.text,
+              passwordController.text,
+            );
+            if (mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HalamanUtamaOwner(),
+                ),
+              );
+            }
+          }
+          return;
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
+          }
+        }
+      }
+
       // Pengecekan login untuk pelanggan
-      bool valid = await FirebaseService().checkPassword(usernameController.text, passwordController.text);
-      
+      bool valid = await FirebaseService().checkPassword(
+        usernameController.text,
+        passwordController.text,
+      );
+      // jika username dan password benar
       if (mounted) {
         if (valid) {
           Navigator.pop(context);
@@ -126,6 +179,7 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
               builder: (context) => const PilihHalamanPelanggan(),
             ),
           );
+        // jika username dan password salah
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -137,9 +191,9 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Terjadi kesalahan: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
       }
     } finally {
       if (mounted) {
@@ -154,11 +208,9 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     return Scaffold(
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.transparent,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.of(context).pop(),
@@ -188,7 +240,7 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
                           height: screenWidth * 0.6,
                         ),
                       ),
-                      
+
                       // Judul login
                       const Padding(
                         padding: EdgeInsets.only(bottom: 30.0),
@@ -197,11 +249,11 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
                           style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: primaryColor
+                            color: primaryColor,
                           ),
                         ),
                       ),
-                      
+
                       // Username field
                       TextField(
                         controller: usernameController,
@@ -210,21 +262,36 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(color: primaryColor, width: 2.0),
+                            borderSide: const BorderSide(
+                              color: primaryColor,
+                              width: 2.0,
+                            ),
                           ),
-                          prefixIcon: const Icon(Icons.person, color: primaryColor),
+                          prefixIcon: const Icon(
+                            Icons.person,
+                            color: primaryColor,
+                          ),
                           labelText: "Username",
                           labelStyle: const TextStyle(color: Colors.grey),
                           errorText: errorTextUsername,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 20.0),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 15.0,
+                            horizontal: 20.0,
+                          ),
                         ),
                         onChanged: (value) {
                           setState(() {
@@ -232,10 +299,9 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
                           });
                         },
                       ),
-                      
-                      // Space between fields
+
                       const SizedBox(height: 15),
-                      
+
                       // Password field
                       TextField(
                         controller: passwordController,
@@ -245,24 +311,41 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
                           fillColor: Colors.white,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
                           ),
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(color: primaryColor, width: 2.0),
+                            borderSide: const BorderSide(
+                              color: primaryColor,
+                              width: 2.0,
+                            ),
                           ),
-                          prefixIcon: const Icon(Icons.lock, color: primaryColor),
+                          prefixIcon: const Icon(
+                            Icons.lock,
+                            color: primaryColor,
+                          ),
                           labelText: "Password",
                           labelStyle: const TextStyle(color: Colors.grey),
                           errorText: errorTextPassword,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 15.0, horizontal: 20.0),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 15.0,
+                            horizontal: 20.0,
+                          ),
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscureText ? Icons.visibility : Icons.visibility_off,
+                              _obscureText
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
                               color: Colors.grey,
                             ),
                             onPressed: () {
@@ -279,10 +362,9 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
                         },
                         onSubmitted: (_) => _login(),
                       ),
-                      
-                      // Space before button
+
                       const SizedBox(height: 30),
-                      
+
                       // Login button
                       SizedBox(
                         width: double.infinity,
@@ -291,29 +373,34 @@ class _HalamanMasukState extends State<HalamanMasuk> with SingleTickerProviderSt
                           onPressed: _isLoading ? null : _login,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryColor,
-                            disabledBackgroundColor: primaryColor.withOpacity(0.6),
+                            disabledBackgroundColor: primaryColor.withOpacity(
+                              0.6,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(borderRadius),
                             ),
                             elevation: 3,
                           ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                    strokeWidth: 3,
+                          child:
+                              _isLoading
+                                  ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                      strokeWidth: 3,
+                                    ),
+                                  )
+                                  : const Text(
+                                    "Masuk",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
                                   ),
-                                )
-                              : const Text(
-                                  "Masuk",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
                         ),
                       ),
                     ],

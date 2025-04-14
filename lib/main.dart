@@ -2,12 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'screens_pelanggan/daftar.dart';
 import 'screens_pelanggan/masuk.dart';
-
-const Color primaryColor = Color.fromRGBO(42, 92, 170, 1);
-const Color backgroundColor = Colors.white;
-const double defaultPadding = 20.0;
-const double buttonHeight = 50.0;
-const double borderRadius = 10.0;
+import 'package:flutter_application_1/constants_file.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,7 +33,7 @@ class MyApp extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
           centerTitle: true,
-          elevation: 0,
+          elevation: 2,
         ),
         iconTheme: const IconThemeData(color: Colors.black),
         elevatedButtonTheme: ElevatedButtonThemeData(
@@ -86,6 +81,7 @@ class MyAppError extends StatelessWidget {
   }
 }
 
+// halaman loading sebelum masuk ke aplikasi
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
 
@@ -102,6 +98,7 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _initializeApp() async {
     await Future.delayed(const Duration(seconds: 2));
+    // berpindah ke halaman utama
     if (mounted) {
       Navigator.pushReplacement(
         context, 
@@ -133,6 +130,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
+// halaman pertama untuk pilih daftar atau login
 class MainApp extends StatefulWidget {
   const MainApp({super.key});
 
@@ -144,6 +142,7 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
+  // memberikan sedikit animasi
   @override
   void initState() {
     super.initState();
@@ -210,6 +209,7 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
                       ),
                     ),
                   ),
+                  // button untuk masuk ke halaman masuk
                   Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: defaultPadding,
@@ -245,6 +245,7 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
                       ),
                     ),
                   ),
+                  // button untuk masuk ke halaman daftar
                   Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: defaultPadding,
