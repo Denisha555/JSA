@@ -357,6 +357,34 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     },
   };
 
+   String _formatDate(DateTime date) {
+    List<String> months = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+    List<String> days = [
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+      'Minggu',
+    ];
+
+    return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+
   void _toggleBookingStatus(String time, String court) {
     setState(() {
       if (bookingData[time]![court]!['status'] == 'booked') {
@@ -511,208 +539,6 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Dashboard',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        elevation: 2,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-      ),
-      body: Column(
-        children: [
-          _buildQuickAccessMenu(context),
-          const SizedBox(height: 16),
-          _buildDateSelector(),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 16,
-                  height: 16,
-                  color: availableColor,
-                  margin: const EdgeInsets.only(right: 4),
-                ),
-                const Text('Tersedia'),
-                const SizedBox(width: 16),
-                Container(
-                  width: 16,
-                  height: 16,
-                  color: bookedColor,
-                  margin: const EdgeInsets.only(right: 4),
-                ),
-                const Text('Sudah Dibooking'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildCalendar(selectedDate),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _showTimeSlotCourtSelectionDialog();
-        },
-        child: Icon(Icons.add),
-        backgroundColor: Colors.green,
-        tooltip: 'Add New Booking',
-      ),
-    );
-  }
-
-  // Show dialog to select time slot and court
-  void _showTimeSlotCourtSelectionDialog() {
-    String? selectedTimeSlot;
-    String? selectedCourt;
-
-    final timeSlots = bookingData.keys.toList();
-    final courts = [
-      'Lapangan 1',
-      'Lapangan 2',
-      'Lapangan 3',
-      'Lapangan 4',
-      'Lapangan 5',
-      'Lapangan 6',
-    ];
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setState) => AlertDialog(
-                  title: Text('Select Time and Court'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(labelText: 'Time Slot'),
-                        value: selectedTimeSlot,
-                        items:
-                            timeSlots.map((timeSlot) {
-                              return DropdownMenuItem<String>(
-                                value: timeSlot,
-                                child: Text(timeSlot),
-                              );
-                            }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedTimeSlot = value;
-                          });
-                        },
-                      ),
-                      SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(labelText: 'Court'),
-                        value: selectedCourt,
-                        items:
-                            courts.map((court) {
-                              return DropdownMenuItem<String>(
-                                value: court,
-                                child: Text(court),
-                              );
-                            }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedCourt = value;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        if (selectedTimeSlot == null || selectedCourt == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Please select both time slot and court',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-
-                        Navigator.pop(context);
-
-                        if (bookingData[selectedTimeSlot]![selectedCourt]!['status'] ==
-                            'booked') {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('This time slot is already booked'),
-                            ),
-                          );
-                        } else {
-                          _showAddBookingDialog(
-                            selectedTimeSlot!,
-                            selectedCourt!,
-                          );
-                        }
-                      },
-                      child: Text('Next'),
-                    ),
-                  ],
-                ),
-          ),
-    );
-  }
-
-  // Date selector widget
-  Widget _buildDateSelector() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed:
-              () => setState(() {
-                selectedDate = selectedDate.subtract(Duration(days: 1));
-              }),
-          tooltip: 'Previous Day',
-        ),
-        TextButton(
-          onPressed: () async {
-            final DateTime? picked = await showDatePicker(
-              context: context,
-              initialDate: selectedDate,
-              firstDate: DateTime(2023),
-              lastDate: DateTime(2025),
-            );
-            if (picked != null) {
-              setState(() {
-                selectedDate = picked;
-              });
-            }
-          },
-          child: Text(
-            DateFormat('dd MMMM yyyy').format(selectedDate),
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        IconButton(
-          icon: Icon(Icons.arrow_forward),
-          onPressed:
-              () => setState(() {
-                selectedDate = selectedDate.add(Duration(days: 1));
-              }),
-          tooltip: 'Next Day',
-        ),
-      ],
-    );
-  }
-
   Widget _buildCalendar(DateTime time) {
     return Expanded(
       child: SingleChildScrollView(
@@ -725,7 +551,6 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                 // Header row
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2E7D32), // primaryColor
                     borderRadius: const BorderRadius.only(
                       topLeft: Radius.circular(8),
                       topRight: Radius.circular(8),
@@ -806,7 +631,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
       height: 50,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: const Color(0xFF2E7D32), // primaryColor
+        color: primaryColor,
         border: Border.all(color: Colors.white, width: 0.5),
       ),
       child: Text(
@@ -957,6 +782,53 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Dashboard',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        elevation: 2,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+      ),
+      body: Column(
+        children: [
+          _buildQuickAccessMenu(context),
+          const SizedBox(height: 15),
+          Text(_formatDate(selectedDate), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 16,
+                  height: 16,
+                  color: availableColor,
+                  margin: const EdgeInsets.only(right: 4),
+                ),
+                const Text('Tersedia'),
+                const SizedBox(width: 16),
+                Container(
+                  width: 16,
+                  height: 16,
+                  color: bookedColor,
+                  margin: const EdgeInsets.only(right: 4),
+                ),
+                const Text('Sudah Dibooking'),
+              ],
+            ),
+          ),
+          _buildCalendar(selectedDate),
+        ],
       ),
     );
   }

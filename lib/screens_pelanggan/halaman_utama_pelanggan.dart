@@ -88,7 +88,7 @@ class rewards {
 }
 
 final rewards currentRewards = rewards(
-  currentHours: 10,
+  currentHours: 7,
 );
 
 class HalamanUtamaPelanggan extends StatefulWidget {
@@ -298,7 +298,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                   ),
                   label: const Text("Reschedule"),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
+                    backgroundColor: primaryColor,
                     foregroundColor: Colors.white,
                   ),
                 ),

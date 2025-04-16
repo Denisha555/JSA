@@ -484,8 +484,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   });
                   Navigator.pop(context);
                 },
-                child: Text('Cancel Booking'),
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text('Cancel Booking'),
               ),
             ],
           ),
@@ -619,6 +619,108 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           ],
         ),
       ),
+    );
+  }
+
+  // Show dialog to select time slot and court
+  void _showTimeSlotCourtSelectionDialog() {
+    String? selectedTimeSlot;
+    String? selectedCourt;
+
+    final timeSlots = bookingData.keys.toList();
+    final courts = [
+      'Lapangan 1',
+      'Lapangan 2',
+      'Lapangan 3',
+      'Lapangan 4',
+      'Lapangan 5',
+      'Lapangan 6',
+    ];
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => StatefulBuilder(
+            builder:
+                (context, setState) => AlertDialog(
+                  title: Text('Select Time and Court'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DropdownButtonFormField<String>(
+                        decoration: InputDecoration(labelText: 'Time Slot'),
+                        value: selectedTimeSlot,
+                        items:
+                            timeSlots.map((timeSlot) {
+                              return DropdownMenuItem<String>(
+                                value: timeSlot,
+                                child: Text(timeSlot),
+                              );
+                            }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedTimeSlot = value;
+                          });
+                        },
+                      ),
+                      SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        decoration: InputDecoration(labelText: 'Court'),
+                        value: selectedCourt,
+                        items:
+                            courts.map((court) {
+                              return DropdownMenuItem<String>(
+                                value: court,
+                                child: Text(court),
+                              );
+                            }).toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            selectedCourt = value;
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        if (selectedTimeSlot == null || selectedCourt == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Please select both time slot and court',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        Navigator.pop(context);
+
+                        if (bookingData[selectedTimeSlot]![selectedCourt]!['status'] ==
+                            'booked') {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('This time slot is already booked'),
+                            ),
+                          );
+                        } else {
+                          _showAddBookingDialog(
+                            selectedTimeSlot!,
+                            selectedCourt!,
+                          );
+                        }
+                      },
+                      child: Text('Next'),
+                    ),
+                  ],
+                ),
+          ),
     );
   }
 
@@ -803,6 +905,14 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             ),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _showTimeSlotCourtSelectionDialog();
+        },
+        backgroundColor: primaryColor,
+        tooltip: 'Add New Booking',
+        child: Icon(Icons.add, color: Colors.white),
       ),
     );
   }

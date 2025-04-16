@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
 
-
 class HalamanKalender extends StatefulWidget {
   const HalamanKalender({super.key});
 
@@ -12,11 +11,11 @@ class HalamanKalender extends StatefulWidget {
 class _HalamanKalenderState extends State<HalamanKalender> {
   // Tanggal sekarang untuk header kalender
   DateTime selectedDate = DateTime.now();
-  
+
   // Data booking (contoh data statis)
   // Di aplikasi nyata ini akan diambil dari database
   Map<String, Map<String, bool>> bookingData = {
-    '01:00 - 01:30':{
+    '01:00 - 01:30': {
       'Lapangan 1': true,
       'Lapangan 2': true,
       'Lapangan 3': true,
@@ -397,11 +396,29 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   // Format tanggal untuk header
   String _formatDate(DateTime date) {
     List<String> months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
     ];
-    List<String> days = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-    
+    List<String> days = [
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+      'Minggu',
+    ];
+
     return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
@@ -409,39 +426,50 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   void _showBookingDialog(String time, String court, bool isBooked) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(isBooked ? 'Lapangan Sudah Dibooking' : 'Booking Lapangan'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Tanggal: ${_formatDate(selectedDate)}'),
-            Text('Waktu: $time'),
-            Text('Lapangan: $court'),
-            if (isBooked)
-              const Text('Status: Sudah dibooking', style: TextStyle(color: Colors.red))
-            else
-              const Text('Status: Tersedia', style: TextStyle(color: Colors.green)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Tutup'),
-          ),
-          if (!isBooked)
-            TextButton(
-              onPressed: () {
-                // Logika untuk booking lapangan
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Berhasil booking $court pada $time')),
-                );
-              },
-              child: Text('Booking'),
+      builder:
+          (context) => AlertDialog(
+            title: Text(
+              isBooked ? 'Lapangan Sudah Dibooking' : 'Booking Lapangan',
             ),
-        ],
-      ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Tanggal: ${_formatDate(selectedDate)}'),
+                Text('Waktu: $time'),
+                Text('Lapangan: $court'),
+                if (isBooked)
+                  const Text(
+                    'Status: Sudah dibooking',
+                    style: TextStyle(color: Colors.red),
+                  )
+                else
+                  const Text(
+                    'Status: Tersedia',
+                    style: TextStyle(color: Colors.green),
+                  ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Tutup'),
+              ),
+              if (!isBooked)
+                TextButton(
+                  onPressed: () {
+                    // Logika untuk booking lapangan
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Berhasil booking $court pada $time'),
+                      ),
+                    );
+                  },
+                  child: Text('Booking'),
+                ),
+            ],
+          ),
     );
   }
 
@@ -475,10 +503,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         color: Colors.grey.shade100,
         border: Border.all(color: Colors.grey.shade300),
       ),
-      child: Text(
-        time,
-        style: const TextStyle(fontWeight: FontWeight.w500),
-      ),
+      child: Text(time, style: const TextStyle(fontWeight: FontWeight.w500)),
     );
   }
 
@@ -508,9 +533,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Kalender'),
-      ),
+      appBar: AppBar(title: const Text('Kalender')),
       body: Column(
         children: [
           // Date selector
@@ -522,7 +545,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 Text(
                   _formatDate(selectedDate),
                   style: const TextStyle(
-                    fontSize: 18, 
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: primaryColor,
                   ),
@@ -533,7 +556,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   children: [
                     ElevatedButton(
                       onPressed: () {
-                        _changeDate(selectedDate.subtract(const Duration(days: 1)));
+                        _changeDate(
+                          selectedDate.subtract(const Duration(days: 1)),
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
@@ -577,7 +602,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               ],
             ),
           ),
-          
+
           // Legenda status
           Padding(
             padding: const EdgeInsets.all(8.0),
@@ -602,10 +627,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               ],
             ),
           ),
-          
-          // Table header and content
           Expanded(
             child: SingleChildScrollView(
+              scrollDirection: Axis.vertical,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Padding(
@@ -656,7 +680,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 ),
               ),
             ),
-          ),
+          ), 
         ],
       ),
     );
