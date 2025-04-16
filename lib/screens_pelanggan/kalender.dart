@@ -430,7 +430,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             child: Text('Tutup'),
           ),
           if (!isBooked)
-            ElevatedButton(
+            TextButton(
               onPressed: () {
                 // Logika untuk booking lapangan
                 Navigator.pop(context);
@@ -438,9 +438,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   SnackBar(content: Text('Berhasil booking $court pada $time')),
                 );
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-              ),
               child: Text('Booking'),
             ),
         ],
@@ -471,7 +468,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   // Widget untuk sel waktu
   Widget _buildTimeCell(String time) {
     return Container(
-      width: 70,
+      width: 100,
       height: 50,
       alignment: Alignment.center,
       decoration: BoxDecoration(
@@ -626,7 +623,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                         ),
                         child: Row(
                           children: [
-                            _buildHeaderCell('Jam', width: 70),
+                            _buildHeaderCell('Jam', width: 100),
                             _buildHeaderCell('Lapangan 1'),
                             _buildHeaderCell('Lapangan 2'),
                             _buildHeaderCell('Lapangan 3'),
@@ -664,6 +661,4 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       ),
     );
   }
-
-  
 }

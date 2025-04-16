@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/screens_pelanggan/Kalender.dart';
 import 'price_list.dart';
 import 'tentang_kami.dart';
@@ -12,15 +13,9 @@ class EventPromo {
 
 // Sample event data
 final List<EventPromo> events = [
-  EventPromo(
-    imageUrl: "https://via.placeholder.com/150",
-  ),
-  EventPromo(
-    imageUrl: "https://via.placeholder.com/150",
-  ),
-  EventPromo(
-    imageUrl: "https://via.placeholder.com/150",
-  ),
+  EventPromo(imageUrl: "https://via.placeholder.com/150"),
+  EventPromo(imageUrl: "https://via.placeholder.com/150"),
+  EventPromo(imageUrl: "https://via.placeholder.com/150"),
 ];
 
 // Court data model
@@ -85,6 +80,17 @@ final Booking currentBooking = Booking(
   status: "Terkonfirmasi",
 );
 
+class rewards {
+  final double currentHours;
+  final double requiredHours = 20;
+
+  rewards({required this.currentHours});
+}
+
+final rewards currentRewards = rewards(
+  currentHours: 10,
+);
+
 class HalamanUtamaPelanggan extends StatefulWidget {
   const HalamanUtamaPelanggan({super.key});
 
@@ -120,10 +126,15 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                 // Quick access buttons
                 _buildQuickAccessMenu(),
 
+                const SizedBox(height: 16),
+
+                // Reward section
+                _buildRewardSection(context),
+
                 const SizedBox(height: 24),
 
-                // Promotions carousel
-                _buildPromotionsCarousel(),
+                // Promotions Events
+                _buildPromotionsEvents(),
 
                 const SizedBox(height: 24),
 
@@ -133,6 +144,105 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildRewardSection(BuildContext context) {
+    double progress = (currentRewards.currentHours / currentRewards.requiredHours).clamp(0.0, 1.0);
+    
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: primaryColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Your Rewards Progress',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              double barWidth = constraints.maxWidth;
+              double markerPos = (currentRewards.requiredHours / 2) / currentRewards.requiredHours * barWidth;
+              double markerPos2 = (currentRewards.requiredHours) / currentRewards.requiredHours * barWidth;
+
+              return Stack(
+                alignment: Alignment.centerLeft,
+                children: [
+                  // Background bar
+                  Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.blue[300],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  // Foreground progress
+                  FractionallySizedBox(
+                    widthFactor: progress,
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  // Marker (halfway point)
+                  Positioned(
+                    left: markerPos - 5, 
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.black26, width: 1),
+                      ),
+                    ),
+                  ),
+                  // marker (end point)
+                  Positioned(
+                    left: markerPos2 - 10, 
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.black26, width: 1),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${currentRewards.currentHours.toInt()}h played',
+                style: const TextStyle(color: Colors.white),
+              ),
+              Text(
+                '${(currentRewards.requiredHours - currentRewards.currentHours).clamp(0, currentRewards.requiredHours).toInt()}h to next reward',
+                style: const TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -181,7 +291,11 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                   onPressed: () {
                     // TODO: Implement reschedule functionality
                   },
-                  icon: const Icon(Icons.calendar_today, size: 16, color: Colors.white,),
+                  icon: const Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: Colors.white,
+                  ),
                   label: const Text("Reschedule"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
@@ -192,7 +306,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                   onPressed: () {
                     // TODO: Implement cancel functionality
                   },
-                  icon: const Icon(Icons.cancel, size: 16, color: Colors.white,),
+                  icon: const Icon(Icons.cancel, size: 16, color: Colors.white),
                   label: const Text("Cancel"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
@@ -210,7 +324,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
   // Quick access menu buttons
   Widget _buildQuickAccessMenu() {
     return Container(
-      height: 100,
+      height: 80,
       decoration: BoxDecoration(
         color: Colors.grey[100],
         borderRadius: BorderRadius.circular(12),
@@ -289,8 +403,8 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
     );
   }
 
-  // Promotions carousel
-  Widget _buildPromotionsCarousel() {
+  // Promotions Events
+  Widget _buildPromotionsEvents() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -336,7 +450,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
               height: 180,
               fit: BoxFit.cover,
             ),
-          ),  
+          ),
         ],
       ),
     );
@@ -443,4 +557,3 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
     );
   }
 }
-
