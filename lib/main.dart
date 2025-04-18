@@ -4,10 +4,21 @@ import 'screens_pelanggan/daftar.dart';
 import 'screens_pelanggan/masuk.dart';
 import 'package:flutter_application_1/constants_file.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: "AIzaSyDnEzhUMogNLMUD9khqGZs2UbYxKccTVNk",
+        authDomain: "jump-smash-arena.firebaseapp.com",
+        projectId: "jump-smash-arena",
+        storageBucket: "jump-smash-arena.firebasestorage.app",
+        messagingSenderId: "499652308146",
+        appId: "1:499652308146:web:93b5c15bf86ae8a86b2dab",
+        measurementId: "G-34Z6QW3F97",
+      ),
+    );
     runApp(const MyApp());
   } catch (e) {
     print('Error initializing Firebase: $e');
@@ -62,15 +73,15 @@ class MyAppError extends StatelessWidget {
             children: [
               const Icon(Icons.error, color: Colors.red, size: 50),
               const SizedBox(height: 20),
-              const Text('Gagal menginisialisasi aplikasi. Silakan coba lagi nanti.'),
+              const Text(
+                'Gagal menginisialisasi aplikasi. Silakan coba lagi nanti.',
+              ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () {
                   main();
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryColor,
-                ),
+                style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
                 child: const Text('Coba Lagi'),
               ),
             ],
@@ -101,7 +112,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // berpindah ke halaman utama
     if (mounted) {
       Navigator.pushReplacement(
-        context, 
+        context,
         MaterialPageRoute(builder: (context) => const MainApp()),
       );
     }
@@ -114,15 +125,9 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              'assets/image/LogoJSA.jpg',
-              width: 150,
-              height: 150,
-            ),
+            Image.asset('assets/image/LogoJSA.jpg', width: 150, height: 150),
             const SizedBox(height: 20),
-            CircularProgressIndicator(
-              color: primaryColor,
-            ),
+            CircularProgressIndicator(color: primaryColor),
           ],
         ),
       ),
@@ -150,10 +155,7 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _animation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    );
+    _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
     _controller.forward();
   }
 
@@ -167,7 +169,7 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
-    
+
     return Scaffold(
       body: SafeArea(
         child: FadeTransition(
@@ -201,9 +203,9 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
                       child: const Text(
                         "Selamat Datang di Jump Smash Arena!",
                         style: TextStyle(
-                          fontSize: 17, 
+                          fontSize: 17,
                           fontWeight: FontWeight.bold,
-                          color: primaryColor
+                          color: primaryColor,
                         ),
                         textAlign: TextAlign.center,
                       ),
@@ -226,10 +228,7 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
-                        minimumSize: Size(
-                          screenWidth * 0.85, 
-                          buttonHeight
-                        ),
+                        minimumSize: Size(screenWidth * 0.85, buttonHeight),
                         elevation: 3,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(borderRadius),
@@ -262,10 +261,7 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        minimumSize: Size(
-                          screenWidth * 0.85, 
-                          buttonHeight
-                        ),
+                        minimumSize: Size(screenWidth * 0.85, buttonHeight),
                         elevation: 0,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(borderRadius),

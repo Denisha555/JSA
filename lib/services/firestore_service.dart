@@ -31,6 +31,7 @@ class FirebaseService {
     }
   }
 
+  // Fungsi untuk mengecek apakah password user benar
   Future<bool> checkPassword(String userName, String password) async {
     try {
       CollectionReference users = firestore.collection('users');
@@ -46,6 +47,16 @@ class FirebaseService {
       }
     } catch (e) {
       throw Exception('Error Checking User: $e');
+    }
+  }
+
+  // Fungsi untuk menyimpan gambar harga ke Firestore
+  Future <void> savePriceImage(String imageUrl) async {
+    try {
+      CollectionReference pricelists = firestore.collection('pricelists');
+      await pricelists.add({'image': imageUrl});
+    } catch (e) {
+      throw Exception('Error Saving Image: $e');
     }
   }
 }

@@ -3,8 +3,6 @@ import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/constants_file.dart';
 
-
-
 class HalamanDaftar extends StatefulWidget {
   const HalamanDaftar({super.key});
 
@@ -82,37 +80,45 @@ class _HalamanDaftarState extends State<HalamanDaftar>
         .checkUser(usernameController.text)
         .then((registed) {
           if (registed) {
-            // Jika username sudah terdaftar
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Username sudah terdaftar.')),
-            );
+            if (mounted) {
+              // Jika username sudah terdaftar
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Username sudah terdaftar.')),
+              );
+            }
           } else {
             // Jika username belum terdaftar
             FirebaseService()
                 .addUser(usernameController.text, passwordController.text)
                 .then((_) {
-                  // Setelah user berhasil ditambahkan, arahkan ke halaman utama
-                  Navigator.pop(context);
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const PilihHalamanPelanggan(),
-                    ),
-                  );
+                  if (mounted) {
+                    // Setelah user berhasil ditambahkan, arahkan ke halaman utama
+                    Navigator.pop(context);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const PilihHalamanPelanggan(),
+                      ),
+                    );
+                  }
                 })
                 .catchError((e) {
                   // Menangani error saat penambahan user
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Gagal menambahkan user: $e')),
-                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Gagal menambahkan user: $e')),
+                    );
+                  }
                 });
           }
         })
         .catchError((e) {
           // Menangani error saat pengecekan username
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
+          }
         })
         .whenComplete(() {
           if (mounted) {
