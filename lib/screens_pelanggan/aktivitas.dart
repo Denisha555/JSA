@@ -42,40 +42,46 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: Text("Aktivitas"),
-          bottom: TabBar(tabs: [Tab(text: "Riwayat"), Tab(text: "Terjadwal")]),
+          title: Text("Riwayat"),
         ),
-        body: TabBarView(
+        body: Column(
           children: [
-            Padding(
-              padding: EdgeInsets.all(20),
-              child: ListView.builder(
-                itemCount:
-                    riwayats.length, 
-                itemBuilder: (context, index) {
-                  return Card(
-                    child: ListTile(
-                      title: Text(riwayats[index].tanggal),
-                      subtitle: Text(riwayats[index].keterangan),
+            TabBar(tabs: [Tab(text: "Riwayat"), Tab(text: "Terjadwal")]),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  Padding(
+                    padding: EdgeInsets.all(20),
+                    child: ListView.builder(
+                      itemCount:
+                          riwayats.length, 
+                      itemBuilder: (context, index) {
+                        return Card(
+                          child: ListTile(
+                            title: Text(riwayats[index].tanggal),
+                            subtitle: Text(riwayats[index].keterangan),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.all(20),
-              child: ListView.builder(
-                itemCount:
-                    terjadwals.length, 
-                itemBuilder: (context, index) {
-                  return Card(
-                    child: ListTile(
-                      title: Text(terjadwals[index].tanggal),
-                      subtitle: Text(terjadwals[index].jam),
-                      trailing: Text(terjadwals[index].lapangan),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.all(20),
+                    child: ListView.builder(
+                      itemCount:
+                          terjadwals.length, 
+                      itemBuilder: (context, index) {
+                        return Card(
+                          child: ListTile(
+                            title: Text(terjadwals[index].tanggal),
+                            subtitle: Text(terjadwals[index].jam),
+                            trailing: Text(terjadwals[index].lapangan),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
             ),
           ],

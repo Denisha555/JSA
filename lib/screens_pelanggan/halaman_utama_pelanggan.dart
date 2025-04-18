@@ -103,13 +103,11 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title:  Text(
           "Dashboard",
-          style: TextStyle(fontWeight: FontWeight.bold),
+         
         ),
-        elevation: 2,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        
       ),
       body: SafeArea(
         child: SingleChildScrollView(

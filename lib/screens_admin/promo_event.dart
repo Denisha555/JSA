@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_application_1/services/firestore_service.dart';
+import 'package:path/path.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class HalamanPromoEvent extends StatefulWidget {
   const HalamanPromoEvent({super.key});
@@ -15,27 +17,27 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> {
   File? _selectedImage;
   bool _isLoading = false;
 
-  Future<void> _pickImage() async {
+  Future<void> _pickImage(BuildContext context) async {
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       final picker = ImagePicker();
       final pickedFile = await picker.pickImage(
         source: ImageSource.gallery,
         imageQuality: 80,
       );
-      
+
       if (pickedFile != null) {
         setState(() {
           _selectedImage = File(pickedFile.path);
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error picking image: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error picking image: $e')));
     } finally {
       setState(() {
         _isLoading = false;
@@ -43,27 +45,38 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> {
     }
   }
 
-  Future<void> _captureImage() async {
+  Future<void> _uploadImage(BuildContext context) async {
+    if (_selectedImage == null) return;
+
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 80,
+      // 1. Upload ke Firebase Storage
+      final fileName = basename(_selectedImage!.path);
+      final ref = FirebaseStorage.instance.ref().child(
+        'promoevent_images/$fileName',
       );
-      
-      if (pickedFile != null) {
-        setState(() {
-          _selectedImage = File(pickedFile.path);
-        });
+      await ref.putFile(_selectedImage!);
+
+      final imageUrl = await ref.getDownloadURL();
+
+      await FirebaseService().savePromoEventImage(imageUrl);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Gambar berhasil ditampilkan pada tampilan pengguna"),
+          ),
+        );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error capturing image: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Upload gagal: $e")));
+      }
     } finally {
       setState(() {
         _isLoading = false;
@@ -71,49 +84,46 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> {
     }
   }
 
-  void _removeImage() {
+  
+  void _removeImage(BuildContext context) {
     setState(() {
       _selectedImage = null;
     });
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Gambar berhasil dihapus')),
-    );
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Gambar berhasil dihapus')));
   }
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Promo & Event"),
-      ),
+      appBar: AppBar(title: const Text("Promo & Event")),
       body: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         child: Padding(
-          padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 15.0, bottom: 10.0),
+          padding: const EdgeInsets.only(
+            left: 20.0,
+            right: 20.0,
+            top: 15.0,
+            bottom: 10.0,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Title
               const Text(
                 "Unggah Gambar Promo & Event",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               const Text(
                 "Upload gambar Promo & Event untuk ditampilkan kepada pelanggan",
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
               const SizedBox(height: 15),
-              
+
               // Image preview card
               Container(
                 width: double.infinity,
@@ -131,110 +141,80 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> {
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(16),
-                  child: _isLoading 
-                    ? const Center(
-                        child: CircularProgressIndicator(),
-                      )
-                    : _selectedImage != null
-                      ? Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            Image.file(
-                              _selectedImage!,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                            ),
-                            Positioned(
-                              top: 8,
-                              right: 8,
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.6),
-                                  shape: BoxShape.circle,
+                  child:
+                      _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _selectedImage != null
+                          ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              Image.file(
+                                _selectedImage!,
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                              ),
+                            ],
+                          )
+                          : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.image_outlined,
+                                size: 80,
+                                color: Colors.grey[400],
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                "Belum ada gambar",
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 16,
                                 ),
-                                child: IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.white),
-                                  onPressed: _removeImage,
-                                  tooltip: "Hapus Gambar",
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                "Tambahkan gambar daftar harga di sini",
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 14,
                                 ),
                               ),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.image_outlined,
-                              size: 80,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            const Text(
-                              "Belum ada gambar",
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              "Tambahkan gambar daftar harga di sini",
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
+                            ],
+                          ),
                 ),
               ),
-              
+
               const SizedBox(height: 15),
-              
+
               // Action buttons
               if (_selectedImage == null)
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildActionButton(
-                        label: "Upload Gambar",
-                        onPressed: _pickImage,
-                        color: primaryColor,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _buildActionButton(
-                        label: "Hapus Gambar",
-                        onPressed: _captureImage,
-                        color: Colors.red,
-                      ),
-                    ),
-                  ],
+                _buildActionButton(
+                  label: "Pilih Gambar",
+                  onPressed: () => _pickImage(context),
+                  color: primaryColor,
                 ),
-              
+
               if (_selectedImage != null)
                 Column(
                   children: [
-                    const Text(
-                      "Gambar siap ditampilkan kepada pelanggan",
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.w500,
-                      ),
+                    _buildActionButton(
+                      label: "Upload Gambar",
+                      onPressed: () => _uploadImage(context),
+                      color: primaryColor,
                     ),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildActionButton(
-                            label: "Ganti Gambar",
-                            onPressed: _pickImage,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                      ],
+
+                    const SizedBox(height: 10),
+                    _buildActionButton(
+                      label: "Tambah Gambar",
+                      onPressed: () {},
+                      color: Colors.blue,
+                    ),
+
+                    const SizedBox(height: 10),
+                    _buildActionButton(
+                      label: "Hapus Gambar",
+                      onPressed: () => _removeImage(context),
+                      color: Colors.red,
                     ),
                   ],
                 ),
@@ -256,9 +236,7 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> {
         backgroundColor: color,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 14),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -266,10 +244,7 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> {
           const SizedBox(width: 8),
           Text(
             label,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-            ),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
           ),
         ],
       ),

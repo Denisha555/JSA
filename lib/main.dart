@@ -3,22 +3,26 @@ import 'package:firebase_core/firebase_core.dart';
 import 'screens_pelanggan/daftar.dart';
 import 'screens_pelanggan/masuk.dart';
 import 'package:flutter_application_1/constants_file.dart';
-
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyDnEzhUMogNLMUD9khqGZs2UbYxKccTVNk",
-        authDomain: "jump-smash-arena.firebaseapp.com",
-        projectId: "jump-smash-arena",
-        storageBucket: "jump-smash-arena.firebasestorage.app",
-        messagingSenderId: "499652308146",
-        appId: "1:499652308146:web:93b5c15bf86ae8a86b2dab",
-        measurementId: "G-34Z6QW3F97",
-      ),
-    );
+    if (kIsWeb) {
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: "AIzaSyDnEzhUMogNLMUD9khqGZs2UbYxKccTVNk",
+          authDomain: "jump-smash-arena.firebaseapp.com",
+          projectId: "jump-smash-arena",
+          storageBucket: "jump-smash-arena.firebasestorage.app",
+          messagingSenderId: "499652308146",
+          appId: "1:499652308146:web:93b5c15bf86ae8a86b2dab",
+          measurementId: "G-34Z6QW3F97",
+        ),
+      );
+    } else {
+      await Firebase.initializeApp();
+    }
     runApp(const MyApp());
   } catch (e) {
     print('Error initializing Firebase: $e');
@@ -37,14 +41,14 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         scaffoldBackgroundColor: backgroundColor,
         appBarTheme: const AppBarTheme(
-          color: Colors.white,
+          color: primaryColor,
           titleTextStyle: TextStyle(
-            color: Colors.black,
+            color: Colors.white,
             fontSize: 18,
             fontWeight: FontWeight.bold,
           ),
           centerTitle: true,
-          elevation: 2,
+          iconTheme: IconThemeData(color: Colors.white),
         ),
         iconTheme: const IconThemeData(color: Colors.black),
         elevatedButtonTheme: ElevatedButtonThemeData(

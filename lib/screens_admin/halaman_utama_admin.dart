@@ -3,6 +3,7 @@ import 'price.dart';
 import 'kalender.dart';
 import 'promo_event.dart';
 import 'package:flutter_application_1/constants_file.dart';
+import 'package:flutter_application_1/main.dart';
 import 'package:intl/intl.dart';
 
 class HalamanUtamaAdmin extends StatefulWidget {
@@ -710,7 +711,6 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
       height: 100,
       decoration: BoxDecoration(
         color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -790,13 +790,9 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Dashboard',
-          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        elevation: 2,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
       ),
       body: Column(
         children: [
