@@ -358,7 +358,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     },
   };
 
-   String _formatDate(DateTime date) {
+  String _formatDate(DateTime date) {
     List<String> months = [
       'Januari',
       'Februari',
@@ -666,41 +666,32 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     bool isBooked,
     String username,
   ) {
-    return InkWell(
-      onTap: () {
-        if (isBooked) {
-          _showBookingDetails(time, court, username);
-        } else {
-          _showAddBookingDialog(time, court);
-        }
-      },
-      child: Container(
-        width: 120,
-        height: 50,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isBooked ? bookedColor : availableColor,
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              isBooked ? 'Booked' : 'Available',
-              style: TextStyle(
-                color: isBooked ? Colors.red.shade700 : Colors.green.shade700,
-                fontWeight: FontWeight.w500,
-                fontSize: 12,
-              ),
+    return Container(
+      width: 120,
+      height: 50,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: isBooked ? bookedColor : availableColor,
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            isBooked ? 'Booked' : 'Available',
+            style: TextStyle(
+              color: isBooked ? Colors.red.shade700 : Colors.green.shade700,
+              fontWeight: FontWeight.w500,
+              fontSize: 12,
             ),
-            if (isBooked)
-              Text(
-                username,
-                style: TextStyle(fontSize: 11),
-                overflow: TextOverflow.ellipsis,
-              ),
-          ],
-        ),
+          ),
+          if (isBooked)
+            Text(
+              username,
+              style: TextStyle(fontSize: 11),
+              overflow: TextOverflow.ellipsis,
+            ),
+        ],
       ),
     );
   }
@@ -709,9 +700,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   Widget _buildQuickAccessMenu(BuildContext context) {
     return Container(
       height: 100,
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-      ),
+      decoration: BoxDecoration(color: Colors.grey[100]),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
@@ -719,7 +708,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
           children: [
             _buildQuickAccessButton(
               icon: 'price',
-              label: "Price",
+              label: "Daftar Harga",
               onTap:
                   () => Navigator.push(
                     context,
@@ -789,16 +778,15 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          'Dashboard',
-        ),
-      ),
+      appBar: AppBar(title: Text('Dashboard')),
       body: Column(
         children: [
           _buildQuickAccessMenu(context),
           const SizedBox(height: 15),
-          Text(_formatDate(selectedDate), style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),),
+          Text(
+            _formatDate(selectedDate),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 10),
           Padding(
             padding: const EdgeInsets.all(8.0),

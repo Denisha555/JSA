@@ -65,7 +65,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyAppError extends StatelessWidget {
-  const MyAppError({Key? key}) : super(key: key);
+  const MyAppError({Key?key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

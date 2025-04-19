@@ -1,6 +1,5 @@
-import 'dart:ffi';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 
 class FirebaseService {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -78,13 +77,56 @@ class FirebaseService {
     }
   }
 
-  // Fungsi untuk menyimpan data harga ke Firestore
-  Future<void> saveHarga(String type, Int jam, String hari, Int harga) async {
+   Future<void> saveHarga(String type, int jamMulai, int jamSelesai, String hariMulai, String hariSelesai, int harga) async {
     try {
       CollectionReference hargaCollection = firestore.collection('harga');
-      await hargaCollection.add({'tyepe': type, 'jam': jam, 'hari': hari, 'harga': harga});
+      await hargaCollection.add({
+        'type': type,
+        'jam_mulai': jamMulai,
+        'jam_selesai': jamSelesai,
+        'hari_mulai': hariMulai,
+        'hari_selesai': hariSelesai,
+        'harga': harga
+      });
     } catch (e) {
       throw Exception('Error Saving Harga: $e');
+    }
+  }
+
+  // Fungsi untuk cek data harga di Firestore
+  Future<bool> checkHarga(String type, int jamMulai, int jamSelesai, String hariMulai, String hariSelesai) async {
+    try {
+      QuerySnapshot querySnapshot = await firestore.collection('harga')
+          .where('type', isEqualTo: type)
+          .where('jam_mulai', isEqualTo: jamMulai)
+          .where('jam_selesai', isEqualTo: jamSelesai)
+          .where('hari_mulai', isEqualTo: hariMulai)
+          .where('hari_selesai', isEqualTo: hariSelesai)
+          .get();
+
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      throw Exception('Error Checking Harga: $e');
+    }
+  }
+
+  // Fungsi untuk mendapatkan ID dokumen dari harga
+  Future<String?> getHargaDocumentId(String type, int jamMulai, int jamSelesai, String hariMulai, String hariSelesai) async {
+    try {
+      QuerySnapshot querySnapshot = await firestore.collection('harga')
+          .where('type', isEqualTo: type)
+          .where('jam_mulai', isEqualTo: jamMulai)
+          .where('jam_selesai', isEqualTo: jamSelesai)
+          .where('hari_mulai', isEqualTo: hariMulai)
+          .where('hari_selesai', isEqualTo: hariSelesai)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return querySnapshot.docs.first.id;
+      }
+      return null;
+    } catch (e) {
+      throw Exception('Error Getting Harga Document ID: $e');
     }
   }
 }

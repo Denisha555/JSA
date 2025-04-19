@@ -6,30 +6,28 @@ import 'tentang_kami.dart';
 
 // Event Promo data model
 class EventPromo {
-  final String imageUrl;
+  final Image imageUrl;
 
   EventPromo({required this.imageUrl});
 }
 
 // Sample event data
 final List<EventPromo> events = [
-  EventPromo(imageUrl: "https://via.placeholder.com/150"),
-  EventPromo(imageUrl: "https://via.placeholder.com/150"),
-  EventPromo(imageUrl: "https://via.placeholder.com/150"),
+  EventPromo(imageUrl: Image.asset("assets/image/PromoEvent.jpeg")),
+  EventPromo(imageUrl: Image.asset("assets/image/PromoEvent.jpeg")),
+  EventPromo(imageUrl: Image.asset("assets/image/PromoEvent.jpeg")),
 ];
 
 // Court data model
 class Court {
-  final String imageUrl;
+  final Image imageUrl;
   final String name;
-  final String description;
   final bool isAvailable;
   final double pricePerHour;
 
   Court({
     required this.imageUrl,
     required this.name,
-    this.description = '',
     this.isAvailable = true,
     this.pricePerHour = 0,
   });
@@ -38,21 +36,18 @@ class Court {
 // Sample courts data
 final List<Court> courts = [
   Court(
-    imageUrl: "https://via.placeholder.com/150",
-    name: "Court 1",
-    description: "Indoor court with professional flooring",
+    imageUrl: Image.asset("assets/image/Lapangan.jpg"),
+    name: "Lapangan 1",
     pricePerHour: 50000,
   ),
   Court(
-    imageUrl: "https://via.placeholder.com/150",
-    name: "Court 2",
-    description: "Outdoor court with lights",
+    imageUrl: Image.asset("assets/image/Lapangan.jpg"),
+    name: "Lapangan 3",
     pricePerHour: 45000,
   ),
   Court(
-    imageUrl: "https://via.placeholder.com/150",
-    name: "Court 3",
-    description: "Premium court with seating area",
+    imageUrl: Image.asset("assets/image/Lapangan.jpg"),
+    name: "Lapangan 4",
     pricePerHour: 60000,
   ),
 ];
@@ -80,16 +75,14 @@ final Booking currentBooking = Booking(
   status: "Terkonfirmasi",
 );
 
-class rewards {
+class Reward {
   final double currentHours;
   final double requiredHours = 20;
 
-  rewards({required this.currentHours});
+  Reward({required this.currentHours});
 }
 
-final rewards currentRewards = rewards(
-  currentHours: 7,
-);
+final Reward currentReward = Reward(currentHours: 7);
 
 class HalamanUtamaPelanggan extends StatefulWidget {
   const HalamanUtamaPelanggan({super.key});
@@ -102,13 +95,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title:  Text(
-          "Dashboard",
-         
-        ),
-        
-      ),
+      appBar: AppBar(title: Text("Dashboard")),
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -127,7 +114,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                 const SizedBox(height: 16),
 
                 // Reward section
-                _buildRewardSection(context),
+                _buildRewardection(context),
 
                 const SizedBox(height: 24),
 
@@ -146,9 +133,11 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
     );
   }
 
-  Widget _buildRewardSection(BuildContext context) {
-    double progress = (currentRewards.currentHours / currentRewards.requiredHours).clamp(0.0, 1.0);
-    
+  Widget _buildRewardection(BuildContext context) {
+    double progress = (currentReward.currentHours /
+            currentReward.requiredHours)
+        .clamp(0.0, 1.0);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -160,7 +149,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Your Rewards Progress',
+            'Your Reward Progress',
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -171,8 +160,14 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
           LayoutBuilder(
             builder: (context, constraints) {
               double barWidth = constraints.maxWidth;
-              double markerPos = (currentRewards.requiredHours / 2) / currentRewards.requiredHours * barWidth;
-              double markerPos2 = (currentRewards.requiredHours) / currentRewards.requiredHours * barWidth;
+              double markerPos =
+                  (currentReward.requiredHours / 2) /
+                  currentReward.requiredHours *
+                  barWidth;
+              double markerPos2 =
+                  (currentReward.requiredHours) /
+                  currentReward.requiredHours *
+                  barWidth;
 
               return Stack(
                 alignment: Alignment.centerLeft,
@@ -198,7 +193,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                   ),
                   // Marker (halfway point)
                   Positioned(
-                    left: markerPos - 5, 
+                    left: markerPos - 5,
                     child: Container(
                       width: 10,
                       height: 10,
@@ -211,7 +206,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                   ),
                   // marker (end point)
                   Positioned(
-                    left: markerPos2 - 10, 
+                    left: markerPos2 - 10,
                     child: Container(
                       width: 10,
                       height: 10,
@@ -231,11 +226,11 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${currentRewards.currentHours.toInt()}h played',
+                '${currentReward.currentHours.toInt()}h played',
                 style: const TextStyle(color: Colors.white),
               ),
               Text(
-                '${(currentRewards.requiredHours - currentRewards.currentHours).clamp(0, currentRewards.requiredHours).toInt()}h to next reward',
+                '${(currentReward.requiredHours - currentReward.currentHours).clamp(0, currentReward.requiredHours).toInt()}h to next reward',
                 style: const TextStyle(color: Colors.white),
               ),
             ],
@@ -334,7 +329,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
           children: [
             _buildQuickAccessButton(
               icon: 'priceList',
-              label: "Price List",
+              label: "Daftar Harga",
               onTap:
                   () => Navigator.push(
                     context,
@@ -414,7 +409,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
           ),
         ),
         SizedBox(
-          height: 180,
+          height: 220,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: events.length,
@@ -433,21 +428,16 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
   // Individual promo card
   Widget _buildPromoCard(EventPromo promo) {
     return Container(
-      width: 280,
+      width: 200,
       decoration: BoxDecoration(
-        color: const Color.fromRGBO(133, 170, 211, 1),
+        color: Colors.grey,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Stack(
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: Image.network(
-              promo.imageUrl,
-              width: 280,
-              height: 180,
-              fit: BoxFit.cover,
-            ),
+            child: SizedBox(height: 350, width: 200, child: promo.imageUrl),
           ),
         ],
       ),
@@ -482,72 +472,39 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
   // Individual court card
   Widget _buildCourtCard(Court court) {
     return Card(
-      elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
-          // TODO: Navigate to court detail/booking page
+          Navigator.push(
+            context, 
+            MaterialPageRoute(builder: (context) => HalamanKalender()));
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Row(
+          padding: const EdgeInsets.all(15.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                court.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 8),
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  court.imageUrl,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.all(Radius.circular(8)),
+                  ),
+                  width: 300,
+                  height: 160,
+                  child: court.imageUrl,
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      court.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      court.description,
-                      style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Rp ${court.pricePerHour.toStringAsFixed(0)}/jam",
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            // TODO: Implement booking functionality
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                          ),
-                          child: const Text(
-                            "Book Now",
-                            style: TextStyle(color: Colors.white),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              ),       
             ],
           ),
         ),
