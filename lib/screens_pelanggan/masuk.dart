@@ -5,7 +5,6 @@ import 'package:flutter_application_1/screens_admin/halaman_utama_admin.dart';
 import 'package:flutter_application_1/screen_owner/halaman_utama_owner.dart';
 import 'package:flutter_application_1/constants_file.dart';
 
-
 class HalamanMasuk extends StatefulWidget {
   const HalamanMasuk({super.key});
 
@@ -165,28 +164,52 @@ class _HalamanMasukState extends State<HalamanMasuk>
       }
 
       // Pengecekan login untuk pelanggan
-      bool valid = await FirebaseService().checkPassword(
+      bool registered = await FirebaseService().checkUser(
         usernameController.text,
-        passwordController.text,
       );
-      // jika username dan password benar
-      if (mounted) {
-        if (valid) {
-          Navigator.pop(context);
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const PilihHalamanPelanggan(),
-            ),
+
+      try {
+        if (registered) {
+          bool valid = await FirebaseService().checkPassword(
+            usernameController.text,
+            passwordController.text,
           );
-        // jika username dan password salah
+
+          // jika username dan password benar
+          if (mounted) {
+            if (valid) {
+              Navigator.pop(context);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const PilihHalamanPelanggan(),
+                ),
+              );
+              // jika username dan password salah
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Username atau password tidak sesuai.'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Username atau password tidak sesuai.'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("Username belum terdaftar"),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
         }
       }
     } catch (e) {

@@ -77,7 +77,8 @@ class FirebaseService {
     }
   }
 
-   Future<void> saveHarga(String type, int jamMulai, int jamSelesai, String hariMulai, String hariSelesai, int harga) async {
+  // Fungsi untuk menyimpan harga ke Firestore
+  Future<void> saveHarga(String type, int jamMulai, int jamSelesai, String hariMulai, String hariSelesai, int harga) async {
     try {
       CollectionReference hargaCollection = firestore.collection('harga');
       await hargaCollection.add({
