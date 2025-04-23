@@ -3,8 +3,8 @@ import 'price.dart';
 import 'kalender.dart';
 import 'promo_event.dart';
 import 'package:flutter_application_1/constants_file.dart';
-import 'package:flutter_application_1/main.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter_application_1/screens_pelanggan/masuk.dart';
+import 'lapangan.dart';
 
 class HalamanUtamaAdmin extends StatefulWidget {
   const HalamanUtamaAdmin({super.key});
@@ -386,160 +386,6 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
-  void _toggleBookingStatus(String time, String court) {
-    setState(() {
-      if (bookingData[time]![court]!['status'] == 'booked') {
-        bookingData[time]![court]!['status'] = 'available';
-        bookingData[time]![court]!['username'] = '';
-      } else {
-        _showAddBookingDialog(time, court);
-      }
-    });
-  }
-
-  // Show dialog to add a new booking
-  void _showAddBookingDialog(String time, String court) {
-    final TextEditingController nameController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Add New Booking'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Time: $time'),
-                Text('Court: $court'),
-                TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(labelText: 'Customer Name'),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  if (nameController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Please enter customer name')),
-                    );
-                    return;
-                  }
-
-                  setState(() {
-                    bookingData[time]![court]!['status'] = 'booked';
-                    bookingData[time]![court]!['username'] =
-                        nameController.text;
-                  });
-
-                  Navigator.pop(context);
-                },
-                child: Text('Save'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  // Show booking details
-  void _showBookingDetails(String time, String court, String username) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Booking Details'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Time: $time'),
-                Text('Court: $court'),
-                Text('Customer: $username'),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Close'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _editBooking(time, court, username);
-                },
-                child: Text('Edit'),
-              ),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    bookingData[time]![court]!['status'] = 'available';
-                    bookingData[time]![court]!['username'] = '';
-                  });
-                  Navigator.pop(context);
-                },
-                child: Text('Cancel Booking'),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-              ),
-            ],
-          ),
-    );
-  }
-
-  // Edit booking
-  void _editBooking(String time, String court, String currentUsername) {
-    final TextEditingController nameController = TextEditingController(
-      text: currentUsername,
-    );
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Edit Booking'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Time: $time'),
-                Text('Court: $court'),
-                TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(labelText: 'Customer Name'),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  if (nameController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Please enter customer name')),
-                    );
-                    return;
-                  }
-
-                  setState(() {
-                    bookingData[time]![court]!['username'] =
-                        nameController.text;
-                  });
-
-                  Navigator.pop(context);
-                },
-                child: Text('Save'),
-              ),
-            ],
-          ),
-    );
-  }
-
   Widget _buildCalendar(DateTime time) {
     return Expanded(
       child: SingleChildScrollView(
@@ -707,8 +553,18 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildQuickAccessButton(
+              icon: 'lapangan',
+              label: "Lapangan",
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => HalamanLapangan()),
+                );
+              },
+            ),
+            _buildQuickAccessButton(
               icon: 'price',
-              label: "Daftar Harga",
+              label: "Harga",
               onTap:
                   () => Navigator.push(
                     context,
@@ -749,11 +605,32 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   }) {
     final iconMap = {
       'price': Icons.attach_money_outlined,
-      'calender': Icons.calendar_month_outlined,
+      'calender': Icons.calendar_month,
       'promo_event': Icons.discount_outlined,
+      'lapangan': Icons.list_alt,
     };
 
-    final IconData iconData = iconMap[icon] ?? Icons.help_outline;
+    Widget iconWidget;
+
+    // Cek apakah icon adalah path gambar
+    if (icon.endsWith('.png') ||
+        icon.endsWith('.jpg') ||
+        icon.endsWith('.jpeg')) {
+      iconWidget = Image.asset(
+        icon,
+        width: 32,
+        height: 32,
+        fit: BoxFit.contain,
+      );
+    }
+    // Cek apakah icon adalah key dari icon bawaan
+    else if (iconMap.containsKey(icon)) {
+      iconWidget = Icon(iconMap[icon], size: 32, color: Colors.black);
+    }
+    // Default kalau gak ketemu
+    else {
+      iconWidget = Icon(Icons.help_outline, size: 32, color: Colors.grey);
+    }
 
     return InkWell(
       onTap: onTap,
@@ -763,7 +640,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(iconData, size: 32, color: Colors.black),
+            iconWidget,
             const SizedBox(height: 8),
             Text(
               label,
@@ -778,7 +655,19 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Dashboard')),
+      appBar: AppBar(title: Text('Dashboard'), actions: [
+        Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: GestureDetector
+          ( onTap: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => HalamanMasuk()),
+            );
+          },
+            child: Icon(Icons.logout)),
+        )
+      ],),
       body: Column(
         children: [
           _buildQuickAccessMenu(context),

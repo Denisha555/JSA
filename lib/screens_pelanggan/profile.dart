@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/main.dart';
 
 
 class HalamanProfil extends StatefulWidget {
@@ -14,6 +15,23 @@ class _HalamanProfilState extends State<HalamanProfil> {
     return Scaffold(
       appBar: AppBar(
         title: Text("Profil"),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          children: [
+            InkWell(
+              onTap: () {
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MainApp()));},
+              child: Row(
+                children: [
+                  Icon(Icons.logout),
+                  Text("Logout")
+                ],
+              ),
+            )
+            ],
+        ),
       ),
     );
   }

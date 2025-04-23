@@ -114,9 +114,12 @@ class _HalamanMasukState extends State<HalamanMasuk>
           return;
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Terjadi kesalahan: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
         }
       }
@@ -156,9 +159,12 @@ class _HalamanMasukState extends State<HalamanMasuk>
           return;
         } catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Terjadi kesalahan: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
         }
       }
@@ -188,7 +194,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
               // jika username dan password salah
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
+                SnackBar(
                   content: Text('Username atau password tidak sesuai.'),
                   backgroundColor: Colors.red,
                 ),
@@ -198,7 +204,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
+              SnackBar(
                 content: Text("Username belum terdaftar"),
                 backgroundColor: Colors.red,
               ),
@@ -207,16 +213,22 @@ class _HalamanMasukState extends State<HalamanMasuk>
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Terjadi kesalahan: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Terjadi kesalahan: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) {

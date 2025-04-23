@@ -439,7 +439,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Daftar Harga")),
+      appBar: AppBar(title: const Text("Harga")),
       body:
           _isLoading
               ? Center(child: CircularProgressIndicator())

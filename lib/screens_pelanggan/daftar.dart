@@ -83,7 +83,10 @@ class _HalamanDaftarState extends State<HalamanDaftar>
             if (mounted) {
               // Jika username sudah terdaftar
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Username sudah terdaftar.')),
+                SnackBar(
+                  content: Text('Username sudah terdaftar.'),        
+                  backgroundColor: Colors.red,
+                ),
               );
             }
           } else {
@@ -106,7 +109,10 @@ class _HalamanDaftarState extends State<HalamanDaftar>
                   // Menangani error saat penambahan user
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Gagal menambahkan user: $e')),
+                      SnackBar(
+                        content: Text('Gagal menambahkan user: $e'),              
+                        backgroundColor: Colors.red,
+                      ),
                     );
                   }
                 });
@@ -115,9 +121,12 @@ class _HalamanDaftarState extends State<HalamanDaftar>
         .catchError((e) {
           // Menangani error saat pengecekan username
           if (mounted) {
-            ScaffoldMessenger.of(
-              context,
-            ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Terjadi kesalahan: $e'),              
+                backgroundColor: Colors.red,
+              ),
+            );
           }
         })
         .whenComplete(() {

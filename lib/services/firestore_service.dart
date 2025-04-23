@@ -78,7 +78,14 @@ class FirebaseService {
   }
 
   // Fungsi untuk menyimpan harga ke Firestore
-  Future<void> saveHarga(String type, int jamMulai, int jamSelesai, String hariMulai, String hariSelesai, int harga) async {
+  Future<void> saveHarga(
+    String type,
+    int jamMulai,
+    int jamSelesai,
+    String hariMulai,
+    String hariSelesai,
+    int harga,
+  ) async {
     try {
       CollectionReference hargaCollection = firestore.collection('harga');
       await hargaCollection.add({
@@ -87,7 +94,7 @@ class FirebaseService {
         'jam_selesai': jamSelesai,
         'hari_mulai': hariMulai,
         'hari_selesai': hariSelesai,
-        'harga': harga
+        'harga': harga,
       });
     } catch (e) {
       throw Exception('Error Saving Harga: $e');
@@ -95,15 +102,23 @@ class FirebaseService {
   }
 
   // Fungsi untuk cek data harga di Firestore
-  Future<bool> checkHarga(String type, int jamMulai, int jamSelesai, String hariMulai, String hariSelesai) async {
+  Future<bool> checkHarga(
+    String type,
+    int jamMulai,
+    int jamSelesai,
+    String hariMulai,
+    String hariSelesai,
+  ) async {
     try {
-      QuerySnapshot querySnapshot = await firestore.collection('harga')
-          .where('type', isEqualTo: type)
-          .where('jam_mulai', isEqualTo: jamMulai)
-          .where('jam_selesai', isEqualTo: jamSelesai)
-          .where('hari_mulai', isEqualTo: hariMulai)
-          .where('hari_selesai', isEqualTo: hariSelesai)
-          .get();
+      QuerySnapshot querySnapshot =
+          await firestore
+              .collection('harga')
+              .where('type', isEqualTo: type)
+              .where('jam_mulai', isEqualTo: jamMulai)
+              .where('jam_selesai', isEqualTo: jamSelesai)
+              .where('hari_mulai', isEqualTo: hariMulai)
+              .where('hari_selesai', isEqualTo: hariSelesai)
+              .get();
 
       return querySnapshot.docs.isNotEmpty;
     } catch (e) {
@@ -112,15 +127,23 @@ class FirebaseService {
   }
 
   // Fungsi untuk mendapatkan ID dokumen dari harga
-  Future<String?> getHargaDocumentId(String type, int jamMulai, int jamSelesai, String hariMulai, String hariSelesai) async {
+  Future<String?> getHargaDocumentId(
+    String type,
+    int jamMulai,
+    int jamSelesai,
+    String hariMulai,
+    String hariSelesai,
+  ) async {
     try {
-      QuerySnapshot querySnapshot = await firestore.collection('harga')
-          .where('type', isEqualTo: type)
-          .where('jam_mulai', isEqualTo: jamMulai)
-          .where('jam_selesai', isEqualTo: jamSelesai)
-          .where('hari_mulai', isEqualTo: hariMulai)
-          .where('hari_selesai', isEqualTo: hariSelesai)
-          .get();
+      QuerySnapshot querySnapshot =
+          await firestore
+              .collection('harga')
+              .where('type', isEqualTo: type)
+              .where('jam_mulai', isEqualTo: jamMulai)
+              .where('jam_selesai', isEqualTo: jamSelesai)
+              .where('hari_mulai', isEqualTo: hariMulai)
+              .where('hari_selesai', isEqualTo: hariSelesai)
+              .get();
 
       if (querySnapshot.docs.isNotEmpty) {
         return querySnapshot.docs.first.id;
@@ -128,6 +151,88 @@ class FirebaseService {
       return null;
     } catch (e) {
       throw Exception('Error Getting Harga Document ID: $e');
+    }
+  }
+
+  // Fungsi untuk menambahkan lapangan ke Firestore
+  Future<void> tambahLapangan({
+    required String nomor,
+    required String deskripsi,
+    String? imageUrl,
+  }) async {
+    try {
+      CollectionReference lapanganCollection = firestore.collection('lapangan');
+      await lapanganCollection.add({
+        'nomor': nomor,
+        'deskripsi': deskripsi,
+        'image': imageUrl,
+      });
+    } catch (e) {
+      throw Exception('Error menambahkan lapangan: $e');
+    }
+  }
+
+  // Fungsi untuk update lapangan di Firestore
+  Future<void> updateLapangan({
+    required String documentId,
+    required String nomor,
+    Timestamp? createdAt,
+    String? deskripsi,
+    String? imageUrl,
+  }) async {
+    try {
+      CollectionReference lapanganCollection = firestore.collection('lapangan');
+      await lapanganCollection.doc(documentId).update({
+        'nomor': nomor,
+        'deskripsi': deskripsi,
+        'image': imageUrl,
+      });
+    } catch (e) {
+      throw Exception('Error mengupdate lapangan: $e');
+    }
+  }
+
+  // Fungsi untuk mengecek apakah lapangan sudah ada di Firestore
+  Future<bool> checkLapangan(String nomor) async {
+    try { QuerySnapshot querySnapshot =
+          await firestore
+              .collection('lapangan')
+              .where('nomor', isEqualTo: nomor)
+              .get();
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e){
+      throw Exception('Error Checking Lapangan: $e');
+    }
+  }
+
+  // Fungsi untuk menghapus lapangan di Firestore
+  Future<void> hapusLapangan(String docId) async {
+    try {
+      CollectionReference lapanganCollection = firestore.collection('lapangan');
+      await lapanganCollection.doc(docId).delete();
+    } catch (e) {
+      throw Exception('Error menghapus lapangan: $e');
+    }
+  }
+
+  // Fungsi untuk menambahkan promo dan event ke Firestore
+  Future<void> tambahPromoEvent({required String imageurl}) async {
+    try {
+      CollectionReference promoEventCollection = firestore.collection(
+        'promo_event',
+      );
+      await promoEventCollection.add({'gambar': imageurl});
+    } catch (e) {
+      throw Exception('Failed to create promo event: $e');
+    }
+  }
+
+  Future<void> deletePromoEvent(String id) async {
+    try {
+      CollectionReference promoEventCollection = firestore.collection('promo_event');
+      await promoEventCollection.doc(id).delete();
+    } catch (e) {
+      throw Exception('Failed to delete promo event: $e');
     }
   }
 }
