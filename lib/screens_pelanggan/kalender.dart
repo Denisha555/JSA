@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HalamanKalender extends StatefulWidget {
   const HalamanKalender({super.key});
@@ -14,378 +13,13 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   // Tanggal sekarang untuk header kalender
   DateTime selectedDate = DateTime.now();
 
-  // Data booking (contoh data statis)
-  // Di aplikasi nyata ini akan diambil dari database
-  Map<String, Map<String, bool>> bookingData = {
-    '01:00 - 01:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': true,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': true,
-    },
-    '01:30 - 02:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': true,
-      'Lapangan 5': true,
-      'Lapangan 6': true,
-    },
-    '02:00 - 02:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': true,
-      'Lapangan 4': true,
-      'Lapangan 5': true,
-      'Lapangan 6': true,
-    },
-    '02:30 - 03:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': false,
-      'Lapangan 3': true,
-      'Lapangan 4': true,
-      'Lapangan 5': true,
-      'Lapangan 6': true,
-    },
-    '03:00 - 03:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': true,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': true,
-    },
-    '03:30 -04:00': {
-      'Lapangan 1': false,
-      'Lapangan 2': true,
-      'Lapangan 3': true,
-      'Lapangan 4': true,
-      'Lapangan 5': false,
-      'Lapangan 6': true,
-    },
-    '04:00 - 04:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': true,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': true,
-    },
-    '04:30 - 05:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': true,
-      'Lapangan 5': false,
-      'Lapangan 6': true,
-    },
-    '05:00 - 05:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': true,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '05:30 - 06:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': false,
-      'Lapangan 3': false,
-      'Lapangan 4': true,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '06:00 - 06:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': true,
-      'Lapangan 5': false,
-      'Lapangan 6': true,
-    },
-    '06:30 - 07:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': false,
-      'Lapangan 3': true,
-      'Lapangan 4': false,
-      'Lapangan 5': false,
-      'Lapangan 6': true,
-    },
-    '07:00 - 07:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': true,
-      'Lapangan 5': false,
-      'Lapangan 6': false,
-    },
-    '07:30 - 08:00': {
-      'Lapangan 1': false,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': true,
-      'Lapangan 5': false,
-      'Lapangan 6': false,
-    },
-    '08:00 - 08:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '08:30 - 09:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '09:00 - 09:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '09:30 - 10:00': {
-      'Lapangan 1': false,
-      'Lapangan 2': false,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': false,
-      'Lapangan 6': false,
-    },
-    '10:00 - 10:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': false,
-      'Lapangan 3': true,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '10:30 -11:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': false,
-      'Lapangan 3': true,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '11:00 - 11:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '11:30 - 12:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '12:00 - 12:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '12:30 - 13:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '13:00 - 13:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '13:30 - 14:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '14:00 - 14:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '14:30 - 15:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '15:00 - 15:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '15:30 - 16:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '16:00 - 16:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '16:30 - 17:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '17:00 - 17:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '17:30 - 18:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '18:00 - 18:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '18:30 - 19:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '19:00 - 19:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '19:30 - 20:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '20:00 - 20:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': true,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '20:30 - 21:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '21:00 - 21:30': {
-      'Lapangan 1': false,
-      'Lapangan 2': true,
-      'Lapangan 3': true,
-      'Lapangan 4': true,
-      'Lapangan 5': false,
-      'Lapangan 6': true,
-    },
-    '21:30 - 22:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': false,
-      'Lapangan 3': true,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '22:00 - 22:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': true,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-    '22:30 - 23:00': {
-      'Lapangan 1': false,
-      'Lapangan 2': true,
-      'Lapangan 3': true,
-      'Lapangan 4': false,
-      'Lapangan 5': true,
-      'Lapangan 6': true,
-    },
-    '23:00 - 23:30': {
-      'Lapangan 1': true,
-      'Lapangan 2': false,
-      'Lapangan 3': false,
-      'Lapangan 4': true,
-      'Lapangan 5': false,
-      'Lapangan 6': true,
-    },
-    '23:30 - 24:00': {
-      'Lapangan 1': true,
-      'Lapangan 2': true,
-      'Lapangan 3': false,
-      'Lapangan 4': true,
-      'Lapangan 5': true,
-      'Lapangan 6': false,
-    },
-  };
+  Map<String, Map<String, bool>> bookingData = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOrCreateSlots(selectedDate);
+  }
 
   // Ubah tanggal
   void _changeDate(DateTime date) {
@@ -424,32 +58,156 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
+  void _buildBookingData(List<TimeSlot> slots) {
+    Map<String, Map<String, bool>> tempdata = {};
+    for (var slot in slots) {
+      final timeRange = '${slot.startTime} - ${slot.endTime}';
+      if (!tempdata.containsKey(timeRange)) {
+        // Kalau jam belum ada, inisialisasi semua lapangan
+        tempdata[timeRange] = {
+          'Lapangan 1': true,
+          'Lapangan 2': true,
+          'Lapangan 3': true,
+          'Lapangan 4': true,
+          'Lapangan 5': true,
+          'Lapangan 6': true,
+        };
+      }
+      // Update status berdasarkan courtId
+      tempdata[timeRange]!['Lapangan ${slot.courtId}'] = slot.isAvailable;
+    }
+    // Set ke state
+    setState(() {
+      bookingData = tempdata;
+    });
+  }
+
+  void _loadOrCreateSlots(DateTime selectedDate) async {
+    final dateStr =
+        "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
+    final slots = await FirebaseService().getTimeSlotsByDate(dateStr);
+
+    if (slots.isEmpty) {
+      // Belum ada data -> generate
+      await FirebaseService().generateSlots1day();
+
+      // Setelah generate, ambil lagi datanya
+      final newSlots = await FirebaseService().getTimeSlotsByDate(dateStr);
+      _buildBookingData(newSlots);
+    } else {
+      // Sudah ada data
+      _buildBookingData(slots);
+    }
+  }
+
   // Tampilkan dialog ketika sel diklik
-  void _showBookingDialog(String time, String court, bool isBooked) {
+  void _showBookingDialog(
+    String time,
+    String court,
+    bool isAvaible,
+    DateTime selectedDate,
+  ) async {
+    int maxConsecutiveSlots = 1; // Start with at least 1 slot (current time)
+    String startTime = time.split(' - ')[0];
+    court = court.split(' ')[1].padLeft(2, '0');
+
+    if (isAvaible) {
+      // Parse the current time slot to determine next slots
+      int currentHour = int.parse(time.split(':')[0]);
+      int currentMinute = int.parse(time.split(':')[1].split(' ')[0]);
+
+      // Check next time slots (assuming 30-minute increments)
+      for (int i = 1; i <= 4; i++) {
+        int nextSlotHour = currentHour;
+        int nextSlotMinute = currentMinute + (30 * i);
+
+        // Handle minute overflow
+        if (nextSlotMinute >= 60) {
+          nextSlotHour += nextSlotMinute ~/ 60;
+          nextSlotMinute = nextSlotMinute % 60;
+        }
+
+        // Format the next time slot
+        String nextTimeSlot =
+            '$nextSlotHour:${nextSlotMinute.toString().padLeft(2, '0')}';
+
+        // Check if the next slot is available (you need to implement this logic)
+        bool isNextSlotAvailable = await FirebaseService().isSlotAvailable(
+          nextTimeSlot,
+          court,
+          selectedDate,
+        );
+
+        if (isNextSlotAvailable) {
+          maxConsecutiveSlots = i + 1;
+        } else {
+          break; // Stop checking if a slot is unavailable
+        }
+      }
+    }
+
+    int selectedDuration = 1;
+
     showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
             title: Text(
-              isBooked ? 'Lapangan Sudah Dibooking' : 'Booking Lapangan',
+              isAvaible ? 'Booking Lapangan' : 'Lapangan Sudah Dibooking',
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Tanggal: ${_formatDate(selectedDate)}'),
-                Text('Waktu: $time'),
+                Text('Waktu mulai: $startTime'),
                 Text('Lapangan: $court'),
-                if (isBooked)
+                if (!isAvaible)
                   const Text(
                     'Status: Sudah dibooking',
                     style: TextStyle(color: Colors.red),
                   )
-                else
-                  const Text(
-                    'Status: Tersedia',
-                    style: TextStyle(color: Colors.green),
+                else ...[
+                  const SizedBox(height: 16),
+                  const Text('Durasi:'),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: DropdownButton<int>(
+                      value: selectedDuration,
+                      isExpanded: true,
+                      underline: Container(), // Remove the default underline
+                      onChanged: (value) {
+                        setState(() {
+                          // Update the StatefulBuilder state
+                          selectedDuration = value!;
+                        });
+                      },
+                      items:
+                          List.generate(maxConsecutiveSlots, (i) => i + 1).map((
+                            e,
+                          ) {
+                            return DropdownMenuItem(
+                              value: e,
+                              child: Text('${e * 30} menit'),
+                            );
+                          }).toList(),
+                    ),
                   ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Durasi maksimal: ${maxConsecutiveSlots * 30} menit',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade600,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
               ],
             ),
             actions: [
@@ -457,10 +215,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 onPressed: () => Navigator.pop(context),
                 child: Text('Tutup'),
               ),
-              if (!isBooked)
+              if (isAvaible)
                 TextButton(
                   onPressed: () {
-                    // Logika untuk booking lapangan
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -510,21 +267,21 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   }
 
   // Widget untuk sel lapangan
-  Widget _buildCourtCell(String time, String court, bool isBooked) {
+  Widget _buildCourtCell(String time, String court, bool isAvaible) {
     return GestureDetector(
-      onTap: () => _showBookingDialog(time, court, isBooked),
+      onTap: () => _showBookingDialog(time, court, isAvaible, selectedDate),
       child: Container(
         width: 100,
         height: 50,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isBooked ? bookedColor : availableColor,
+          color: isAvaible ? availableColor : bookedColor,
           border: Border.all(color: Colors.grey.shade300),
         ),
         child: Text(
-          isBooked ? 'Booked' : 'Available',
+          isAvaible ? 'Available' : 'Booked',
           style: TextStyle(
-            color: isBooked ? Colors.red.shade700 : Colors.green.shade700,
+            color: isAvaible ? Colors.green.shade700 : Colors.red.shade700,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -659,21 +416,45 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                           ],
                         ),
                       ),
-                      
+
                       // Data rows
                       ...bookingData.entries.map((entry) {
                         final time = entry.key;
                         final courts = entry.value;
-                        
+
                         return Row(
                           children: [
                             _buildTimeCell(time),
-                            _buildCourtCell(time, 'Lapangan 1', courts['Lapangan 1']!),
-                            _buildCourtCell(time, 'Lapangan 2', courts['Lapangan 2']!),
-                            _buildCourtCell(time, 'Lapangan 3', courts['Lapangan 3']!),
-                            _buildCourtCell(time, 'Lapangan 4', courts['Lapangan 4']!),
-                            _buildCourtCell(time, 'Lapangan 5', courts['Lapangan 5']!),
-                            _buildCourtCell(time, 'Lapangan 6', courts['Lapangan 6']!),
+                            _buildCourtCell(
+                              time,
+                              'Lapangan 1',
+                              courts['Lapangan 1']!,
+                            ),
+                            _buildCourtCell(
+                              time,
+                              'Lapangan 2',
+                              courts['Lapangan 2']!,
+                            ),
+                            _buildCourtCell(
+                              time,
+                              'Lapangan 3',
+                              courts['Lapangan 3']!,
+                            ),
+                            _buildCourtCell(
+                              time,
+                              'Lapangan 4',
+                              courts['Lapangan 4']!,
+                            ),
+                            _buildCourtCell(
+                              time,
+                              'Lapangan 5',
+                              courts['Lapangan 5']!,
+                            ),
+                            _buildCourtCell(
+                              time,
+                              'Lapangan 6',
+                              courts['Lapangan 6']!,
+                            ),
                           ],
                         );
                       }).toList(),
@@ -682,7 +463,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 ),
               ),
             ),
-          ), 
+          ),
         ],
       ),
     );

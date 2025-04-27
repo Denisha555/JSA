@@ -4,6 +4,7 @@ import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/screens_admin/halaman_utama_admin.dart';
 import 'package:flutter_application_1/screen_owner/halaman_utama_owner.dart';
 import 'package:flutter_application_1/constants_file.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HalamanMasuk extends StatefulWidget {
   const HalamanMasuk({super.key});
@@ -111,6 +112,8 @@ class _HalamanMasukState extends State<HalamanMasuk>
               );
             }
           }
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          prefs.setString('username', usernameController.text);
           return;
         } catch (e) {
           if (mounted) {
@@ -156,6 +159,8 @@ class _HalamanMasukState extends State<HalamanMasuk>
               );
             }
           }
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          prefs.setString('username', usernameController.text);
           return;
         } catch (e) {
           if (mounted) {
@@ -184,6 +189,9 @@ class _HalamanMasukState extends State<HalamanMasuk>
           // jika username dan password benar
           if (mounted) {
             if (valid) {
+              SharedPreferences prefs = await SharedPreferences.getInstance();
+              prefs.setString('username', usernameController.text);
+              
               Navigator.pop(context);
               Navigator.pushReplacement(
                 context,
@@ -201,16 +209,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
               );
             }
           }
-        } else {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("Username belum terdaftar"),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
+        } 
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

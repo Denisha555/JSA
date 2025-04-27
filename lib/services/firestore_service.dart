@@ -1,5 +1,32 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 
+class TimeSlot {
+  final String courtId;
+  final String date;
+  final String startTime;
+  final String endTime;
+  final bool isAvailable;
+
+  TimeSlot({
+    required this.courtId,
+    required this.date,
+    required this.startTime,
+    required this.endTime,
+    required this.isAvailable,
+  });
+
+  factory TimeSlot.fromJson(Map<String, dynamic> json) {
+    return TimeSlot(
+      courtId: json['courtId'],
+      date: json['date'],
+      startTime: json['startTime'],
+      endTime: json['endTime'],
+      isAvailable: json['isAvailable'],
+    );
+  }
+}
 
 class FirebaseService {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -194,13 +221,14 @@ class FirebaseService {
 
   // Fungsi untuk mengecek apakah lapangan sudah ada di Firestore
   Future<bool> checkLapangan(String nomor) async {
-    try { QuerySnapshot querySnapshot =
+    try {
+      QuerySnapshot querySnapshot =
           await firestore
               .collection('lapangan')
               .where('nomor', isEqualTo: nomor)
               .get();
       return querySnapshot.docs.isNotEmpty;
-    } catch (e){
+    } catch (e) {
       throw Exception('Error Checking Lapangan: $e');
     }
   }
@@ -229,10 +257,180 @@ class FirebaseService {
 
   Future<void> deletePromoEvent(String id) async {
     try {
-      CollectionReference promoEventCollection = firestore.collection('promo_event');
+      CollectionReference promoEventCollection = firestore.collection(
+        'promo_event',
+      );
       await promoEventCollection.doc(id).delete();
     } catch (e) {
       throw Exception('Failed to delete promo event: $e');
+    }
+  }
+
+  // Fungsi untuk mengenerate slot 7 hari
+  Future<void> generateSlots7day() async {
+    try {
+      final courts = await firestore.collection('lapangan').get();
+      final today = DateTime.now();
+
+      for (var i = 0; i < 7; i++) {
+        final targetDate = DateTime(today.year, today.month, today.day + i);
+        final dateStr =
+            "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
+
+        for (var court in courts.docs) {
+          final courtNumber = court.data()['nomor'].toString();
+
+          // Cek apakah slot untuk tanggal dan lapangan ini sudah ada
+          final existing =
+              await firestore
+                  .collection('time_slots')
+                  .where('courtId', isEqualTo: courtNumber)
+                  .where('date', isEqualTo: dateStr)
+                  .limit(1)
+                  .get();
+
+          if (existing.docs.isEmpty) {
+            for (int hour = 7; hour <= 22; hour++) {
+              for (int minute = 0; minute < 60; minute += 30) {
+                final startTime =
+                    "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
+                final endTime = DateTime(
+                  targetDate.year,
+                  targetDate.month,
+                  targetDate.day,
+                  hour,
+                  minute,
+                ).add(Duration(minutes: 30));
+                final endTimeStr =
+                    "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}";
+                final slotId =
+                    "${courtNumber}_${dateStr}_${startTime.replaceAll(':', '')}";
+
+                await firestore.collection('time_slots').doc(slotId).set({
+                  'courtId': courtNumber,
+                  'date': dateStr,
+                  'startTime': startTime,
+                  'endTime': endTimeStr,
+                  'isAvailable': true,
+                  'createdAt': FieldValue.serverTimestamp(),
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      throw Exception('Failed to generate slots: $e');
+    }
+  }
+
+  // Fungsi untuk mengenerate slot 1 hari
+  Future<void> generateSlots1day() async {
+    try {
+      final courts = await firestore.collection('lapangan').get();
+      final today = DateTime.now();
+
+      final targetDate = DateTime(today.year, today.month, today.day);
+      final dateStr =
+          "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
+      for (var court in courts.docs) {
+        final courtNumber = court.data()['nomor'].toString();
+
+        // Cek apakah slot untuk tanggal dan lapangan ini sudah ada
+        final existing =
+            await firestore
+                .collection('time_slots')
+                .where('courtId', isEqualTo: courtNumber)
+                .where('date', isEqualTo: dateStr)
+                .limit(1)
+                .get();
+
+        if (existing.docs.isEmpty) {
+          for (int hour = 7; hour <= 22; hour++) {
+            for (int minute = 0; minute < 60; minute += 30) {
+              final startTime =
+                  "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
+              final endTime = DateTime(
+                targetDate.year,
+                targetDate.month,
+                targetDate.day,
+                hour,
+                minute,
+              ).add(Duration(minutes: 30));
+              final endTimeStr =
+                  "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}";
+              final slotId =
+                  "${courtNumber}_${dateStr}_${startTime.replaceAll(':', '')}";
+
+              await firestore.collection('time_slots').doc(slotId).set({
+                'courtId': courtNumber,
+                'date': dateStr,
+                'startTime': startTime,
+                'endTime': endTimeStr,
+                'isAvailable': true,
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      throw Exception('Failed to generate slots: $e');
+    }
+  }
+
+  // Fungsi untuk mengambil data slot dari Firestore
+  Future<List<TimeSlot>> getTimeSlotsByDate(String dateStr) async {
+    try {
+      
+      final QuerySnapshot querySnapshot =
+          await firestore
+              .collection('time_slots')
+              .where('date', isEqualTo: dateStr)
+              .get();
+
+      return querySnapshot.docs.map((doc) {
+        return TimeSlot.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to get time slots: $e');
+    }
+  }
+
+  // Fungsi untuk mengecek ketersediaan slot berdasarkan id dan lapangan
+  Future<bool> isSlotAvailable(String startTime, String courts, DateTime selectedDate) async {
+    try {
+      final targetDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+        final dateStr =
+            "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
+      final QuerySnapshot slotSnapshot =
+          await firestore
+            .collection('time_slots')
+            .where('date', isEqualTo: dateStr)
+            .where('courtId', isEqualTo: courts)
+            .where('startTime', isEqualTo: startTime)
+            .get();
+      if (slotSnapshot.docs.isNotEmpty) {
+        final TimeSlot slot = TimeSlot.fromJson(
+          slotSnapshot.docs.first.data() as Map<String, dynamic>);
+      return slot.isAvailable;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      throw Exception('Failed to check slot availability: $e');
+    }
+  }
+
+  // Fungsi untuk booking slot
+  Future<void> bookSlot(String slotId, String username) async {
+    try {
+      await firestore.collection('time_slots').doc(slotId).update({
+        'isAvailable': false,
+        'username': username,
+      });
+    } catch (e) {
+      throw Exception('Failed to book slot: $e');
     }
   }
 }

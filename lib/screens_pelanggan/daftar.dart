@@ -67,6 +67,11 @@ class _HalamanDaftarState extends State<HalamanDaftar>
         errorTextPassword = "Password tidak boleh kosong";
       });
       return;
+    } else if (passwordController.text.length < 6) {
+      setState(() {
+        errorTextPassword = "Password minimal 6 karakter";
+      });
+      return;
     } else {
       setState(() {
         errorTextUsername = null;
