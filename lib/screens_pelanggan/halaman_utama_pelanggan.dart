@@ -352,7 +352,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                   () => Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const HalamanTentangKami(),
+                      builder: (context) => HalamanTentangKami(),
                     ),
                   ),
             ),
