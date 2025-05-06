@@ -89,7 +89,7 @@ class _HalamanDaftarState extends State<HalamanDaftar>
               // Jika username sudah terdaftar
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Username sudah terdaftar.'),        
+                  content: Text('Username sudah terdaftar, gunakan username lain.'),        
                   backgroundColor: Colors.red,
                 ),
               );
