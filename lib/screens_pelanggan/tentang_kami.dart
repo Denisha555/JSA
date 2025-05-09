@@ -61,8 +61,8 @@ class HalamanTentangKami extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               child: FlutterMap(
                 options: MapOptions(
-                  center: _lokasiKita,
-                  zoom: 16,
+                  initialCenter: _lokasiKita,
+                  initialZoom: 16,
                 ),
                 children: [
                   TileLayer(
@@ -97,7 +97,7 @@ class HalamanTentangKami extends StatelessWidget {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Jln. Parit Haji Husein 1,Gg. Sawit No.10, Bangka Belitung Laut, Kec. Pontianak Tenggara, Kota Pontianak, Kalimantan Barat 78124\n(Tap untuk petunjuk arah)',
+                    'Jln. Parit Haji Husein 1,Gg. Sawit No.10, Bangka Belitung Laut, Kec. Pontianak Tenggara, Kota Pontianak, Kalimantan Barat 78124\n\n(Tap untuk petunjuk arah)',
                     style: TextStyle(
                       color: Colors.blue,
                       decoration: TextDecoration.underline,
@@ -128,8 +128,7 @@ class HalamanTentangKami extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                 ),
-                icon: const Icon(Icons.chat),
-                label: const Text("WhatsApp"),
+                label: const Text("WhatsApp", style: TextStyle(color: Colors.white),),
                 onPressed: () {
                   _bukaLink('https://wa.me/6281299931908'); 
                 },
@@ -138,8 +137,7 @@ class HalamanTentangKami extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color.fromARGB(255, 255, 64, 156),
                 ),
-                icon: const Icon(Icons.camera_alt),
-                label: const Text("Instagram"),
+                label: const Text("Instagram", style: TextStyle(color: Colors.white),),
                 onPressed: () {
                   _bukaLink('https://www.instagram.com/jumpsmasharena?igsh=MWRpcG53YmRnYWRubA=='); 
                 },

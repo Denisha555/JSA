@@ -45,8 +45,8 @@ class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
             label: 'Beranda',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.assignment),
-            activeIcon: Icon(Icons.history),
+            icon: Icon(Icons.assignment_outlined),
+            activeIcon: Icon(Icons.assignment),
             label: 'Riwayat',
           ),
           BottomNavigationBarItem(

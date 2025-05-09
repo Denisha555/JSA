@@ -26,7 +26,7 @@ void main() async {
     }
     runApp(const MyApp());
   } catch (e) {
-    print('Error initializing Firebase: $e');
+    debugPrint('Error initializing Firebase: $e');
     runApp(const MyAppError());
   }
 }
@@ -274,7 +274,7 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
                         ),
                       ),
                       child: Text(
-                        "Belum ada akun? Daftar dulu...",
+                        "Daftar",
                         style: TextStyle(
                           color: primaryColor,
                           fontWeight: FontWeight.bold,
