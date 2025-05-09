@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
+
 
 class TimeSlot {
   final String courtId;
@@ -495,6 +494,22 @@ class FirebaseService {
       }
     } catch (e) {
       throw Exception('Failed to check slot availability: $e');
+    }
+  }
+
+  // Fungsi untuk menghapus slot perhari
+  Future<void> deleteSlotByDay(String selecteddate) async {
+    try {
+      await firestore.collection('time_slots')
+      .where('date', isEqualTo: selecteddate)
+      .get()
+      .then((snapshot) {
+        for (DocumentSnapshot doc in snapshot.docs) {
+          doc.reference.delete();
+        }
+      });
+    } catch (e) {
+      throw Exception('Failed to delete slot: $e');
     }
   }
 
