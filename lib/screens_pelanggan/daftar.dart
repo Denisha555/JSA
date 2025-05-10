@@ -180,8 +180,7 @@ class _HalamanDaftarState extends State<HalamanDaftar>
                         ),
                         child: Image.asset(
                           'assets/image/LogoJSA.jpg',
-                          width: screenWidth * 0.6,
-                          height: screenWidth * 0.6,
+                          width: 150, height: 150
                         ),
                       ),
 

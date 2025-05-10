@@ -69,8 +69,6 @@ class Booking {
   });
 }
 
-
-
 class Reward {
   final double currentHours;
   final double requiredHours = 20;
@@ -93,6 +91,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
   @override
   void initState() {
     // TODO: implement initState
+    super.initState();
     _checkbooked();
   }
 
@@ -327,6 +326,8 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
         username,
         selectedDate,
       );
+
+      debugPrint('Time slots: $timeSlots');
 
       if (timeSlots.isNotEmpty) {
         final timeSlot = timeSlots.first;

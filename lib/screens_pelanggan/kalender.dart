@@ -157,7 +157,11 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                             child: Row(
                               children: [
                                 _buildHeaderCell('Jam', width: 100),
-                                ...courtIds.map((id) => _buildHeaderCell('Lapangan $id')).toList(),
+                                ...courtIds
+                                    .map(
+                                      (id) => _buildHeaderCell('Lapangan $id'),
+                                    )
+                                    .toList(),
                               ],
                             ),
                           ),
@@ -170,7 +174,15 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                             return Row(
                               children: [
                                 _buildTimeCell(time),
-                                ...courtIds.map((id) => _buildCourtCell(time, id, courts[id]!)).toList(),
+                                ...courtIds
+                                    .map(
+                                      (id) => _buildCourtCell(
+                                        time,
+                                        id,
+                                        courts[id]!,
+                                      ),
+                                    )
+                                    .toList(),
                               ],
                             );
                           }).toList(),
@@ -327,6 +339,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     bool isAvailable,
     DateTime selectedDate,
   ) async {
+    DateTime today = DateTime.now();
     int maxConsecutiveSlots = 1;
     String startTime = time.split(' - ')[0];
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -335,7 +348,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     // Helper untuk batas jam operasional
     bool isWithinOperatingHours(int hour, int minute) {
       int totalMinutes = hour * 60 + minute;
-      return totalMinutes >= 7 * 60 && totalMinutes < 22 * 60;
+      return totalMinutes >= 7 * 60 && totalMinutes < 23 * 60;
     }
 
     if (isAvailable) {
@@ -343,7 +356,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       int currentMinute = int.parse(time.split(':')[1].split(' ')[0]);
 
       int startTotalMinutes = currentHour * 60 + currentMinute;
-      int remainingMinutes = (22 * 60) - startTotalMinutes;
+      int remainingMinutes = (23 * 60) - startTotalMinutes;
       int maxPossibleSlots = remainingMinutes ~/ 30;
 
       for (int i = 1; i <= maxPossibleSlots; i++) {
@@ -463,27 +476,29 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     child: const Text('Tutup'),
                   ),
                   if (isAvailable)
-                    TextButton(
-                      onPressed: () async {
-                        await _booking(
-                          startTime,
-                          endTime,
-                          court,
-                          selectedDate,
-                          username,
-                        );
-                        await _updateSlot(selectedDate);
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Berhasil booking Lapangan $court pada $startTime - $endTime',
+                    if (selectedDate.isAfter(today) || (selectedDate == today))
+                      TextButton(
+                        onPressed: () async {
+                          await _booking(
+                            startTime,
+                            endTime,
+                            court,
+                            selectedDate,
+                            username,
+                          );
+                          await _updateSlot(selectedDate);
+
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Berhasil booking Lapangan $court pada $startTime - $endTime',
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                      child: const Text('Booking'),
-                    ),
+                          );
+                        },
+                        child: const Text('Booking'),
+                      ),
                 ],
               ),
         );

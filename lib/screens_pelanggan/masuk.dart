@@ -282,8 +282,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
                         ),
                         child: Image.asset(
                           'assets/image/LogoJSA.jpg',
-                          width: screenWidth * 0.6,
-                          height: screenWidth * 0.6,
+                          width: 150, height: 150
                         ),
                       ),
 
@@ -310,7 +309,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
                             borderRadius: BorderRadius.circular(borderRadius),
                             borderSide: const BorderSide(
                               color: Colors.grey,
-                              width: 1.0,
+                              width: 0.5,
                             ),
                           ),
                           enabledBorder: OutlineInputBorder(
@@ -366,7 +365,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
                             borderRadius: BorderRadius.circular(borderRadius),
                             borderSide: const BorderSide(
                               color: Colors.grey,
-                              width: 1.0,
+                              width: 1.0
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
