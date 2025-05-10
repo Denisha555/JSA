@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/screens_pelanggan/Kalender.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_1/services/firestore_service.dart';
 import 'price_list.dart';
 import 'tentang_kami.dart';
 
@@ -67,14 +69,6 @@ class Booking {
   });
 }
 
-// Sample current booking
-final Booking currentBooking = Booking(
-  courtName: "Lapangan 2",
-  date: "20/02/2023",
-  timeSlot: "10:00 - 12:00",
-  status: "Terkonfirmasi",
-);
-
 class Reward {
   final double currentHours;
   final double requiredHours = 20;
@@ -92,6 +86,15 @@ class HalamanUtamaPelanggan extends StatefulWidget {
 }
 
 class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
+  Widget? currentBookingCard;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _checkbooked();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -104,7 +107,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Current booking card
-                if (currentBooking != null) _buildCurrentBookingCard(),
+                if (currentBookingCard != null) currentBookingCard!,
 
                 const SizedBox(height: 16),
 
@@ -134,8 +137,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
   }
 
   Widget _buildRewardection(BuildContext context) {
-    double progress = (currentReward.currentHours /
-            currentReward.requiredHours)
+    double progress = (currentReward.currentHours / currentReward.requiredHours)
         .clamp(0.0, 1.0);
 
     return Container(
@@ -241,14 +243,12 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
   }
 
   // Current booking card widget
-  Widget _buildCurrentBookingCard() {
+  Widget _buildCurrentBookingCard(
+    String courtName,
+    String timeSlot,
+    String date,
+  ) {
     Color statusColor = Colors.green;
-
-    if (currentBooking.status == "Menunggu Konfirmasi") {
-      statusColor = Colors.orange;
-    } else if (currentBooking.status == "Dibatalkan") {
-      statusColor = Colors.red;
-    }
 
     return Card(
       elevation: 2,
@@ -262,18 +262,20 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
               children: [
                 Icon(Icons.circle, color: statusColor, size: 14),
                 const SizedBox(width: 8),
+
                 Text(
-                  currentBooking.status,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  "Your Current Booking",
+                  style: TextStyle(
+                    color: statusColor,
                     fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Text(
-              "${currentBooking.courtName} • ${currentBooking.timeSlot} • ${currentBooking.date}",
+              "$courtName • $timeSlot • $date",
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
@@ -314,6 +316,43 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
     );
   }
 
+  void _checkbooked() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String username = prefs.getString('username') ?? '';
+    DateTime selectedDate = DateTime.now();
+
+    try {
+      final timeSlots = await FirebaseService().getTimeSlotByUsername(
+        username,
+        selectedDate,
+      );
+
+      debugPrint('Time slots: $timeSlots');
+
+      if (timeSlots.isNotEmpty) {
+        final timeSlot = timeSlots.first;
+        String courtName = timeSlot.courtId;
+        String startTime = timeSlot.startTime;
+        String date = timeSlot.date.toString();
+
+        // Simpan widget ke state
+        setState(() {
+          currentBookingCard = _buildCurrentBookingCard(
+            courtName,
+            startTime,
+            date,
+          );
+        });
+      } else {
+        setState(() {
+          currentBookingCard = null;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load booking: $e');
+    }
+  }
+
   // Quick access menu buttons
   Widget _buildQuickAccessMenu() {
     return Container(
@@ -338,7 +377,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
             ),
             _buildQuickAccessButton(
               icon: 'calender',
-              label: "Kalender",
+              label: "Booking",
               onTap:
                   () => Navigator.push(
                     context,
@@ -476,8 +515,9 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
       child: InkWell(
         onTap: () {
           Navigator.push(
-            context, 
-            MaterialPageRoute(builder: (context) => HalamanKalender()));
+            context,
+            MaterialPageRoute(builder: (context) => HalamanKalender()),
+          );
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -504,7 +544,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                   height: 160,
                   child: court.imageUrl,
                 ),
-              ),       
+              ),
             ],
           ),
         ),

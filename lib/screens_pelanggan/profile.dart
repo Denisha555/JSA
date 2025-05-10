@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/main.dart';
-
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HalamanProfil extends StatefulWidget {
   const HalamanProfil({super.key});
@@ -21,8 +21,11 @@ class _HalamanProfilState extends State<HalamanProfil> {
         child: Column(
           children: [
             InkWell(
-              onTap: () {
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MainApp()));},
+              onTap: () async {
+                Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MainApp()));
+                SharedPreferences prefs = await SharedPreferences.getInstance();
+                prefs.remove("username");
+              }, 
               child: Row(
                 children: [
                   Icon(Icons.logout),

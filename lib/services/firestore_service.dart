@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-
 class TimeSlot {
   final String courtId;
   final String date;
@@ -23,6 +22,35 @@ class TimeSlot {
       startTime: json['startTime'],
       endTime: json['endTime'],
       isAvailable: json['isAvailable'],
+    );
+  }
+}
+
+class TimeSlotForAdmin {
+  final String courtId;
+  final String date;
+  final String startTime;
+  final String endTime;
+  final bool isAvailable;
+  final String? username;
+
+  TimeSlotForAdmin({
+    required this.courtId,
+    required this.date,
+    required this.startTime,
+    required this.endTime,
+    required this.isAvailable,
+    required this.username,
+  });
+
+  factory TimeSlotForAdmin.fromJson(Map<String, dynamic> json) {
+    return TimeSlotForAdmin(
+      courtId: json['courtId'],
+      date: json['date'],
+      startTime: json['startTime'],
+      endTime: json['endTime'],
+      isAvailable: json['isAvailable'],
+      username: json['username'] ?? "",
     );
   }
 }
@@ -383,7 +411,11 @@ class FirebaseService {
     try {
       final courts = await firestore.collection('lapangan').get();
 
-      final targetDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
+      final targetDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+      );
       final dateStr =
           "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
       for (var court in courts.docs) {
@@ -435,7 +467,6 @@ class FirebaseService {
   // Fungsi untuk mengambil data slot dari Firestore
   Future<List<TimeSlot>> getTimeSlotsByDate(String dateStr) async {
     try {
-      
       final QuerySnapshot querySnapshot =
           await firestore
               .collection('time_slots')
@@ -451,18 +482,26 @@ class FirebaseService {
   }
 
   // Fungsi untuk mengambil data slot dari Firestore
-  Future<List<TimeSlot>> getTimeSlotsByTime(String startTime, String courts, DateTime selectedDate) async {
+  Future<List<TimeSlot>> getTimeSlotsByTime(
+    String startTime,
+    String courts,
+    DateTime selectedDate,
+  ) async {
     try {
-      final targetDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-        final dateStr =
-            "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
+      final targetDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+      );
+      final dateStr =
+          "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
       final QuerySnapshot querySnapshot =
           await firestore
-            .collection('time_slots')
-            .where('date', isEqualTo: dateStr)
-            .where('courtId', isEqualTo: courts)
-            .where('startTime', isEqualTo: startTime)
-            .get();
+              .collection('time_slots')
+              .where('date', isEqualTo: dateStr)
+              .where('courtId', isEqualTo: courts)
+              .where('startTime', isEqualTo: startTime)
+              .get();
 
       return querySnapshot.docs.map((doc) {
         return TimeSlot.fromJson(doc.data() as Map<String, dynamic>);
@@ -472,23 +511,88 @@ class FirebaseService {
     }
   }
 
-  // Fungsi untuk mengecek ketersediaan slot berdasarkan id dan lapangan
-  Future<bool> isSlotAvailable(String startTime, String courts, DateTime selectedDate) async {
+  Future<List<TimeSlotForAdmin>> getTimeSlotsByDateForAdmin(
+    DateTime selectedDate,
+  ) async {
     try {
-      final targetDate = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-        final dateStr =
-            "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
+      final targetDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+      );
+      final dateStr =
+          "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
+      final QuerySnapshot querySnapshot =
+          await firestore
+              .collection('time_slots')
+              .where('date', isEqualTo: dateStr)
+              .get();
+
+      return querySnapshot.docs.map((doc) {
+        return TimeSlotForAdmin.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to get time slots: $e');
+    }
+  }
+
+  // Fungsi untuk mengambil data slot dari Firestore berdasarkan username dan tanggal
+  Future<List<TimeSlot>> getTimeSlotByUsername(String username, DateTime selectedDate) async {
+    try {
+      final targetDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+        selectedDate.hour,
+        selectedDate.minute,
+      );
+      final dateStr =
+          "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
+      
+      final timeStr = 
+          "${targetDate.hour.toString().padLeft(2, '0')}:${targetDate.minute.toString().padLeft(2, '0')}";
+
+      final QuerySnapshot querySnapshot =
+          await firestore
+              .collection('time_slots')
+              .where('username', isEqualTo: username)
+              .where('date', isGreaterThanOrEqualTo: dateStr)
+              .where('startTime', isGreaterThanOrEqualTo: timeStr)
+              .get();
+      return querySnapshot.docs.map((doc) {
+        return TimeSlot.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to get time slots for $username: $e');
+    }
+  }
+
+  // Fungsi untuk mengecek ketersediaan slot berdasarkan id dan lapangan
+  Future<bool> isSlotAvailable(
+    String startTime,
+    String courts,
+    DateTime selectedDate,
+  ) async {
+    try {
+      final targetDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+      );
+      final dateStr =
+          "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
       final QuerySnapshot slotSnapshot =
           await firestore
-            .collection('time_slots')
-            .where('date', isEqualTo: dateStr)
-            .where('courtId', isEqualTo: courts)
-            .where('startTime', isEqualTo: startTime)
-            .get();
+              .collection('time_slots')
+              .where('date', isEqualTo: dateStr)
+              .where('courtId', isEqualTo: courts)
+              .where('startTime', isEqualTo: startTime)
+              .get();
       if (slotSnapshot.docs.isNotEmpty) {
         final TimeSlot slot = TimeSlot.fromJson(
-          slotSnapshot.docs.first.data() as Map<String, dynamic>);
-      return slot.isAvailable;
+          slotSnapshot.docs.first.data() as Map<String, dynamic>,
+        );
+        return slot.isAvailable;
       } else {
         return false;
       }
@@ -500,14 +604,15 @@ class FirebaseService {
   // Fungsi untuk menghapus slot perhari
   Future<void> deleteSlotByDay(String selecteddate) async {
     try {
-      await firestore.collection('time_slots')
-      .where('date', isEqualTo: selecteddate)
-      .get()
-      .then((snapshot) {
-        for (DocumentSnapshot doc in snapshot.docs) {
-          doc.reference.delete();
-        }
-      });
+      await firestore
+          .collection('time_slots')
+          .where('date', isEqualTo: selecteddate)
+          .get()
+          .then((snapshot) {
+            for (DocumentSnapshot doc in snapshot.docs) {
+              doc.reference.delete();
+            }
+          });
     } catch (e) {
       throw Exception('Failed to delete slot: $e');
     }

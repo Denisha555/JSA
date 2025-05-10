@@ -70,6 +70,11 @@ class _HalamanMasukState extends State<HalamanMasuk>
         errorTextPassword = "Password tidak boleh kosong";
       });
       return;
+    } else if (passwordController.text.length < 6) {
+      setState(() {
+        errorTextPassword = "Password minimal 6 karakter";
+      });
+      return;
     } else {
       setState(() {
         errorTextUsername = null;
@@ -203,13 +208,20 @@ class _HalamanMasukState extends State<HalamanMasuk>
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Username atau password tidak sesuai.'),
+                  content: Text('Password tidak sesuai.'),
                   backgroundColor: Colors.red,
                 ),
               );
             }
           }
-        } 
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Username belum terdaftar, silahkan daftar terlebih dahulu.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -270,8 +282,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
                         ),
                         child: Image.asset(
                           'assets/image/LogoJSA.jpg',
-                          width: screenWidth * 0.6,
-                          height: screenWidth * 0.6,
+                          width: 150, height: 150
                         ),
                       ),
 
@@ -298,7 +309,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
                             borderRadius: BorderRadius.circular(borderRadius),
                             borderSide: const BorderSide(
                               color: Colors.grey,
-                              width: 1.0,
+                              width: 0.5,
                             ),
                           ),
                           enabledBorder: OutlineInputBorder(
@@ -354,7 +365,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
                             borderRadius: BorderRadius.circular(borderRadius),
                             borderSide: const BorderSide(
                               color: Colors.grey,
-                              width: 1.0,
+                              width: 1.0
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(

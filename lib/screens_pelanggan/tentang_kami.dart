@@ -2,12 +2,83 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:geolocator/geolocator.dart';
 
-class HalamanTentangKami extends StatelessWidget {
-   HalamanTentangKami({super.key});
+class HalamanTentangKami extends StatefulWidget {
+  const HalamanTentangKami({super.key});
 
-  // Ganti ini dengan lokasi asli kamu
-  final LatLng _lokasiKita = LatLng(-0.05687, 109.35996); 
+  @override
+  State<HalamanTentangKami> createState() => _HalamanTentangKamiState();
+}
+
+class _HalamanTentangKamiState extends State<HalamanTentangKami> {
+  final LatLng _lokasiArena = LatLng(-0.05687, 109.35996);
+  LatLng? _lokasiPengguna;
+  late final MapController _mapController = MapController();
+  Stream<Position>? _streamLokasi;
+
+  @override
+  void initState() {
+    super.initState();
+    _mulaiPantauLokasi();
+  }
+
+  Future<void> _mulaiPantauLokasi() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Layanan lokasi tidak aktif')),
+      );
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Izin lokasi ditolak')),
+        );
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Izin lokasi ditolak permanen')),
+      );
+      return;
+    }
+
+    // Ambil lokasi awal
+    Position posisiAwal = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+    final LatLng posisiAwalLatLng = LatLng(posisiAwal.latitude, posisiAwal.longitude);
+
+    setState(() {
+      _lokasiPengguna = posisiAwalLatLng;
+    });
+
+    // Pusatkan peta ke lokasi pengguna
+    _mapController.move(posisiAwalLatLng, 16);
+
+    // Stream posisi real-time
+    _streamLokasi = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    );
+
+    _streamLokasi!.listen((pos) {
+      final LatLng posisiBaru = LatLng(pos.latitude, pos.longitude);
+      setState(() {
+        _lokasiPengguna = posisiBaru;
+      });
+      _mapController.move(posisiBaru, _mapController.camera.zoom);
+    });
+  }
 
   void _bukaLink(String url) async {
     final Uri uri = Uri.parse(url);
@@ -18,7 +89,8 @@ class HalamanTentangKami extends StatelessWidget {
 
   void _bukaGoogleMaps() async {
     final Uri mapsUrl = Uri.parse(
-        'https://www.google.com/maps/dir/?api=1&destination=${_lokasiKita.latitude},${_lokasiKita.longitude}');
+      'https://www.google.com/maps/dir/?api=1&origin=${_lokasiPengguna?.latitude ?? ''},${_lokasiPengguna?.longitude ?? ''}&destination=${_lokasiArena.latitude},${_lokasiArena.longitude}',
+    );
     if (!await launchUrl(mapsUrl, mode: LaunchMode.externalApplication)) {
       throw 'Tidak bisa membuka Google Maps';
     }
@@ -27,20 +99,14 @@ class HalamanTentangKami extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Tentang Kami"),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text("Tentang Kami"), centerTitle: true),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Center(
             child: Column(
               children: [
-                Image.asset(
-                  'assets/image/TentangKami.png',
-                  height: 100,
-                ),
+                Image.asset('assets/image/LogoJSA.png', height: 100),
                 const SizedBox(height: 12),
                 const Text(
                   'JUMP SMASH ARENA',
@@ -60,20 +126,23 @@ class HalamanTentangKami extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: FlutterMap(
+                mapController: _mapController,
                 options: MapOptions(
-                  initialCenter: _lokasiKita,
+                  initialCenter: _lokasiArena,
                   initialZoom: 16,
+                  interactionOptions: const InteractionOptions(
+                    flags: ~InteractiveFlag.doubleTapZoom,
+                  ),
                 ),
                 children: [
                   TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.example.app',
                   ),
                   MarkerLayer(
                     markers: [
                       Marker(
-                        point: _lokasiKita,
+                        point: _lokasiArena,
                         width: 40,
                         height: 40,
                         child: const Icon(
@@ -82,6 +151,17 @@ class HalamanTentangKami extends StatelessWidget {
                           size: 40,
                         ),
                       ),
+                      if (_lokasiPengguna != null)
+                        Marker(
+                          point: _lokasiPengguna!,
+                          width: 30,
+                          height: 30,
+                          child: const Icon(
+                            Icons.person_pin_circle,
+                            color: Colors.blue,
+                            size: 30,
+                          ),
+                        ),
                     ],
                   ),
                 ],
@@ -97,7 +177,7 @@ class HalamanTentangKami extends StatelessWidget {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Jln. Parit Haji Husein 1,Gg. Sawit No.10, Bangka Belitung Laut, Kec. Pontianak Tenggara, Kota Pontianak, Kalimantan Barat 78124\n\n(Tap untuk petunjuk arah)',
+                    'Jln. Parit Haji Husein 1, Gg. Sawit No.10, Bangka Belitung Laut, Kec. Pontianak Tenggara, Kota Pontianak, Kalimantan Barat 78124\n\n(Tap untuk petunjuk arah)',
                     style: TextStyle(
                       color: Colors.blue,
                       decoration: TextDecoration.underline,
@@ -125,21 +205,29 @@ class HalamanTentangKami extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green,
-                ),
-                label: const Text("WhatsApp", style: TextStyle(color: Colors.white),),
+                // icon: SizedBox(
+                //   width: 24,
+                //   height: 24,
+                //   child: Image.asset('assets/image/whatsapp.jpg'),
+                // ),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                label: const Text("WhatsApp", style: TextStyle(color: Colors.white)),
                 onPressed: () {
-                  _bukaLink('https://wa.me/6281299931908'); 
+                  _bukaLink('https://wa.me/6281299931908');
                 },
               ),
               ElevatedButton.icon(
+                // icon: SizedBox(
+                //   width: 24,
+                //   height: 24,
+                //   child: Image.asset('assets/image/insta.png'),
+                // ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromARGB(255, 255, 64, 156),
+                  backgroundColor: Color.fromARGB(255, 255, 64, 156),
                 ),
-                label: const Text("Instagram", style: TextStyle(color: Colors.white),),
+                label: const Text("Instagram", style: TextStyle(color: Colors.white)),
                 onPressed: () {
-                  _bukaLink('https://www.instagram.com/jumpsmasharena?igsh=MWRpcG53YmRnYWRubA=='); 
+                  _bukaLink('https://www.instagram.com/jumpsmasharena?igsh=MWRpcG53YmRnYWRubA==');
                 },
               ),
             ],
@@ -162,10 +250,7 @@ class JamRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          Text(hari),
-          Text(jam),
-        ],
+        children: [Text(hari), Text(jam)],
       ),
     );
   }
