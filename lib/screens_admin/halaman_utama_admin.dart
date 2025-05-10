@@ -4,7 +4,9 @@ import 'kalender.dart';
 import 'promo_event.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/screens_pelanggan/masuk.dart';
+import 'package:flutter_application_1/services/firestore_service.dart';
 import 'lapangan.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HalamanUtamaAdmin extends StatefulWidget {
   const HalamanUtamaAdmin({super.key});
@@ -15,348 +17,10 @@ class HalamanUtamaAdmin extends StatefulWidget {
 
 class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   DateTime selectedDate = DateTime.now();
+  bool isLoading = false;
 
-  // Updated booking data to include customer name
-  Map<String, Map<String, Map<String, String>>> bookingData = {
-    '01:00 - 01:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'John Doe'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Jane Smith'},
-      'Lapangan 3': {'status': 'booked', 'username': 'Mike Johnson'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Sarah Williams'},
-      'Lapangan 6': {'status': 'booked', 'username': 'David Brown'},
-    },
-    '01:30 - 02:00': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Alex Davis'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Emma Wilson'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Ryan Taylor'},
-      'Lapangan 5': {'status': 'booked', 'username': 'Olivia Jones'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Daniel White'},
-    },
-    '02:00 - 02:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Lisa Martinez'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Kevin Garcia'},
-      'Lapangan 3': {'status': 'booked', 'username': 'Sophia Rodriguez'},
-      'Lapangan 4': {'status': 'booked', 'username': 'James Lee'},
-      'Lapangan 5': {'status': 'booked', 'username': 'Emily Clark'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Michael Lewis'},
-    },
-    '02:30 - 03:00': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Jessica Walker'},
-      'Lapangan 2': {'status': 'available', 'username': ''},
-      'Lapangan 3': {'status': 'booked', 'username': 'Andrew Hall'},
-      'Lapangan 4': {'status': 'booked', 'username': 'Chloe Young'},
-      'Lapangan 5': {'status': 'booked', 'username': 'Thomas Allen'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Abigail King'},
-    },
-    '03:00 - 03:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Robert Wright'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Natalie Scott'},
-      'Lapangan 3': {'status': 'booked', 'username': 'Christopher Green'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Hannah Baker'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Joseph Hill'},
-    },
-    '03:30 - 04:00': {
-      'Lapangan 1': {'status': 'available', 'username': ''},
-      'Lapangan 2': {'status': 'booked', 'username': 'Michelle Adams'},
-      'Lapangan 3': {'status': 'booked', 'username': 'Jonathan Campbell'},
-      'Lapangan 4': {'status': 'booked', 'username': 'Grace Mitchell'},
-      'Lapangan 5': {'status': 'available', 'username': ''},
-      'Lapangan 6': {'status': 'booked', 'username': 'Brandon Carter'},
-    },
-    '04:00 - 04:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Rachel Roberts'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Justin Parker'},
-      'Lapangan 3': {'status': 'booked', 'username': 'Lauren Evans'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Nicholas Torres'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Samantha Diaz'},
-    },
-    '04:30 - 05:00': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Eric Collins'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Victoria Reed'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Tyler Murphy'},
-      'Lapangan 5': {'status': 'available', 'username': ''},
-      'Lapangan 6': {'status': 'booked', 'username': 'Elizabeth Cook'},
-    },
-    '05:00 - 05:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Brian Richardson'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Amanda Cox'},
-      'Lapangan 3': {'status': 'booked', 'username': 'Kyle Howard'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Melissa Ward'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '05:30 - 06:00': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Jacob Morgan'},
-      'Lapangan 2': {'status': 'available', 'username': ''},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Megan Phillips'},
-      'Lapangan 5': {'status': 'booked', 'username': 'Jordan Bell'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-
-    // Add more time slots with appropriate data
-    '06:00 - 06:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Dylan Foster'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Stephanie Butler'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Austin Simmons'},
-      'Lapangan 5': {'status': 'available', 'username': ''},
-      'Lapangan 6': {'status': 'booked', 'username': 'Nicole Price'},
-    },
-    '06:30 - 07:00': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Timothy Barnes'},
-      'Lapangan 2': {'status': 'available', 'username': ''},
-      'Lapangan 3': {'status': 'booked', 'username': 'Rebecca Ross'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'available', 'username': ''},
-      'Lapangan 6': {'status': 'booked', 'username': 'Stephen Henderson'},
-    },
-    '07:00 - 07:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Laura Coleman'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Lucas Jenkins'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Danielle Perry'},
-      'Lapangan 5': {'status': 'available', 'username': ''},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '07:30 - 08:00': {
-      'Lapangan 1': {'status': 'available', 'username': ''},
-      'Lapangan 2': {'status': 'booked', 'username': 'Patrick Powell'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Amber Long'},
-      'Lapangan 5': {'status': 'available', 'username': ''},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '08:00 - 08:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Nathan Hughes'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Sara Peterson'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Adrian Bennett'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '08:30 - 09:00': {
-      'Lapangan 1': {'status': 'available', 'username': ''},
-      'Lapangan 2': {'status': 'booked', 'username': 'Sofia Patterson'},
-      'Lapangan 3': {'status': 'booked', 'username': 'William Kelly'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'available', 'username': ''},
-      'Lapangan 6': {'status': 'booked', 'username': 'Chloe Cox'},
-    },
-    '09:00 - 09:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'James Rivera'},
-      'Lapangan 2': {'status': 'available', 'username': ''},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Abigail Torres'},
-      'Lapangan 5': {'status': 'booked', 'username': 'Matthew Jenkins'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Lily Hayes'},
-    },
-    '09:30 - 10:00': {
-      'Lapangan 1': {'status': 'available', 'username': ''},
-      'Lapangan 2': {'status': 'booked', 'username': 'Sebastian Bryant'},
-      'Lapangan 3': {'status': 'booked', 'username': 'Grace Cooper'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Aiden Richardson'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '10:00 - 10:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Zoe Stone'},
-      'Lapangan 2': {'status': 'available', 'username': ''},
-      'Lapangan 3': {'status': 'booked', 'username': 'Owen Barnes'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Nora Freeman'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Levi Chapman'},
-    },
-    '10:30 - 11:00': {
-      'Lapangan 1': {'status': 'available', 'username': ''},
-      'Lapangan 2': {'status': 'booked', 'username': 'Avery Harvey'},
-      'Lapangan 3': {'status': 'booked', 'username': 'Luna Hart'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Nathan Ray'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Zara Griffith'},
-    },
-    '11:00 - 11:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Caroline Austin'},
-      'Lapangan 2': {'status': 'available', 'username': ''},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Elijah West'},
-      'Lapangan 5': {'status': 'booked', 'username': 'Scarlett Ford'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '11:30 - 12:00': {
-      'Lapangan 1': {'status': 'available', 'username': ''},
-      'Lapangan 2': {'status': 'booked', 'username': 'Gabriel Wallace'},
-      'Lapangan 3': {'status': 'booked', 'username': 'Aria Cole'},
-      'Lapangan 4': {'status': 'booked', 'username': 'Hudson Powell'},
-      'Lapangan 5': {'status': 'available', 'username': ''},
-      'Lapangan 6': {'status': 'booked', 'username': 'Violet Perry'},
-    },
-    '12:00 - 12:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Wyatt Simmons'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Eleanor Barker'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Aaron Gibson'},
-      'Lapangan 5': {'status': 'booked', 'username': 'Penelope Lane'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '12:30 - 13:00': {
-      'Lapangan 1': {'status': 'available', 'username': ''},
-      'Lapangan 2': {'status': 'booked', 'username': 'Stella Hudson'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Dylan Franklin'},
-      'Lapangan 5': {'status': 'booked', 'username': 'Hazel Dean'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Lincoln Hale'},
-    },
-    '13:00 - 13:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Savannah Lloyd'},
-      'Lapangan 2': {'status': 'available', 'username': ''},
-      'Lapangan 3': {'status': 'booked', 'username': 'Julian Maxwell'},
-      'Lapangan 4': {'status': 'booked', 'username': 'Lillian Stevens'},
-      'Lapangan 5': {'status': 'available', 'username': ''},
-      'Lapangan 6': {'status': 'booked', 'username': 'Anthony Cross'},
-    },
-    '13:30 - 14:00': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Aurora Gibbs'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Grayson Parsons'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Ivy Burke'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Jaxon Hammond'},
-    },
-    '14:00 - 14:30': {
-      'Lapangan 1': {'status': 'available', 'username': ''},
-      'Lapangan 2': {'status': 'booked', 'username': 'Paisley Banks'},
-      'Lapangan 3': {'status': 'booked', 'username': 'Ezra Dawson'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Naomi Curtis'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '14:30 - 15:00': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Alice Fleming'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Cooper Malone'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Madeline Wolfe'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Maxwell Craig'},
-    },
-    '15:00 - 15:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Ellie Doyle'},
-      'Lapangan 2': {'status': 'available', 'username': ''},
-      'Lapangan 3': {'status': 'booked', 'username': 'Brody Holt'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Clara Kemp'},
-      'Lapangan 6': {'status': 'booked', 'username': 'George Swanson'},
-    },
-    '15:30 - 16:00': {
-      'Lapangan 1': {'status': 'available', 'username': ''},
-      'Lapangan 2': {'status': 'booked', 'username': 'Piper Massey'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Finn Thornton'},
-      'Lapangan 5': {'status': 'booked', 'username': 'Mila Sherman'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Eli Benson'},
-    },
-    '16:00 - 16:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Aaliyah Barron'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Asher Sharp'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Isla Pratt'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '16:30 - 17:00': {
-      'Lapangan 1': {'status': 'available', 'username': ''},
-      'Lapangan 2': {'status': 'booked', 'username': 'Caleb Wolfe'},
-      'Lapangan 3': {'status': 'booked', 'username': 'Lucy Brady'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Easton Marsh'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Bella Cummings'},
-    },
-    '17:00 - 17:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Lydia Ramsey'},
-      'Lapangan 2': {'status': 'available', 'username': ''},
-      'Lapangan 3': {'status': 'booked', 'username': 'Nolan Zimmerman'},
-      'Lapangan 4': {'status': 'booked', 'username': 'Riley Wilkins'},
-      'Lapangan 5': {'status': 'available', 'username': ''},
-      'Lapangan 6': {'status': 'booked', 'username': 'Willow Page'},
-    },
-    '17:30 - 18:00': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Andrew Boyd'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Faith Warner'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Ian Chandler'},
-      'Lapangan 5': {'status': 'booked', 'username': 'Delilah Osborne'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '18:00 - 18:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Arianna Keller'},
-      'Lapangan 2': {'status': 'available', 'username': ''},
-      'Lapangan 3': {'status': 'booked', 'username': 'Xavier Lyons'},
-      'Lapangan 4': {'status': 'booked', 'username': 'Annabelle Greer'},
-      'Lapangan 5': {'status': 'available', 'username': ''},
-      'Lapangan 6': {'status': 'booked', 'username': 'Beau Salazar'},
-    },
-    '18:30 - 19:00': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Jayden Ball'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Summer Rowe'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Valentina McBride'},
-      'Lapangan 5': {'status': 'booked', 'username': 'Axel Bowen'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '19:00 - 19:30': {
-      'Lapangan 1': {'status': 'available', 'username': ''},
-      'Lapangan 2': {'status': 'booked', 'username': 'Harmony Dorsey'},
-      'Lapangan 3': {'status': 'booked', 'username': 'Theo Humphrey'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Alina Hodge'},
-      'Lapangan 6': {'status': 'booked', 'username': 'Caden Salinas'},
-    },
-    '19:30 - 20:00': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Juliette Bentley'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Remy Finley'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Emmanuel Mercer'},
-      'Lapangan 5': {'status': 'booked', 'username': 'Daphne Knox'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '20:00 - 20:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Kayla Vance'},
-      'Lapangan 2': {'status': 'available', 'username': ''},
-      'Lapangan 3': {'status': 'booked', 'username': 'Tristan Keith'},
-      'Lapangan 4': {'status': 'booked', 'username': 'Rebecca Pugh'},
-      'Lapangan 5': {'status': 'available', 'username': ''},
-      'Lapangan 6': {'status': 'booked', 'username': 'Phoenix Shepherd'},
-    },
-    '20:30 - 21:00': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Maddox McCoy'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Daniela Salas'},
-      'Lapangan 3': {'status': 'booked', 'username': 'Kendall Carson'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Giselle Pitts'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '21:30 - 22:00': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Gabriel Watson'},
-      'Lapangan 2': {'status': 'available', 'username': ''},
-      'Lapangan 3': {'status': 'booked', 'username': 'Vanessa Cooper'},
-      'Lapangan 4': {'status': 'available', 'username': ''},
-      'Lapangan 5': {'status': 'booked', 'username': 'Ian Gray'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-    '22:00 - 22:30': {
-      'Lapangan 1': {'status': 'booked', 'username': 'Monica Kelly'},
-      'Lapangan 2': {'status': 'booked', 'username': 'Oscar Sanders'},
-      'Lapangan 3': {'status': 'available', 'username': ''},
-      'Lapangan 4': {'status': 'booked', 'username': 'Valerie Price'},
-      'Lapangan 5': {'status': 'booked', 'username': 'Wesley Brooks'},
-      'Lapangan 6': {'status': 'available', 'username': ''},
-    },
-  };
+  Map<String, Map<String, Map<String, dynamic>>> bookingData = {};
+  List<String> courtIds = [];
 
   String _formatDate(DateTime date) {
     List<String> months = [
@@ -406,12 +70,9 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                   child: Row(
                     children: [
                       _buildHeaderCell('Jam', width: 100),
-                      _buildHeaderCell('Lapangan 1'),
-                      _buildHeaderCell('Lapangan 2'),
-                      _buildHeaderCell('Lapangan 3'),
-                      _buildHeaderCell('Lapangan 4'),
-                      _buildHeaderCell('Lapangan 5'),
-                      _buildHeaderCell('Lapangan 6'),
+                      ...courtIds
+                          .map((id) => _buildHeaderCell('Lapangan $id'))
+                          .toList(),
                     ],
                   ),
                 ),
@@ -424,42 +85,16 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                   return Row(
                     children: [
                       _buildTimeCell(time),
-                      _buildCourtCell(
-                        time,
-                        'Lapangan 1',
-                        courts['Lapangan 1']!['status'] == 'booked',
-                        courts['Lapangan 1']!['username']!,
-                      ),
-                      _buildCourtCell(
-                        time,
-                        'Lapangan 2',
-                        courts['Lapangan 2']!['status'] == 'booked',
-                        courts['Lapangan 2']!['username']!,
-                      ),
-                      _buildCourtCell(
-                        time,
-                        'Lapangan 3',
-                        courts['Lapangan 3']!['status'] == 'booked',
-                        courts['Lapangan 3']!['username']!,
-                      ),
-                      _buildCourtCell(
-                        time,
-                        'Lapangan 4',
-                        courts['Lapangan 4']!['status'] == 'booked',
-                        courts['Lapangan 4']!['username']!,
-                      ),
-                      _buildCourtCell(
-                        time,
-                        'Lapangan 5',
-                        courts['Lapangan 5']!['status'] == 'booked',
-                        courts['Lapangan 5']!['username']!,
-                      ),
-                      _buildCourtCell(
-                        time,
-                        'Lapangan 6',
-                        courts['Lapangan 6']!['status'] == 'booked',
-                        courts['Lapangan 6']!['username']!,
-                      ),
+                      ...courtIds.map((id) {
+                        final cellData =
+                            courts[id] ?? {'isAvailable': true, 'username': ''};
+                        return _buildCourtCell(
+                          time,
+                          id,
+                          cellData['isAvailable'] ?? true,
+                          cellData['username'] ?? '',
+                        );
+                      }).toList(),
                     ],
                   );
                 }).toList(),
@@ -469,6 +104,65 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
         ),
       ),
     );
+  }
+
+  void _loadOrCreateSlots(DateTime selectedDate) async {
+    setState(() => isLoading = true);
+
+    final slots = await FirebaseService().getTimeSlotsByDateForAdmin(
+      selectedDate,
+    );
+
+    if (slots.isEmpty) {
+      // Belum ada data -> generate
+      await FirebaseService().generateSlotsOneDay(selectedDate);
+
+      // Setelah generate, ambil lagi datanya
+      final newSlots = await FirebaseService().getTimeSlotsByDateForAdmin(
+        selectedDate,
+      );
+      _buildBookingData(newSlots);
+    } else {
+      // Sudah ada data
+      _buildBookingData(slots);
+    }
+  }
+
+  void _buildBookingData(List<TimeSlotForAdmin> slots) async {
+    setState(() {
+      isLoading = true;
+    });
+
+    Map<String, Map<String, Map<String, dynamic>>> tempdata = {};
+
+    await _loadCourts();
+
+    for (var slot in slots) {
+      final timeRange = '${slot.startTime} - ${slot.endTime}';
+
+      // Inisialisasi timeRange jika belum ada
+      if (!tempdata.containsKey(timeRange)) {
+        tempdata[timeRange] = {};
+      }
+
+      // Isi data per lapangan
+      tempdata[timeRange]![slot.courtId] = {
+        'isAvailable': slot.isAvailable,
+        'username': slot.username,
+      };
+    }
+
+    setState(() {
+      bookingData = tempdata;
+      isLoading = false;
+    });
+  }
+
+  Future<void> _loadCourts() async {
+    final courtsSnapshot =
+        await FirebaseFirestore.instance.collection('lapangan').get();
+    courtIds =
+        courtsSnapshot.docs.map((doc) => doc['nomor'].toString()).toList();
   }
 
   // Widget for header cell
@@ -509,7 +203,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   Widget _buildCourtCell(
     String time,
     String court,
-    bool isBooked,
+    bool isAvailable,
     String username,
   ) {
     return Container(
@@ -517,21 +211,21 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
       height: 50,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isBooked ? bookedColor : availableColor,
+        color: isAvailable ?  availableColor : bookedColor,
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            isBooked ? 'Booked' : 'Available',
+            isAvailable ?  'Available' : 'Booked',
             style: TextStyle(
-              color: isBooked ? Colors.red.shade700 : Colors.green.shade700,
+              color: isAvailable ? Colors.green.shade700 : Colors.red.shade700,
               fontWeight: FontWeight.w500,
               fontSize: 12,
             ),
           ),
-          if (isBooked)
+          if (!isAvailable)
             Text(
               username,
               style: TextStyle(fontSize: 11),
@@ -653,21 +347,32 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   }
 
   @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _loadOrCreateSlots(selectedDate);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Dashboard'), actions: [
-        Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: GestureDetector
-          ( onTap: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => HalamanMasuk()),
-            );
-          },
-            child: Icon(Icons.logout)),
-        )
-      ],),
+      appBar: AppBar(
+        title: Text('Dashboard'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(10.0),
+            child: GestureDetector(
+              onTap: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => HalamanMasuk()),
+                );
+              },
+              child: Icon(Icons.logout),
+            ),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           _buildQuickAccessMenu(context),

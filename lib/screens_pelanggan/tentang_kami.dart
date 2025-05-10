@@ -38,8 +38,8 @@ class HalamanTentangKami extends StatelessWidget {
             child: Column(
               children: [
                 Image.asset(
-                  'assets/image/TentangKami.png',
-                  height: 100,
+                  'assets/image/LogoJSA.jpg',
+                  height: 150,
                 ),
                 const SizedBox(height: 12),
                 const Text(

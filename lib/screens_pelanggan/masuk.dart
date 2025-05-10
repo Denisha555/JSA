@@ -203,13 +203,20 @@ class _HalamanMasukState extends State<HalamanMasuk>
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Username atau password tidak sesuai.'),
+                  content: Text('Password tidak sesuai.'),
                   backgroundColor: Colors.red,
                 ),
               );
             }
           }
-        } 
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Username belum terdaftar, silahkan daftar terlebih dahulu.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

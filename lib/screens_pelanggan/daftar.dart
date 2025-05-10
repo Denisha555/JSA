@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/constants_file.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HalamanDaftar extends StatefulWidget {
   const HalamanDaftar({super.key});
@@ -89,7 +90,9 @@ class _HalamanDaftarState extends State<HalamanDaftar>
               // Jika username sudah terdaftar
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
-                  content: Text('Username sudah terdaftar.'),        
+                  content: Text(
+                    'Username sudah terdaftar, silahkan gunakan username lain',
+                  ),
                   backgroundColor: Colors.red,
                 ),
               );
@@ -98,7 +101,7 @@ class _HalamanDaftarState extends State<HalamanDaftar>
             // Jika username belum terdaftar
             FirebaseService()
                 .addUser(usernameController.text, passwordController.text)
-                .then((_) {
+                .then((_) async {
                   if (mounted) {
                     // Setelah user berhasil ditambahkan, arahkan ke halaman utama
                     Navigator.pop(context);
@@ -108,6 +111,8 @@ class _HalamanDaftarState extends State<HalamanDaftar>
                         builder: (context) => const PilihHalamanPelanggan(),
                       ),
                     );
+                    SharedPreferences prefs = await SharedPreferences.getInstance();
+                    prefs.setString('username', usernameController.text);
                   }
                 })
                 .catchError((e) {
@@ -115,7 +120,7 @@ class _HalamanDaftarState extends State<HalamanDaftar>
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Gagal menambahkan user: $e'),              
+                        content: Text('Gagal menambahkan user: $e'),
                         backgroundColor: Colors.red,
                       ),
                     );
@@ -128,7 +133,7 @@ class _HalamanDaftarState extends State<HalamanDaftar>
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Terjadi kesalahan: $e'),              
+                content: Text('Terjadi kesalahan: $e'),
                 backgroundColor: Colors.red,
               ),
             );

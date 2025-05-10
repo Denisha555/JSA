@@ -364,10 +364,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           selectedDate,
         );
 
-        debugPrint('Max consecutive slots: $maxConsecutiveSlots');
-        debugPrint('Next time slot: $nextTimeSlot');
-        debugPrint('Is next slot available: $isNextSlotAvailable');
-
         if (isNextSlotAvailable) {
           maxConsecutiveSlots = i + 1;
         } else {

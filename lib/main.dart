@@ -19,7 +19,7 @@ void main() async {
           messagingSenderId: "499652308146",
           appId: "1:499652308146:web:93b5c15bf86ae8a86b2dab",
           measurementId: "G-34Z6QW3F97",
-        ),
+        )
       );
     } else {
       await Firebase.initializeApp();
