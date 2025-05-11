@@ -109,7 +109,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                 // Current booking card
                 if (currentBookingCard != null) currentBookingCard!,
 
-                const SizedBox(height: 16),
+                SizedBox(height: 10),
 
                 // Quick access buttons
                 _buildQuickAccessMenu(),
@@ -275,7 +275,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
             ),
             const SizedBox(height: 8),
             Text(
-              "$courtName • $timeSlot • $date",
+              "Lapangan $courtName • $date • $timeSlot",
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
@@ -286,11 +286,6 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                   onPressed: () {
                     // TODO: Implement reschedule functionality
                   },
-                  icon: const Icon(
-                    Icons.calendar_today,
-                    size: 16,
-                    color: Colors.white,
-                  ),
                   label: const Text("Reschedule"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
@@ -301,7 +296,6 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                   onPressed: () {
                     // TODO: Implement cancel functionality
                   },
-                  icon: const Icon(Icons.cancel, size: 16, color: Colors.white),
                   label: const Text("Cancel"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,

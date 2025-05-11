@@ -28,6 +28,15 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
   @override
   Widget build(BuildContext context) {
+    final sortedCourtIds =
+        courtIds.toList()..sort((a, b) {
+          final aNumber =
+              int.tryParse(RegExp(r'\d+').stringMatch(a) ?? '') ?? 0;
+          final bNumber =
+              int.tryParse(RegExp(r'\d+').stringMatch(b) ?? '') ?? 0;
+          return aNumber.compareTo(bNumber);
+        });
+
     return Scaffold(
       appBar: AppBar(title: const Text('Kalender')),
       body: Column(
@@ -154,10 +163,11 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                                 topRight: Radius.circular(8),
                               ),
                             ),
+
                             child: Row(
                               children: [
                                 _buildHeaderCell('Jam', width: 100),
-                                ...courtIds
+                                ...sortedCourtIds
                                     .map(
                                       (id) => _buildHeaderCell('Lapangan $id'),
                                     )
@@ -174,7 +184,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                             return Row(
                               children: [
                                 _buildTimeCell(time),
-                                ...courtIds
+                                ...sortedCourtIds
                                     .map(
                                       (id) => _buildCourtCell(
                                         time,
@@ -476,7 +486,10 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     child: const Text('Tutup'),
                   ),
                   if (isAvailable)
-                    if (selectedDate.isAfter(today) || (selectedDate == today))
+                    if (selectedDate.isAfter(today) ||
+                        (selectedDate.year == today.year &&
+                            selectedDate.month == today.month &&
+                            selectedDate.day == today.day))
                       TextButton(
                         onPressed: () async {
                           await _booking(
@@ -488,7 +501,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                           );
                           await _updateSlot(selectedDate);
 
-                          Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
@@ -496,6 +508,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                               ),
                             ),
                           );
+                          Navigator.pop(context);
                         },
                         child: const Text('Booking'),
                       ),
