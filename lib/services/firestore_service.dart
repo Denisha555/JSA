@@ -81,6 +81,20 @@ class AllBookedUser {
   }
 }
 
+class AllUser {
+  final String username;
+
+  AllUser({
+    required this.username,
+  });
+
+  factory AllUser.fromJson(Map<String, dynamic> json) {
+    return AllUser(
+      username: json['username'],
+    );
+  }
+}
+
 class FirebaseService {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
@@ -671,6 +685,17 @@ class FirebaseService {
       });
     } catch (e) {
       throw Exception('Failed to book slot: $e');
+    }
+  }
+
+  Future<List<AllUser>> getAllUsers() async {
+    try {
+      final QuerySnapshot querySnapshot = await firestore.collection('users').get();
+      return querySnapshot.docs.map((doc) {
+        return AllUser.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to get users: $e');
     }
   }
 }

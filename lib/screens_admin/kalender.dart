@@ -51,55 +51,148 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     setState(() {
       selectedDate = date;
     });
-     _loadOrCreateSlots(date);
+    _loadOrCreateSlots(date);
   }
 
   // Show dialog to add a new booking
-  void _showAddBookingDialog(String time, String court) {
+  void _showAddBookingDialog(String time, String court) async {
     final TextEditingController nameController = TextEditingController();
+    String startTime = time.split(' - ')[0];
+    int maxConsecutiveSlots = 1;
+
+    bool isWithinOperatingHours(int hour, int minute) {
+      int totalMinutes = hour * 60 + minute;
+      return totalMinutes >= 7 * 60 && totalMinutes < 23 * 60;
+    }
+
+    int currentHour = int.parse(time.split(':')[0]);
+    int currentMinute = int.parse(time.split(':')[1].split(' ')[0]);
+
+    int startTotalMinutes = currentHour * 60 + currentMinute;
+    int remainingMinutes = (23 * 60) - startTotalMinutes;
+    int maxPossibleSlots = remainingMinutes ~/ 30;
+
+    for (int i = 1; i <= maxPossibleSlots; i++) {
+      int nextTotalMinutes = startTotalMinutes + (i * 30);
+      int nextSlotHour = nextTotalMinutes ~/ 60;
+      int nextSlotMinute = nextTotalMinutes % 60;
+
+      if (!isWithinOperatingHours(nextSlotHour, nextSlotMinute)) {
+        break;
+      }
+
+      String nextTimeSlot =
+          '${nextSlotHour.toString().padLeft(2, '0')}:${nextSlotMinute.toString().padLeft(2, '0')}';
+
+      bool isNextSlotAvailable = await FirebaseService().isSlotAvailable(
+        nextTimeSlot,
+        court,
+        selectedDate,
+      );
+
+      if (isNextSlotAvailable) {
+        maxConsecutiveSlots = i + 1;
+      } else {
+        break;
+      }
+    }
 
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Add New Booking'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Time: $time'),
-                Text('Court: $court'),
-                TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(labelText: 'Customer Name'),
+      builder: (context) {
+        int selectedDuration = 1;
+        String endTime = '';
+
+        void updateEndTime() {
+          int startHour = int.parse(startTime.split(':')[0]);
+          int startMinute = int.parse(startTime.split(':')[1]);
+          int totalMinutes =
+              startHour * 60 + startMinute + (selectedDuration * 30);
+          int endHour = totalMinutes ~/ 60;
+          int endMinute = totalMinutes % 60;
+          endTime =
+              '${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}';
+        }
+
+        updateEndTime();
+
+        return StatefulBuilder(
+          builder:
+              (context, setState) => AlertDialog(
+                title: Text('Add New Booking'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Court $court'),
+                    Text('Start Time: $startTime'),
+                    Text('End Time: '),
+                    DropdownButton<int>(
+                      value: selectedDuration,
+                      isExpanded: true,
+                      underline: Container(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedDuration = value!;
+                          updateEndTime();
+                        });
+                      },
+                      items:
+                          List.generate(maxConsecutiveSlots, (i) => i + 1).map((
+                            e,
+                          ) {
+                            int startHour = int.parse(startTime.split(':')[0]);
+                            int startMinute = int.parse(
+                              startTime.split(':')[1],
+                            );
+                            int totalMinutes =
+                                startHour * 60 + startMinute + (e * 30);
+                            int endHour = totalMinutes ~/ 60;
+                            int endMinute = totalMinutes % 60;
+                            String formattedEndTime =
+                                '${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}';
+
+                            return DropdownMenuItem(
+                              value: e,
+                              child: Text(formattedEndTime),
+                            );
+                          }).toList(),
+                    ),
+
+                    TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(labelText: 'Customer Name'),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  if (nameController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Please enter customer name')),
-                    );
-                    return;
-                  }
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Cancel'),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      if (nameController.text.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Please enter customer name')),
+                        );
+                        return;
+                      }
 
-                  setState(() {
-                    bookingData[time]![court]!['status'] = 'booked';
-                    bookingData[time]![court]!['username'] =
-                        nameController.text;
-                  });
+                      setState(() {
+                        bookingData[time]![court]!['status'] = 'booked';
+                        bookingData[time]![court]!['username'] =
+                            nameController.text;
+                      });
 
-                  Navigator.pop(context);
-                },
-                child: Text('Save'),
+                      Navigator.pop(context);
+                    },
+                    child: Text('Save'),
+                  ),
+                ],
               ),
-            ],
-          ),
+        );
+      },
     );
   }
 
@@ -599,57 +692,66 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                       ),
                     )
                     // Header row
-                    : SingleChildScrollView(
+                    : RefreshIndicator(
+                      onRefresh: () async {
+                        _loadOrCreateSlots(selectedDate);
+                      },
                       child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  color: primaryColor,
-                                  borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(8),
-                                    topRight: Radius.circular(8),
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              children: [
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: primaryColor,
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(8),
+                                      topRight: Radius.circular(8),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      _buildHeaderCell('Jam', width: 100),
+                                      ...sortedCourtIds
+                                          .map(
+                                            (id) => _buildHeaderCell(
+                                              'Lapangan $id',
+                                            ),
+                                          )
+                                          .toList(),
+                                    ],
                                   ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    _buildHeaderCell('Jam', width: 100),
-                                    ...sortedCourtIds
-                                        .map(
-                                          (id) =>
-                                              _buildHeaderCell('Lapangan $id'),
-                                        )
-                                        .toList(),
-                                  ],
-                                ),
-                              ),
 
-                              // Data rows
-                              ...bookingData.entries.map((entry) {
-                                final time = entry.key;
-                                final courts = entry.value;
+                                // Data rows
+                                ...bookingData.entries.map((entry) {
+                                  final time = entry.key;
+                                  final courts = entry.value;
 
-                                return Row(
-                                  children: [
-                                    _buildTimeCell(time),
-                                    ...sortedCourtIds.map((id) {
-                                      final cellData =
-                                          courts[id] ??
-                                          {'isAvailable': true, 'username': ''};
-                                      return _buildCourtCell(
-                                        time,
-                                        id,
-                                        cellData['isAvailable'] ?? true,
-                                        cellData['username'] ?? '',
-                                      );
-                                    }).toList(),
-                                  ],
-                                );
-                              }).toList(),
-                            ],
+                                  return Row(
+                                    children: [
+                                      _buildTimeCell(time),
+                                      ...sortedCourtIds.map((id) {
+                                        final cellData =
+                                            courts[id] ??
+                                            {
+                                              'isAvailable': true,
+                                              'username': '',
+                                            };
+                                        return _buildCourtCell(
+                                          time,
+                                          id,
+                                          cellData['isAvailable'] ?? true,
+                                          cellData['username'] ?? '',
+                                        );
+                                      }).toList(),
+                                    ],
+                                  );
+                                }).toList(),
+                              ],
+                            ),
                           ),
                         ),
                       ),

@@ -146,57 +146,63 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 ),
               )
               : Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    _loadOrCreateSlots(selectedDate);
+                  },
                   child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        children: [
-                          // Header row
-                          Container(
-                            decoration: BoxDecoration(
-                              color: primaryColor,
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(8),
-                                topRight: Radius.circular(8),
+                    scrollDirection: Axis.vertical,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          children: [
+                            // Header row
+                            Container(
+                              decoration: BoxDecoration(
+                                color: primaryColor,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(8),
+                                  topRight: Radius.circular(8),
+                                ),
+                              ),
+
+                              child: Row(
+                                children: [
+                                  _buildHeaderCell('Jam', width: 100),
+                                  ...sortedCourtIds
+                                      .map(
+                                        (id) =>
+                                            _buildHeaderCell('Lapangan $id'),
+                                      )
+                                      .toList(),
+                                ],
                               ),
                             ),
 
-                            child: Row(
-                              children: [
-                                _buildHeaderCell('Jam', width: 100),
-                                ...sortedCourtIds
-                                    .map(
-                                      (id) => _buildHeaderCell('Lapangan $id'),
-                                    )
-                                    .toList(),
-                              ],
-                            ),
-                          ),
+                            // Data rows
+                            ...bookingData.entries.map((entry) {
+                              final time = entry.key;
+                              final courts = entry.value;
 
-                          // Data rows
-                          ...bookingData.entries.map((entry) {
-                            final time = entry.key;
-                            final courts = entry.value;
-
-                            return Row(
-                              children: [
-                                _buildTimeCell(time),
-                                ...sortedCourtIds
-                                    .map(
-                                      (id) => _buildCourtCell(
-                                        time,
-                                        id,
-                                        courts[id]!,
-                                      ),
-                                    )
-                                    .toList(),
-                              ],
-                            );
-                          }).toList(),
-                        ],
+                              return Row(
+                                children: [
+                                  _buildTimeCell(time),
+                                  ...sortedCourtIds
+                                      .map(
+                                        (id) => _buildCourtCell(
+                                          time,
+                                          id,
+                                          courts[id]!,
+                                        ),
+                                      )
+                                      .toList(),
+                                ],
+                              );
+                            }).toList(),
+                          ],
+                        ),
                       ),
                     ),
                   ),
