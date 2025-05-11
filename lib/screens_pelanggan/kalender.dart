@@ -510,7 +510,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'Berhasil booking Lapangan $court pada tanggal ${_formatDate(selectedDate)} $startTime - $endTime',
+                                'Berhasil booking Lapangan $court pada hari ${_formatDate(selectedDate)} pukul $startTime - $endTime',
                               ),
                             ),
                           );
