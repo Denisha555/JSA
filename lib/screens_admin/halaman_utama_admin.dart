@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/main.dart';
+import 'package:flutter_application_1/screens_admin/customers.dart';
 import 'price.dart';
 import 'kalender.dart';
 import 'promo_event.dart';
 import 'package:flutter_application_1/constants_file.dart';
-import 'package:flutter_application_1/screens_pelanggan/masuk.dart';
+import 'package:flutter_application_1/screens_admin/jadwal.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'lapangan.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HalamanUtamaAdmin extends StatefulWidget {
   const HalamanUtamaAdmin({super.key});
@@ -17,7 +20,9 @@ class HalamanUtamaAdmin extends StatefulWidget {
 
 class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   DateTime selectedDate = DateTime.now();
-  bool isLoading = false;
+  bool isLoading = true;
+  bool hasError = false;
+  String errorMessage = '';
 
   Map<String, Map<String, Map<String, dynamic>>> bookingData = {};
   List<String> courtIds = [];
@@ -51,6 +56,55 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   }
 
   Widget _buildCalendar(DateTime time) {
+    final sortedCourtIds =
+        courtIds.toList()..sort((a, b) {
+          final aNumber =
+              int.tryParse(RegExp(r'\d+').stringMatch(a) ?? '') ?? 0;
+          final bNumber =
+              int.tryParse(RegExp(r'\d+').stringMatch(b) ?? '') ?? 0;
+          return aNumber.compareTo(bNumber);
+        });
+
+    if (isLoading) {
+      return const Expanded(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Loading booking data...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (hasError) {
+      return Expanded(
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 48, color: Colors.red),
+              SizedBox(height: 16),
+              Text(
+                'Error loading data',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(errorMessage),
+              SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => _loadOrCreateSlots(selectedDate),
+                child: Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Expanded(
       child: SingleChildScrollView(
         child: SingleChildScrollView(
@@ -61,8 +115,8 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
               children: [
                 // Header row
                 Container(
-                  decoration: BoxDecoration(
-                    borderRadius: const BorderRadius.only(
+                  decoration: const BoxDecoration(
+                    borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(8),
                       topRight: Radius.circular(8),
                     ),
@@ -70,7 +124,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                   child: Row(
                     children: [
                       _buildHeaderCell('Jam', width: 100),
-                      ...courtIds
+                      ...sortedCourtIds
                           .map((id) => _buildHeaderCell('Lapangan $id'))
                           .toList(),
                     ],
@@ -85,7 +139,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                   return Row(
                     children: [
                       _buildTimeCell(time),
-                      ...courtIds.map((id) {
+                      ...sortedCourtIds.map((id) {
                         final cellData =
                             courts[id] ?? {'isAvailable': true, 'username': ''};
                         return _buildCourtCell(
@@ -106,63 +160,95 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     );
   }
 
-  void _loadOrCreateSlots(DateTime selectedDate) async {
-    setState(() => isLoading = true);
+  Future<void> _loadOrCreateSlots(DateTime selectedDate) async {
+    // Set loading state first thing
+    if (mounted) {
+      setState(() {
+        isLoading = true;
+        hasError = false;
+        errorMessage = '';
+      });
+    }
 
-    final slots = await FirebaseService().getTimeSlotsByDateForAdmin(
-      selectedDate,
-    );
+    try {
+      await _loadCourts(); // Load courts first
 
-    if (slots.isEmpty) {
-      // Belum ada data -> generate
-      await FirebaseService().generateSlotsOneDay(selectedDate);
-
-      // Setelah generate, ambil lagi datanya
-      final newSlots = await FirebaseService().getTimeSlotsByDateForAdmin(
+      final slots = await FirebaseService().getTimeSlotsByDateForAdmin(
         selectedDate,
       );
-      _buildBookingData(newSlots);
-    } else {
-      // Sudah ada data
-      _buildBookingData(slots);
+
+      if (slots.isEmpty) {
+        // Belum ada data -> generate
+        await FirebaseService().generateSlotsOneDay(selectedDate);
+
+        // Setelah generate, ambil lagi datanya
+        final newSlots = await FirebaseService().getTimeSlotsByDateForAdmin(
+          selectedDate,
+        );
+        _processBookingData(newSlots);
+      } else {
+        // Sudah ada data
+        _processBookingData(slots);
+      }
+    } catch (e) {
+      print('Error loading slots: $e');
+      if (mounted) {
+        setState(() {
+          hasError = true;
+          errorMessage = e.toString();
+          isLoading = false;
+        });
+      }
     }
   }
 
-  void _buildBookingData(List<TimeSlotForAdmin> slots) async {
-    setState(() {
-      isLoading = true;
-    });
+  void _processBookingData(List<TimeSlotForAdmin> slots) {
+    try {
+      Map<String, Map<String, Map<String, dynamic>>> tempdata = {};
 
-    Map<String, Map<String, Map<String, dynamic>>> tempdata = {};
+      for (var slot in slots) {
+        final timeRange = '${slot.startTime} - ${slot.endTime}';
 
-    await _loadCourts();
+        // Inisialisasi timeRange jika belum ada
+        if (!tempdata.containsKey(timeRange)) {
+          tempdata[timeRange] = {};
+        }
 
-    for (var slot in slots) {
-      final timeRange = '${slot.startTime} - ${slot.endTime}';
-
-      // Inisialisasi timeRange jika belum ada
-      if (!tempdata.containsKey(timeRange)) {
-        tempdata[timeRange] = {};
+        // Isi data per lapangan
+        tempdata[timeRange]![slot.courtId] = {
+          'isAvailable': slot.isAvailable,
+          'username': slot.username,
+        };
       }
 
-      // Isi data per lapangan
-      tempdata[timeRange]![slot.courtId] = {
-        'isAvailable': slot.isAvailable,
-        'username': slot.username,
-      };
+      if (mounted) {
+        setState(() {
+          bookingData = tempdata;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error processing booking data: $e');
+      if (mounted) {
+        setState(() {
+          hasError = true;
+          errorMessage = e.toString();
+          isLoading = false;
+        });
+      }
     }
-
-    setState(() {
-      bookingData = tempdata;
-      isLoading = false;
-    });
   }
 
   Future<void> _loadCourts() async {
-    final courtsSnapshot =
-        await FirebaseFirestore.instance.collection('lapangan').get();
-    courtIds =
-        courtsSnapshot.docs.map((doc) => doc['nomor'].toString()).toList();
+    try {
+      final courtsSnapshot =
+          await FirebaseFirestore.instance.collection('lapangan').get();
+      courtIds =
+          courtsSnapshot.docs.map((doc) => doc['nomor'].toString()).toList();
+    } catch (e) {
+      print('Error loading courts: $e');
+      throw Exception('Failed to load courts: $e');
+    }
   }
 
   // Widget for header cell
@@ -211,14 +297,14 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
       height: 50,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isAvailable ?  availableColor : bookedColor,
+        color: isAvailable ? availableColor : bookedColor,
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            isAvailable ?  'Available' : 'Booked',
+            isAvailable ? 'Available' : 'Booked',
             style: TextStyle(
               color: isAvailable ? Colors.green.shade700 : Colors.red.shade700,
               fontWeight: FontWeight.w500,
@@ -228,7 +314,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
           if (!isAvailable)
             Text(
               username,
-              style: TextStyle(fontSize: 11),
+              style: const TextStyle(fontSize: 11),
               overflow: TextOverflow.ellipsis,
             ),
         ],
@@ -238,54 +324,87 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
 
   // Quick access menu buttons
   Widget _buildQuickAccessMenu(BuildContext context) {
-    return Container(
-      height: 100,
-      decoration: BoxDecoration(color: Colors.grey[100]),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildQuickAccessButton(
-              icon: 'lapangan',
-              label: "Lapangan",
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => HalamanLapangan()),
-                );
-              },
-            ),
-            _buildQuickAccessButton(
-              icon: 'price',
-              label: "Harga",
-              onTap:
-                  () => Navigator.push(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Container(
+        height: 100,
+        decoration: BoxDecoration(color: Colors.grey[100]),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildQuickAccessButton(
+                icon: 'jadwal',
+                label: "Jadwal",
+                onTap: () {
+                  Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => HalamanPrice()),
-                  ),
-            ),
-            _buildQuickAccessButton(
-              icon: 'calender',
-              label: "Kalender",
-              onTap:
-                  () => Navigator.push(
+                    MaterialPageRoute(builder: (context) => HalamanJadwal()),
+                  );
+                },
+              ),
+              SizedBox(width: 5,),
+
+              _buildQuickAccessButton(
+                icon: 'user',
+                label: 'Customers',
+                onTap: () {
+                  Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => HalamanKalender()),
-                  ),
-            ),
-            _buildQuickAccessButton(
-              icon: 'promo_event',
-              label: "Promo & Event",
-              onTap:
-                  () => Navigator.push(
+                    MaterialPageRoute(builder: (context) => HalamanCustomers()),
+                  );
+                },
+              ),
+              _buildQuickAccessButton(
+                icon: 'lapangan',
+                label: "Lapangan",
+                onTap: () {
+                  Navigator.push(
                     context,
-                    MaterialPageRoute(
-                      builder: (context) => const HalamanPromoEvent(),
+                    MaterialPageRoute(builder: (context) => HalamanLapangan()),
+                  );
+                },
+              ),
+
+              SizedBox(width: 6,),
+              _buildQuickAccessButton(
+                icon: 'booking',
+                label: "Booking",
+                onTap:
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => HalamanKalender(),
+                      ),
                     ),
-                  ),
-            ),
-          ],
+              ),
+
+              SizedBox(width: 12),
+              _buildQuickAccessButton(
+                icon: 'harga',
+                label: "Harga",
+                onTap:
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => HalamanPrice()),
+                    ),
+              ),
+              SizedBox(width: 12,),
+
+              _buildQuickAccessButton(
+                icon: 'promo_event',
+                label: "Promo & Event",
+                onTap:
+                    () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HalamanPromoEvent(),
+                      ),
+                    ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -298,10 +417,12 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     required VoidCallback onTap,
   }) {
     final iconMap = {
-      'price': Icons.attach_money_outlined,
-      'calender': Icons.calendar_month,
+      'harga': Icons.attach_money_outlined,
+      'booking': Icons.calendar_month,
       'promo_event': Icons.discount_outlined,
       'lapangan': Icons.list_alt,
+      'user': Icons.person_outline,
+      'jadwal': Icons.calendar_today_outlined,
     };
 
     Widget iconWidget;
@@ -323,7 +444,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     }
     // Default kalau gak ketemu
     else {
-      iconWidget = Icon(Icons.help_outline, size: 32, color: Colors.grey);
+      iconWidget = const Icon(Icons.help_outline, size: 32, color: Colors.grey);
     }
 
     return InkWell(
@@ -348,27 +469,41 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    _loadOrCreateSlots(selectedDate);
+    // Load data after widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadOrCreateSlots(selectedDate);
+    });
+  }
+
+  Future<void> _handleLogout() async {
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.remove('username');
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MyApp()),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Dashboard'),
+        title: const Text('Dashboard'),
         actions: [
           Padding(
             padding: const EdgeInsets.all(10.0),
             child: GestureDetector(
-              onTap: () {
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => HalamanMasuk()),
-                );
-              },
-              child: Icon(Icons.logout),
+              onTap: _handleLogout,
+              child: const Icon(Icons.logout),
             ),
           ),
         ],
@@ -379,7 +514,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
           const SizedBox(height: 15),
           Text(
             _formatDate(selectedDate),
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
           Padding(

@@ -158,6 +158,12 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
       _isLoading = true;
     });
 
+    final promoEventData = {
+      'gambarUrl': _imageFile!.path,
+      'startDate': _startDate,
+      'endDate': _endDate,
+    };
+
     try {
       final fileName = 'promo_${DateTime.now().millisecondsSinceEpoch}${path.extension(_imageFile!.path)}';
       final ref = FirebaseStorage.instance.ref().child('promo_images').child(fileName);
@@ -214,7 +220,7 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
                     onTap: _pickImage,
                     child: Container(
                       width: double.infinity,
-                      height: 200,
+                      height: 300,
                       decoration: BoxDecoration(
                         color: Colors.grey[200],
                         borderRadius: BorderRadius.circular(12),

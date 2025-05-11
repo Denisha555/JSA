@@ -55,6 +55,46 @@ class TimeSlotForAdmin {
   }
 }
 
+class AllBookedUser {
+  final String courtId;
+  final String date;
+  final String startTime;
+  final String endTime;
+  final String username;
+
+  AllBookedUser({
+    required this.courtId,
+    required this.date,
+    required this.startTime,
+    required this.endTime,
+    required this.username,
+  });
+
+  factory AllBookedUser.fromJson(Map<String, dynamic> json) {
+    return AllBookedUser(
+      courtId: json['courtId'],
+      date: json['date'],
+      startTime: json['startTime'],
+      endTime: json['endTime'],
+      username: json['username'],
+    );
+  }
+}
+
+class AllUser {
+  final String username;
+
+  AllUser({
+    required this.username,
+  });
+
+  factory AllUser.fromJson(Map<String, dynamic> json) {
+    return AllUser(
+      username: json['username'],
+    );
+  }
+}
+
 class FirebaseService {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
@@ -537,7 +577,10 @@ class FirebaseService {
   }
 
   // Fungsi untuk mengambil data slot dari Firestore berdasarkan username dan tanggal
-  Future<List<TimeSlot>> getTimeSlotByUsername(String username, DateTime selectedDate) async {
+  Future<List<TimeSlot>> getTimeSlotByUsername(
+    String username,
+    DateTime selectedDate,
+  ) async {
     try {
       final targetDate = DateTime(
         selectedDate.year,
@@ -548,8 +591,8 @@ class FirebaseService {
       );
       final dateStr =
           "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
-      
-      final timeStr = 
+
+      final timeStr =
           "${targetDate.hour.toString().padLeft(2, '0')}:${targetDate.minute.toString().padLeft(2, '0')}";
 
       final QuerySnapshot querySnapshot =
@@ -561,6 +604,21 @@ class FirebaseService {
               .get();
       return querySnapshot.docs.map((doc) {
         return TimeSlot.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to get time slots for $username: $e');
+    }
+  }
+
+  Future<List<AllBookedUser>> getAllBookingsByUsername(String username) async {
+    try {
+      final QuerySnapshot querySnapshot =
+          await firestore
+              .collection('time_slots')
+              .where('username', isEqualTo: username)
+              .get();
+      return querySnapshot.docs.map((doc) {
+        return AllBookedUser.fromJson(doc.data() as Map<String, dynamic>);
       }).toList();
     } catch (e) {
       throw Exception('Failed to get time slots for $username: $e');
@@ -627,6 +685,17 @@ class FirebaseService {
       });
     } catch (e) {
       throw Exception('Failed to book slot: $e');
+    }
+  }
+
+  Future<List<AllUser>> getAllUsers() async {
+    try {
+      final QuerySnapshot querySnapshot = await firestore.collection('users').get();
+      return querySnapshot.docs.map((doc) {
+        return AllUser.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to get users: $e');
     }
   }
 }

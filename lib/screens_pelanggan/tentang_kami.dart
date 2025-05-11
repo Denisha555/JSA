@@ -106,7 +106,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
           Center(
             child: Column(
               children: [
-                Image.asset('assets/image/LogoJSA.png', height: 100),
+                Image.asset('assets/image/LogoJSA.jpg', height: 100),
                 const SizedBox(height: 12),
                 const Text(
                   'JUMP SMASH ARENA',

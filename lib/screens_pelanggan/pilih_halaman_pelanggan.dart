@@ -47,7 +47,7 @@ class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment_outlined),
             activeIcon: Icon(Icons.assignment),
-            label: 'Riwayat',
+            label: 'Aktivitas',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),

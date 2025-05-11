@@ -28,6 +28,15 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
   @override
   Widget build(BuildContext context) {
+    final sortedCourtIds =
+        courtIds.toList()..sort((a, b) {
+          final aNumber =
+              int.tryParse(RegExp(r'\d+').stringMatch(a) ?? '') ?? 0;
+          final bNumber =
+              int.tryParse(RegExp(r'\d+').stringMatch(b) ?? '') ?? 0;
+          return aNumber.compareTo(bNumber);
+        });
+
     return Scaffold(
       appBar: AppBar(title: const Text('Kalender')),
       body: Column(
@@ -137,56 +146,63 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 ),
               )
               : Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    _loadOrCreateSlots(selectedDate);
+                  },
                   child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: Column(
-                        children: [
-                          // Header row
-                          Container(
-                            decoration: BoxDecoration(
-                              color: primaryColor,
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(8),
-                                topRight: Radius.circular(8),
+                    scrollDirection: Axis.vertical,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          children: [
+                            // Header row
+                            Container(
+                              decoration: BoxDecoration(
+                                color: primaryColor,
+                                borderRadius: const BorderRadius.only(
+                                  topLeft: Radius.circular(8),
+                                  topRight: Radius.circular(8),
+                                ),
+                              ),
+
+                              child: Row(
+                                children: [
+                                  _buildHeaderCell('Jam', width: 100),
+                                  ...sortedCourtIds
+                                      .map(
+                                        (id) =>
+                                            _buildHeaderCell('Lapangan $id'),
+                                      )
+                                      .toList(),
+                                ],
                               ),
                             ),
-                            child: Row(
-                              children: [
-                                _buildHeaderCell('Jam', width: 100),
-                                ...courtIds
-                                    .map(
-                                      (id) => _buildHeaderCell('Lapangan $id'),
-                                    )
-                                    .toList(),
-                              ],
-                            ),
-                          ),
 
-                          // Data rows
-                          ...bookingData.entries.map((entry) {
-                            final time = entry.key;
-                            final courts = entry.value;
+                            // Data rows
+                            ...bookingData.entries.map((entry) {
+                              final time = entry.key;
+                              final courts = entry.value;
 
-                            return Row(
-                              children: [
-                                _buildTimeCell(time),
-                                ...courtIds
-                                    .map(
-                                      (id) => _buildCourtCell(
-                                        time,
-                                        id,
-                                        courts[id]!,
-                                      ),
-                                    )
-                                    .toList(),
-                              ],
-                            );
-                          }).toList(),
-                        ],
+                              return Row(
+                                children: [
+                                  _buildTimeCell(time),
+                                  ...sortedCourtIds
+                                      .map(
+                                        (id) => _buildCourtCell(
+                                          time,
+                                          id,
+                                          courts[id]!,
+                                        ),
+                                      )
+                                      .toList(),
+                                ],
+                              );
+                            }).toList(),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -476,7 +492,10 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     child: const Text('Tutup'),
                   ),
                   if (isAvailable)
-                    if (selectedDate.isAfter(today) || (selectedDate == today))
+                    if (selectedDate.isAfter(today) ||
+                        (selectedDate.year == today.year &&
+                            selectedDate.month == today.month &&
+                            selectedDate.day == today.day))
                       TextButton(
                         onPressed: () async {
                           await _booking(
@@ -488,14 +507,14 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                           );
                           await _updateSlot(selectedDate);
 
-                          Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'Berhasil booking Lapangan $court pada $startTime - $endTime',
+                                'Berhasil booking Lapangan $court pada $startTime - $endTime tanggal ${_formatDate(selectedDate)}',
                               ),
                             ),
                           );
+                          Navigator.pop(context);
                         },
                         child: const Text('Booking'),
                       ),

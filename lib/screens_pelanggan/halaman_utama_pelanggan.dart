@@ -100,35 +100,40 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
     return Scaffold(
       appBar: AppBar(title: Text("Dashboard")),
       body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Current booking card
-                if (currentBookingCard != null) currentBookingCard!,
+        child: RefreshIndicator(
+          onRefresh: () async {
+            _checkbooked();
+          },
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Current booking card
+                  if (currentBookingCard != null) currentBookingCard!,
 
-                const SizedBox(height: 16),
+                  SizedBox(height: 10),
 
-                // Quick access buttons
-                _buildQuickAccessMenu(),
+                  // Quick access buttons
+                  _buildQuickAccessMenu(),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Reward section
-                _buildRewardection(context),
+                  // Reward section
+                  _buildRewardection(context),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                // Promotions Events
-                _buildPromotionsEvents(),
+                  // Promotions Events
+                  _buildPromotionsEvents(),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                // Available courts section
-                _buildAvailableCourtsSection(),
-              ],
+                  // Available courts section
+                  _buildAvailableCourtsSection(),
+                ],
+              ),
             ),
           ),
         ),
@@ -275,7 +280,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
             ),
             const SizedBox(height: 8),
             Text(
-              "$courtName • $timeSlot • $date",
+              "Lapangan $courtName • $date • $timeSlot",
               style: const TextStyle(fontSize: 14),
             ),
             const SizedBox(height: 16),
@@ -286,11 +291,6 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                   onPressed: () {
                     // TODO: Implement reschedule functionality
                   },
-                  icon: const Icon(
-                    Icons.calendar_today,
-                    size: 16,
-                    color: Colors.white,
-                  ),
                   label: const Text("Reschedule"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
@@ -301,7 +301,6 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                   onPressed: () {
                     // TODO: Implement cancel functionality
                   },
-                  icon: const Icon(Icons.cancel, size: 16, color: Colors.white),
                   label: const Text("Cancel"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
