@@ -507,7 +507,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                           );
                           await _updateSlot(selectedDate);
 
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.of(Navigator.of(context).context).showSnackBar(
                             SnackBar(
                               content: Text(
                                 'Berhasil booking Lapangan $court pada $startTime - $endTime tanggal ${_formatDate(selectedDate)}',

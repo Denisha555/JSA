@@ -15,7 +15,8 @@ class HalamanPromoEvent extends StatefulWidget {
   State<HalamanPromoEvent> createState() => _HalamanPromoEventState();
 }
 
-class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProviderStateMixin {
+class _HalamanPromoEventState extends State<HalamanPromoEvent>
+    with TickerProviderStateMixin {
   late TabController _tabController;
   File? _imageFile;
   bool _isLoading = false;
@@ -41,9 +42,7 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
         content: Text(message),
         backgroundColor: Theme.of(context).primaryColor,
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -54,7 +53,9 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
       builder: (BuildContext context) {
         return SimpleDialog(
           title: const Text('Pilih Sumber Gambar'),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
           children: <Widget>[
             SimpleDialogOption(
               onPressed: () => Navigator.pop(context, ImageSource.camera),
@@ -95,7 +96,10 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
     final DateTime now = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isStart ? (_startDate ?? now) : (_endDate ?? now.add(const Duration(days: 7))),
+      initialDate:
+          isStart
+              ? (_startDate ?? now)
+              : (_endDate ?? now.add(const Duration(days: 7))),
       firstDate: isStart ? now : (_startDate ?? now),
       lastDate: DateTime(now.year + 1),
       builder: (BuildContext context, Widget? child) {
@@ -106,15 +110,13 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
               onPrimary: Colors.white,
               surface: Colors.white,
             ),
-            dialogTheme: DialogThemeData(
-              backgroundColor: Colors.white,
-            )
+            dialogTheme: DialogThemeData(backgroundColor: Colors.white),
           ),
           child: child!,
         );
       },
     );
-    
+
     if (picked != null) {
       setState(() {
         if (isStart) {
@@ -165,8 +167,12 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
     };
 
     try {
-      final fileName = 'promo_${DateTime.now().millisecondsSinceEpoch}${path.extension(_imageFile!.path)}';
-      final ref = FirebaseStorage.instance.ref().child('promo_images').child(fileName);
+      final fileName =
+          'promo_${DateTime.now().millisecondsSinceEpoch}${path.extension(_imageFile!.path)}';
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('promo_images')
+          .child(fileName);
       final uploadTask = ref.putFile(_imageFile!);
       final snapshot = await uploadTask.whenComplete(() => null);
       final downloadUrl = await snapshot.ref.getDownloadURL();
@@ -234,22 +240,27 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: _imageFile != null
-                            ? Image.file(_imageFile!, fit: BoxFit.cover)
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
-                                  Icon(Icons.add_photo_alternate, size: 64, color: primaryColor),
-                                  SizedBox(height: 10),
-                                  Text(
-                                    'Tap untuk pilih gambar promo',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontWeight: FontWeight.w500,
+                        child:
+                            _imageFile != null
+                                ? Image.file(_imageFile!, fit: BoxFit.cover)
+                                : Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: const [
+                                    Icon(
+                                      Icons.add_photo_alternate,
+                                      size: 64,
+                                      color: primaryColor,
                                     ),
-                                  ),
-                                ],
-                              ),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      'Tap untuk pilih gambar promo',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                       ),
                     ),
                   ),
@@ -266,7 +277,10 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              prefixIcon: const Icon(Icons.calendar_today, color: primaryColor),
+                              prefixIcon: const Icon(
+                                Icons.calendar_today,
+                                color: primaryColor,
+                              ),
                             ),
                             child: Text(
                               _startDate != null
@@ -286,7 +300,10 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              prefixIcon: const Icon(Icons.calendar_today, color: primaryColor),
+                              prefixIcon: const Icon(
+                                Icons.calendar_today,
+                                color: primaryColor,
+                              ),
                             ),
                             child: Text(
                               _endDate != null
@@ -305,19 +322,23 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
                     child: ElevatedButton.icon(
                       onPressed: _isLoading ? null : _simpanPromo,
                       icon: const Icon(Icons.upload),
-                      label: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
+                      label:
+                          _isLoading
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : const Text(
+                                'Upload Promo',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
-                            )
-                          : const Text(
-                              'Upload Promo',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
                         foregroundColor: Colors.white,
@@ -338,13 +359,16 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
 
   Widget _buildPromoList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('promo')
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
+      stream:
+          FirebaseFirestore.instance
+              .collection('promo')
+              .orderBy('createdAt', descending: true)
+              .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: primaryColor));
+          return const Center(
+            child: CircularProgressIndicator(color: primaryColor),
+          );
         }
 
         if (snapshot.hasError) {
@@ -353,16 +377,9 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.image_not_supported, size: 64, color: Colors.grey),
-                SizedBox(height: 16),
-                Text(
-                  'Belum ada promo tersedia',
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
-                ),
-              ],
+            child: Text(
+              'Belum ada promo tersedia',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
             ),
           );
         }
@@ -376,7 +393,7 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
             final String imageUrl = data['gambarUrl'] ?? '';
             final Timestamp? startTimestamp = data['startDate'];
             final Timestamp? endTimestamp = data['endDate'];
-            
+
             String dateRange = '';
             if (startTimestamp != null && endTimestamp != null) {
               final startDate = _dateFormat.format(startTimestamp.toDate());
@@ -395,24 +412,30 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
                 children: [
                   // Image
                   ClipRRect(
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(15),
+                    ),
                     child: CachedNetworkImage(
                       imageUrl: imageUrl,
                       height: 180,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        height: 180,
-                        color: Colors.grey[300],
-                        child: const Center(
-                          child: CircularProgressIndicator(color: primaryColor),
-                        ),
-                      ),
-                      errorWidget: (context, url, error) => Container(
-                        height: 180,
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.error),
-                      ),
+                      placeholder:
+                          (context, url) => Container(
+                            height: 180,
+                            color: Colors.grey[300],
+                            child: const Center(
+                              child: CircularProgressIndicator(
+                                color: primaryColor,
+                              ),
+                            ),
+                          ),
+                      errorWidget:
+                          (context, url, error) => Container(
+                            height: 180,
+                            color: Colors.grey[300],
+                            child: const Icon(Icons.error),
+                          ),
                     ),
                   ),
                   // Date info
@@ -421,7 +444,11 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
                       padding: const EdgeInsets.all(12),
                       child: Row(
                         children: [
-                          const Icon(Icons.date_range, color: primaryColor, size: 18),
+                          const Icon(
+                            Icons.date_range,
+                            color: primaryColor,
+                            size: 18,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             dateRange,
@@ -452,42 +479,48 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
     // Konfirmasi hapus
     bool? confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Konfirmasi Hapus'),
-        content: const Text('Apakah Anda yakin ingin menghapus promo ini?'),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Konfirmasi Hapus'),
+            content: const Text('Apakah Anda yakin ingin menghapus promo ini?'),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text(
+                  'Batal',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
     );
-    
+
     if (confirm != true) return;
 
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
       // Hapus dokumen dari Firestore
       await FirebaseFirestore.instance.collection('promo').doc(docId).delete();
-      
+
       // Hapus gambar dari Storage
       if (imageUrl.isNotEmpty) {
         try {
           await FirebaseStorage.instance.refFromURL(imageUrl).delete();
         } catch (e) {
-          print('Error deleting image: $e');
+          debugPrint('Error deleting image: $e');
         }
       }
-      
+
       _showSnackBar('Promo berhasil dihapus');
     } catch (e) {
       _showSnackBar('Gagal menghapus promo: $e');
@@ -513,36 +546,20 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent> with TickerProvid
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
           tabs: const [
-            Tab(
-              icon: Icon(Icons.add_box_outlined),
-              text: 'Tambah Promo',
-            ),
-            Tab(
-              icon: Icon(Icons.campaign_outlined),
-              text: 'Promo Berjalan',
-            ),
+            Tab(icon: Icon(Icons.add_box_outlined), text: 'Tambah Promo'),
+            Tab(icon: Icon(Icons.campaign_outlined), text: 'Promo Berjalan'),
           ],
         ),
       ),
-      body: _isLoading && _tabController.index != 1
-          ? const Center(child: CircularProgressIndicator(color: primaryColor))
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildPromoForm(),
-                _buildPromoList(),
-              ],
-            ),
-      floatingActionButton: _tabController.index == 1
-          ? FloatingActionButton(
-              onPressed: () {
-                _resetForm();
-                _tabController.animateTo(0);
-              },
-              backgroundColor: primaryColor,
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
+      body:
+          _isLoading && _tabController.index != 1
+              ? const Center(
+                child: CircularProgressIndicator(color: primaryColor),
+              )
+              : TabBarView(
+                controller: _tabController,
+                children: [_buildPromoForm(), _buildPromoList()],
+              ),
     );
   }
 }

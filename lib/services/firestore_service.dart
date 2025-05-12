@@ -83,14 +83,43 @@ class AllBookedUser {
 
 class AllUser {
   final String username;
+  final String role;
 
   AllUser({
     required this.username,
+    required this.role,
   });
 
   factory AllUser.fromJson(Map<String, dynamic> json) {
     return AllUser(
       username: json['username'],
+      role: json['role'] ?? '',
+    );
+  }
+}
+
+class availableForMember {
+  final String courtId;
+  final String date;
+  final String startTime;
+  final String endTime;
+  final bool isAvailable;
+
+  availableForMember({
+    required this.courtId,
+    required this.date,
+    required this.startTime,
+    required this.endTime,
+    required this.isAvailable,
+  });
+
+  factory availableForMember.fromJson(Map<String, dynamic> json) {
+    return availableForMember(
+      courtId: json['courtId'],
+      date: json['date'],
+      startTime: json['startTime'],
+      endTime: json['endTime'],
+      isAvailable: json['isAvailable'],
     );
   }
 }
@@ -623,6 +652,19 @@ class FirebaseService {
     } catch (e) {
       throw Exception('Failed to get time slots for $username: $e');
     }
+  }
+
+  Future<List<availableForMember>> getAvailableSlotsForMember (time) {
+    return firestore
+        .collection('time_slots')
+        .where('startTime', isEqualTo: time)
+        .where('isAvailable', isEqualTo: true)
+        .get()
+        .then((snapshot) {
+      return snapshot.docs.map((doc) {
+        return availableForMember.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
+    });
   }
 
   // Fungsi untuk mengecek ketersediaan slot berdasarkan id dan lapangan

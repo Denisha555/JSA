@@ -282,7 +282,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       courtIds =
           courtsSnapshot.docs.map((doc) => doc['nomor'].toString()).toList();
     } catch (e) {
-      print('Error loading courts: $e');
+      debugPrint('Error loading courts: $e');
       throw Exception('Failed to load courts: $e');
     }
   }
