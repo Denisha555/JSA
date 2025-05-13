@@ -8,71 +8,102 @@ class HalamanMember extends StatefulWidget {
   State<HalamanMember> createState() => _HalamanMemberState();
 }
 
-List<DateTime> getAllWeekdaysInMonth(int weekday, DateTime baseDate) {
-  final firstDay = DateTime(baseDate.year, baseDate.month, 1);
-  final lastDay = DateTime(baseDate.year, baseDate.month + 1, 0);
+List<DateTime> getWeekdaysInRange(int weekday, DateTime baseDate) {
+  final endDate = DateTime(baseDate.year, baseDate.month + 1, baseDate.day);
 
-  return List.generate(lastDay.day, (i) => firstDay.add(Duration(days: i)))
-      .where((d) => d.weekday == weekday)
-      .toList();
+  return List.generate(
+    endDate.difference(baseDate).inDays + 5,
+    (i) => baseDate.add(Duration(days: i)),
+  ).where((d) => d.weekday == weekday).toList();
 }
 
 class _HalamanMemberState extends State<HalamanMember> {
   String selectedDuration = '2';
-  int? selectedWeekday; // Nilai weekday: 1=Mon ... 7=Sun
+  int? selectedWeekday;
   List<DateTime> selectedDates = [];
 
   final Map<String, int> weekdayMap = {
-    'Mon': 1,
-    'Tue': 2,
-    'Wed': 3,
-    'Thu': 4,
-    'Fri': 5,
-    'Sat': 6,
-    'Sun': 7,
+    'Senin': 1,
+    'Selasa': 2,
+    'Rabu': 3,
+    'Kamis': 4,
+    'Jumat': 5,
+    'Sabtu': 6,
+    'Minggu': 7,
   };
+
+  String _formatDate(DateTime date) {
+    List<String> months = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+    List<String> days = [
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+      'Minggu',
+    ];
+
+    return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
+  }
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final currentMonth = DateTime(now.year, now.month);
+    final currentDate = now; 
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Booking Berkala Member')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            SizedBox(height: 10),
             const Text('Pilih Hari'),
             const SizedBox(height: 10),
             SizedBox(
               height: 40,
               child: ListView(
                 scrollDirection: Axis.horizontal,
-                children: weekdayMap.keys.map((day) {
-                  final isSelected = weekdayMap[day] == selectedWeekday;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: ChoiceChip(
-                      label: Text(
-                        day,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.black,
+                children:
+                    weekdayMap.keys.map((day) {
+                      final isSelected = weekdayMap[day] == selectedWeekday;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: ChoiceChip(
+                          label: Text(
+                            day,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.black,
+                            ),
+                          ),
+                          selected: isSelected,
+                          selectedColor: Colors.blue,
+                          onSelected: (_) {
+                            setState(() {
+                              selectedWeekday = weekdayMap[day];
+                              selectedDates = getWeekdaysInRange(
+                                selectedWeekday!,
+                                currentDate,
+                              ); 
+                            });
+                          },
                         ),
-                      ),
-                      selected: isSelected,
-                      selectedColor: Colors.blue,
-                      onSelected: (_) {
-                        setState(() {
-                          selectedWeekday = weekdayMap[day];
-                          selectedDates = getAllWeekdaysInMonth(
-                              selectedWeekday!, currentMonth);
-                        });
-                      },
-                    ),
-                  );
-                }).toList(),
+                      );
+                    }).toList(),
               ),
             ),
             const SizedBox(height: 20),
@@ -105,7 +136,7 @@ class _HalamanMemberState extends State<HalamanMember> {
                 itemBuilder: (context, index) {
                   final date = selectedDates[index];
                   return ListTile(
-                    title: Text(DateFormat('EEEE, dd MMMM yyyy').format(date)),
+                    title: Text(_formatDate(date)),
                     subtitle: Text('Durasi: $selectedDuration jam'),
                   );
                 },
