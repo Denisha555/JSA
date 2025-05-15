@@ -497,7 +497,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                             selectedDate.month == today.month &&
                             selectedDate.day == today.day))
                       TextButton(
-                        onPressed: () async {
+                        onPressed: () async{
                           await _booking(
                             startTime,
                             endTime,
@@ -510,7 +510,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                           ScaffoldMessenger.of(Navigator.of(context).context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'Berhasil booking Lapangan $court pada $startTime - $endTime tanggal ${_formatDate(selectedDate)}',
+                                'Berhasil booking Lapangan $court pada hari ${_formatDate(selectedDate)} pukul $startTime - $endTime',
                               ),
                             ),
                           );

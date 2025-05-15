@@ -233,13 +233,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
                                       ],
                                     ),
                                     subtitle: Text(terjadwals[index].lapangan),
-                                    trailing: IconButton(
-                                      icon: const Icon(Icons.calendar_today),
-                                      onPressed: () {
-                                        // Option to add to calendar or view details
-                                        _showBookingDetails(terjadwals[index]);
-                                      },
-                                    ),
+                                    
                                   ),
                                 );
                               },
@@ -252,28 +246,5 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
     );
   }
 
-  void _showBookingDetails(Terjadwal booking) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Detail Jadwal'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Tanggal: ${booking.tanggal}'),
-                Text('Jam: ${booking.jam}'),
-                Text('Lokasi: ${booking.lapangan}'),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Tutup'),
-              ),
-            ],
-          ),
-    );
-  }
+  
 }

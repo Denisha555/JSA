@@ -85,16 +85,10 @@ class AllUser {
   final String username;
   final String role;
 
-  AllUser({
-    required this.username,
-    required this.role,
-  });
+  AllUser({required this.username, required this.role});
 
   factory AllUser.fromJson(Map<String, dynamic> json) {
-    return AllUser(
-      username: json['username'],
-      role: json['role'] ?? '',
-    );
+    return AllUser(username: json['username'], role: json['role'] ?? '');
   }
 }
 
@@ -654,17 +648,49 @@ class FirebaseService {
     }
   }
 
-  Future<List<availableForMember>> getAvailableSlotsForMember (time) {
-    return firestore
-        .collection('time_slots')
-        .where('startTime', isEqualTo: time)
-        .where('isAvailable', isEqualTo: true)
-        .get()
-        .then((snapshot) {
-      return snapshot.docs.map((doc) {
+  Future<List<availableForMember>> getAvailableSlotsForMember(
+    DateTime selectedDate,
+    String startTime,
+    String endTime,
+  ) async {
+    try {
+      final targetDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+      );
+      final dateStr =
+          "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
+
+      final existingSlots = await getTimeSlotsByDate(dateStr);
+      if (existingSlots.isEmpty) {
+        await generateSlotsOneDay(selectedDate);
+      }
+
+      final QuerySnapshot querySnapshot =
+          await firestore
+              .collection('time_slots')
+              .where('date', isEqualTo: dateStr)
+              .where('startTime', isEqualTo: startTime)
+              .where('isAvailable', isEqualTo: true)
+              .get();
+
+      return querySnapshot.docs.map((doc) {
         return availableForMember.fromJson(doc.data() as Map<String, dynamic>);
       }).toList();
-    });
+    } catch (e) {
+      throw Exception('Failed to get time slots: $e');
+    }
+  }
+
+  Future<void> nonMemberToMember(String username) async {
+    try {
+      await firestore.collection('users').doc(username).update({
+        'role': 'member',
+      });
+    } catch (e) {
+      throw Exception('Failed to get time slots: $e');
+    }
   }
 
   // Fungsi untuk mengecek ketersediaan slot berdasarkan id dan lapangan
@@ -732,7 +758,8 @@ class FirebaseService {
 
   Future<List<AllUser>> getAllUsers() async {
     try {
-      final QuerySnapshot querySnapshot = await firestore.collection('users').get();
+      final QuerySnapshot querySnapshot =
+          await firestore.collection('users').get();
       return querySnapshot.docs.map((doc) {
         return AllUser.fromJson(doc.data() as Map<String, dynamic>);
       }).toList();

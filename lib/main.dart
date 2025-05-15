@@ -1,10 +1,14 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_application_1/screen_owner/halaman_utama_owner.dart';
 import 'screens_pelanggan/daftar.dart';
 import 'screens_pelanggan/masuk.dart';
 import 'package:flutter_application_1/constants_file.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-
+import 'package:flutter_application_1/screens_admin/halaman_utama_admin.dart';
+import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +23,7 @@ void main() async {
           messagingSenderId: "499652308146",
           appId: "1:499652308146:web:93b5c15bf86ae8a86b2dab",
           measurementId: "G-34Z6QW3F97",
-        )
+        ),
       );
     } else {
       await Firebase.initializeApp();
@@ -66,7 +70,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyAppError extends StatelessWidget {
-  const MyAppError({Key?key}) : super(key: key);
+  const MyAppError({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -109,17 +113,57 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeApp();
+    _checkLoginStatus();
   }
 
-  Future<void> _initializeApp() async {
+  // Future<void> _initializeApp() async {
+  //   await Future.delayed(const Duration(seconds: 2));
+  //   // berpindah ke halaman utama
+  //   if (mounted) {
+  //     Navigator.pushReplacement(
+  //       context,
+  //       MaterialPageRoute(builder: (context) => const MainApp()),
+  //     );
+  //   }
+  // }
+
+  Future<void> _checkLoginStatus() async {
     await Future.delayed(const Duration(seconds: 2));
-    // berpindah ke halaman utama
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainApp()),
-      );
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String username = prefs.getString('username') ?? '';
+    if (username.isNotEmpty) {
+      if (username == 'admin_1') {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HalamanUtamaAdmin()),
+          );
+        }
+      } else if (username == 'owner_1') {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HalamanUtamaOwner()),
+          );
+        }
+      } else {
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const PilihHalamanPelanggan(),
+            ),
+          );
+        }
+      }
+    } else {
+      // berpindah ke halaman login
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainApp()),
+        );
+      }
     }
   }
 
