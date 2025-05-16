@@ -207,18 +207,14 @@ class _HalamanJadwalState extends State<HalamanJadwal> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[200],
-      appBar: AppBar(
-        title: Text('Jadwal Operasional'),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
-      ),
+      appBar: AppBar(title: Text('Jadwal')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Input Jadwal Operasional Khusus",
+              "Input Jadwal",
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -352,7 +348,7 @@ class _HalamanJadwalState extends State<HalamanJadwal> {
             ),
             SizedBox(height: 24),
             Text(
-              "Daftar Jadwal Operasional Khusus",
+              "Daftar Jadwal",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,

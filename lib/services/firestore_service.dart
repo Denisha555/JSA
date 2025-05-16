@@ -118,6 +118,20 @@ class availableForMember {
   }
 }
 
+class allCourts {
+  final String courtId;
+
+  allCourts({
+    required this.courtId,
+  });
+
+  factory allCourts.fromJson(Map<String, dynamic> json) {
+    return allCourts(
+      courtId: json['courtId'],
+    );
+  }
+}
+
 class FirebaseService {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
@@ -318,6 +332,20 @@ class FirebaseService {
               .where('nomor', isEqualTo: nomor)
               .get();
       return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      throw Exception('Error Checking Lapangan: $e');
+    }
+  }
+
+  Future<List<allCourts>> getAllLapangan() async {
+    try {
+      QuerySnapshot querySnapshot =
+          await firestore
+              .collection('lapangan')
+              .get();
+      return querySnapshot.docs.map((doc) {
+        return allCourts.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
     } catch (e) {
       throw Exception('Error Checking Lapangan: $e');
     }
@@ -663,21 +691,56 @@ class FirebaseService {
           "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
 
       final existingSlots = await getTimeSlotsByDate(dateStr);
+
       if (existingSlots.isEmpty) {
         await generateSlotsOneDay(selectedDate);
       }
 
-      final QuerySnapshot querySnapshot =
-          await firestore
-              .collection('time_slots')
-              .where('date', isEqualTo: dateStr)
-              .where('startTime', isEqualTo: startTime)
-              .where('isAvailable', isEqualTo: true)
-              .get();
+      // Fungsi bantu untuk ubah ke menit
+      int timeToMinutes(String time) {
+        final parts = time.split(':');
+        return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+      }
 
-      return querySnapshot.docs.map((doc) {
-        return availableForMember.fromJson(doc.data() as Map<String, dynamic>);
-      }).toList();
+      // Fungsi bantu untuk ubah menit ke string format HH:mm
+      String minutesToTime(int minutes) {
+        final hours = (minutes ~/ 60).toString().padLeft(2, '0');
+        final mins = (minutes % 60).toString().padLeft(2, '0');
+        return '$hours:$mins';
+      }
+
+      int startMinutes = timeToMinutes(startTime);
+      int endMinutes = timeToMinutes(endTime);
+
+      List<availableForMember> availableSlots = [];
+
+      // Loop semua slot 30 menit dari start ke end
+      for (
+        int slotStart = startMinutes;
+        slotStart < endMinutes;
+        slotStart += 30
+      ) {
+        final slotStartStr = minutesToTime(slotStart);
+        final slotEndStr = minutesToTime(slotStart + 30);
+
+        final QuerySnapshot querySnapshot =
+            await firestore
+                .collection('time_slots')
+                .where('date', isEqualTo: dateStr)
+                .where('startTime', isEqualTo: slotStartStr)
+                .where('endTime', isEqualTo: slotEndStr)
+                .where('isAvailable', isEqualTo: true)
+                .get();
+
+        // Tambahkan slot yang ditemukan
+        for (var doc in querySnapshot.docs) {
+          availableSlots.add(
+            availableForMember.fromJson(doc.data() as Map<String, dynamic>),
+          );
+        }
+      }
+
+      return availableSlots;
     } catch (e) {
       throw Exception('Failed to get time slots: $e');
     }

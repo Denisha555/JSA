@@ -6,8 +6,9 @@ import 'package:intl/intl.dart';
 class Riwayat {
   final String tanggal;
   final String keterangan;
+  final String waktu;
 
-  Riwayat({required this.tanggal, required this.keterangan});
+  Riwayat({required this.tanggal, required this.keterangan, required this.waktu});
 }
 
 class Terjadwal {
@@ -78,6 +79,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
             Riwayat(
               tanggal: formattedDate,
               keterangan: "Lapangan ${booking.courtId} Berhasil Terbooking",
+              waktu: '${booking.startTime} - ${booking.endTime}',
             ),
           );
         }
@@ -86,7 +88,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
           upcomingBookings.add(
             Terjadwal(
               tanggal: formattedDate,
-              jam: booking.startTime,
+              jam: '${booking.startTime} - ${booking.endTime}',
               lapangan: "Lapangan ${booking.courtId}",
             ),
           );
@@ -172,11 +174,22 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
                                       Icons.check_circle,
                                       color: Colors.green,
                                     ),
-                                    title: Text(
-                                      riwayats[index].tanggal,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    title: Row(
+                                      children: [
+                                        Text(
+                                          riwayats[index].tanggal,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        SizedBox(width: 10,),
+                                        Text(
+                                          riwayats[index].waktu,
+                                          style: const TextStyle(
+                                            color: Colors.blue,
+                                          ),
+                                        )
+                                      ],
                                     ),
                                     subtitle: Text(riwayats[index].keterangan),
                                   ),

@@ -22,6 +22,7 @@ class _HalamanMemberState extends State<HalamanMember> {
   bool isLoading = false;
   bool hasCheckedAvailability = false;
   String? selectedSlotId;
+  int count = 0;
 
   TextEditingController startTimeController = TextEditingController();
   TextEditingController endTimeController = TextEditingController();
@@ -41,7 +42,7 @@ class _HalamanMemberState extends State<HalamanMember> {
   List<DateTime> getWeekdaysInRange(int weekday, DateTime baseDate) {
     final endDate = DateTime(baseDate.year, baseDate.month + 1, baseDate.day);
     return List.generate(
-      endDate.difference(baseDate).inDays + 5,
+      endDate.difference(baseDate).inDays + 1,
       (i) => baseDate.add(Duration(days: i)),
     ).where((d) => d.weekday == weekday).toList();
   }
@@ -83,15 +84,12 @@ class _HalamanMemberState extends State<HalamanMember> {
         availableSlots = allSlots;
         hasCheckedAvailability = true;
       });
-
     } catch (e) {
       debugPrint("Error checking availability: $e");
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Terjadi kesalahan: $e'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
     } finally {
       setState(() {
         isLoading = false;
@@ -114,25 +112,21 @@ class _HalamanMemberState extends State<HalamanMember> {
 
       // Update user status to member
       await FirebaseService().nonMemberToMember(username);
-      
+
       // Book the selected slot
       await FirebaseService().bookSlot(slotId, username);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selamat! Anda berhasil menjadi member'),
-        ),
+        const SnackBar(content: Text('Selamat! Anda berhasil menjadi member')),
       );
 
       // Navigate to the next screen or refresh the current one
       // You might want to replace this with appropriate navigation
       Navigator.of(context).pop();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Gagal menjadi member: $e'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal menjadi member: $e')));
     } finally {
       setState(() {
         isLoading = false;
@@ -140,96 +134,130 @@ class _HalamanMemberState extends State<HalamanMember> {
     }
   }
 
+  void _countSlots(
+    String startTime,
+    String endTime,
+    List<DateTime> selectedDates,
+  ) {
+
+    // Konversi jam mulai dan selesai ke menit (dari format HH:mm)
+    int timeToMinutes(String time) {
+      final parts = time.split(':');
+      return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+    }
+
+    final startMinutes = timeToMinutes(startTime);
+    final endMinutes = timeToMinutes(endTime);
+
+    final durationPerDay = endMinutes - startMinutes;
+    final slotsPerDay = durationPerDay ~/ 30;
+
+    count = slotsPerDay * selectedDates.length;
+
+    debugPrint('Total slot 30 menit untuk jadwal ini adalah: $count');
+  }
+
+  void _checkSlots() {
+    
+  }
+
   void _showAvailabilityDialog() {
     if (availableSlots.isEmpty) {
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Ketersediaan Waktu'),
-          content: const Text('Tidak ada slot tersedia untuk waktu yang Anda pilih.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Ketersediaan Waktu'),
+              content: const Text(
+                'Tidak ada slot tersedia untuk waktu yang Anda pilih.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
             ),
-          ],
-        ),
       );
       return;
     }
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Ketersediaan Waktu'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 300,
-          child: ListView.builder(
-            itemCount: availableSlots.length,
-            itemBuilder: (context, index) {
-              final slot = availableSlots[index];
-              // Parse the date string from the database format (YYYY-MM-DD)
-              final date = DateFormat('yyyy-MM-dd').parse(slot.date);
-              return ListTile(
-                title: Text('${DateFormat('dd MMM yyyy').format(date)} (${_getWeekdayName(date.weekday)})'),
-                subtitle: Text('${slot.startTime} - ${slot.endTime}'),
-                selected: selectedSlotId == slot.courtId,
-                onTap: () {
-                  setState(() {
-                    selectedSlotId = slot.courtId;
-                  });
-                  Navigator.of(context).pop();
-                  
-                  // Show confirmation dialog
-                  _showConfirmationDialog(slot);
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Ketersediaan Waktu'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 300,
+              child: ListView.builder(
+                itemCount: availableSlots.length,
+                itemBuilder: (context, index) {
+                  final slot = availableSlots[index];
+                  // Parse the date string from the database format (YYYY-MM-DD)
+                  final date = DateFormat('yyyy-MM-dd').parse(slot.date);
+                  return ListTile(
+                    title: Text(
+                      '${_getWeekdayName(date.weekday)}, ${DateFormat('dd MMM yyyy').format(date)} (Lapangan ${slot.courtId})',
+                    ),
+                    subtitle: Text('${slot.startTime} - ${slot.endTime}'),
+                    selected: selectedSlotId == slot.courtId,
+                    onTap: () {
+                      setState(() {
+                        selectedSlotId = slot.courtId;
+                      });
+                      Navigator.of(context).pop();
+
+                      // Show confirmation dialog
+                      _showConfirmationDialog(slot);
+                    },
+                  );
                 },
-              );
-            },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Batal'),
+              ),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Batal'),
-          ),
-        ],
-      ),
     );
   }
 
   void _showConfirmationDialog(availableForMember slot) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Konfirmasi Pemesanan'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Apakah Anda yakin ingin memesan slot ini:'),
-            const SizedBox(height: 10),
-            // Parse the date string from the database format (YYYY-MM-DD)
-            Text('Tanggal: ${slot.date}'),
-            Text('Hari: ${_getWeekdayNameFromDateStr(slot.date)}'),
-            Text('Waktu: ${slot.startTime} - ${slot.endTime}'),
-            Text('Lapangan: ${slot.courtId}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Batal'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Konfirmasi Pemesanan'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Apakah Anda yakin ingin memesan slot ini:'),
+                const SizedBox(height: 10),
+                // Parse the date string from the database format (YYYY-MM-DD)
+                Text('Tanggal: ${slot.date}'),
+                Text('Hari: ${_getWeekdayNameFromDateStr(slot.date)}'),
+                Text('Waktu: ${slot.startTime} - ${slot.endTime}'),
+                Text('Lapangan: ${slot.courtId}'),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  becomeMember(slot.courtId);
+                },
+                child: const Text('Jadi Member'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              becomeMember(slot.courtId);
-            },
-            child: const Text('Jadi Member'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -261,7 +289,6 @@ class _HalamanMemberState extends State<HalamanMember> {
     final now = DateTime.now();
 
     return Scaffold(
-      
       body: Stack(
         children: [
           Padding(
@@ -269,7 +296,7 @@ class _HalamanMemberState extends State<HalamanMember> {
             child: ListView(
               children: [
                 const Text(
-                  'Pilih Hari', 
+                  'Pilih Hari',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
@@ -277,42 +304,45 @@ class _HalamanMemberState extends State<HalamanMember> {
                   height: 40,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    children: weekdayMap.keys.map((day) {
-                      final isSelected = weekdayMap[day] == selectedWeekday;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: ChoiceChip(
-                          label: Text(
-                            day,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black,
+                    children:
+                        weekdayMap.keys.map((day) {
+                          final isSelected = weekdayMap[day] == selectedWeekday;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: ChoiceChip(
+                              label: Text(
+                                day,
+                                style: TextStyle(
+                                  color:
+                                      isSelected ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              selected: isSelected,
+                              selectedColor: Colors.blue,
+                              onSelected: (_) {
+                                setState(() {
+                                  selectedWeekday = weekdayMap[day];
+                                  selectedDates = getWeekdaysInRange(
+                                    selectedWeekday!,
+                                    now,
+                                  );
+
+                                  // Format dates as strings in "YYYY-MM-DD" format
+                                  selectedDatesString =
+                                      selectedDates.map((date) {
+                                        // Ensure month and day are zero-padded (01, 02, etc.)
+                                        return DateFormat(
+                                          'yyyy-MM-dd',
+                                        ).format(date);
+                                      }).toList();
+                                });
+                              },
                             ),
-                          ),
-                          selected: isSelected,
-                          selectedColor: Colors.blue,
-                          onSelected: (_) {
-                            setState(() {
-                              selectedWeekday = weekdayMap[day];
-                              selectedDates = getWeekdaysInRange(
-                                selectedWeekday!,
-                                now,
-                              );
-                              
-                              // Format dates as strings in "YYYY-MM-DD" format
-                              selectedDatesString = selectedDates.map((date) {
-                                // Ensure month and day are zero-padded (01, 02, etc.)
-                                return DateFormat('yyyy-MM-dd').format(date);
-                              }).toList();
-                              
-                              debugPrint("Selected dates: $selectedDatesString");
-                            });
-                          },
-                        ),
-                      );
-                    }).toList(),
+                          );
+                        }).toList(),
                   ),
                 ),
-                
+
                 const SizedBox(height: 20),
                 const Text(
                   'Pilih Jam Mulai',
@@ -395,95 +425,78 @@ class _HalamanMemberState extends State<HalamanMember> {
                   },
                 ),
 
-                if (hasCheckedAvailability && availableSlots.isNotEmpty)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 20),
-                      const Text(
-                        'Slot Tersedia',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 10),
-                      ...availableSlots.map((slot) {
-                        // Parse the date string from the database format (YYYY-MM-DD)
-                        final date = DateFormat('yyyy-MM-dd').parse(slot.date);
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          child: ListTile(
-                            title: Text('${DateFormat('dd MMM yyyy').format(date)} (${_getWeekdayName(date.weekday)})'),
-                            subtitle: Text('${slot.startTime} - ${slot.endTime}'),
-                            trailing: ElevatedButton(
-                              onPressed: () => _showConfirmationDialog(slot),
-                              child: const Text('Pilih'),
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-
                 const SizedBox(height: 30),
                 ElevatedButton(
-                  onPressed: isLoading ? null : () async {
-                    if (selectedStartTime == null ||
-                        selectedEndTime == null ||
-                        selectedDatesString.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Lengkapi semua pilihan terlebih dahulu.'),
-                        ),
-                      );
-                      return;
-                    }
+                  onPressed:
+                      isLoading
+                          ? null
+                          : () async {
+                            if (selectedStartTime == null ||
+                                selectedEndTime == null ||
+                                selectedDatesString.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Lengkapi semua pilihan terlebih dahulu.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
 
-                    final start = DateFormat.Hm().parse(selectedStartTime!);
-                    final end = DateFormat.Hm().parse(selectedEndTime!);
+                            final start = DateFormat.Hm().parse(
+                              selectedStartTime!,
+                            );
+                            final end = DateFormat.Hm().parse(selectedEndTime!);
 
-                    if (end.isBefore(start) || end.isAtSameMomentAs(start)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Jam selesai harus setelah jam mulai.'),
-                        ),
-                      );
-                      return;
-                    }
+                            if (end.isBefore(start) ||
+                                end.isAtSameMomentAs(start)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Jam selesai harus setelah jam mulai.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
 
-                    await checkAvailability(
-                      selectedDates,
-                      selectedStartTime!,
-                      selectedEndTime!,
-                    );
+                            await checkAvailability(
+                              selectedDates,
+                              selectedStartTime!,
+                              selectedEndTime!,
+                            );
 
-                    debugPrint('Selected Dates: $selectedDatesString');
-                    debugPrint('Selected Start Time: $selectedStartTime');
-                    debugPrint('Selected End Time: $selectedEndTime');
-                    
-                    if (availableSlots.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Tidak ada slot tersedia untuk waktu yang Anda pilih.'),
-                        ),
-                      );
-                    } else if (availableSlots.length == 1) {
-                      // If only one slot is available, show confirmation dialog directly
-                      _showConfirmationDialog(availableSlots.first);
-                    } else {
-                      // Show dialog to select from multiple available slots
-                      _showAvailabilityDialog();
-                    }
-                  },
-                  child: Text(isLoading ? 'Sedang Mencari...' : 'Cek Ketersediaan Waktu'),
+                            debugPrint('Selected Dates: $selectedDatesString');
+
+                            _countSlots(selectedStartTime!, selectedEndTime!, selectedDates);
+
+                            debugPrint('Available Slots: ${availableSlots.length}');
+
+                            if (availableSlots.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Tidak ada slot tersedia untuk waktu yang Anda pilih.',
+                                  ),
+                                ),
+                              );
+                            } else if (availableSlots.length == count) {
+                              // Show dialog to select from multiple available slots
+                              _showAvailabilityDialog();
+                            }
+                          },
+                  child: Text(
+                    isLoading ? 'Sedang Mencari...' : 'Cek Ketersediaan Waktu',
+                  ),
                 ),
               ],
             ),
           ),
           if (isLoading)
             Container(
-              color: Colors.black.withOpacity(0.3),
-              child: const Center(
-                child: CircularProgressIndicator(),
-              ),
+              color: Colors.black.withValues(alpha: 0.3),
+              child: const Center(child: CircularProgressIndicator()),
             ),
         ],
       ),
