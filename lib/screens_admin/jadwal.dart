@@ -90,7 +90,7 @@ class _HalamanJadwalState extends State<HalamanJadwal> {
                 .toList();
       });
     } catch (e) {
-      print('Error fetching jadwal: $e');
+      print('Error : $e');
     }
   }
 
@@ -107,7 +107,9 @@ class _HalamanJadwalState extends State<HalamanJadwal> {
     if (duplicate && editingDocId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Jadwal pada tanggal dan jam yang sama sudah ada.'),
+          content: Text(
+            'Jadwal pada tanggal dan jam yang sama sudah ada, silahkan edit pada bagian daftar jadwal.',
+          ),
         ),
       );
       return;
