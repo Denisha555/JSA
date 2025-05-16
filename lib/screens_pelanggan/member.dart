@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
-// Import your availableForMember class from wherever it's defined
-// import 'package:flutter_application_1/models/available_slot.dart';
 
 class HalamanMember extends StatefulWidget {
   const HalamanMember({super.key});
@@ -19,6 +17,7 @@ class _HalamanMemberState extends State<HalamanMember> {
   List<DateTime> selectedDates = [];
   List<String> selectedDatesString = []; // Store dates in string format
   List<availableForMember> availableSlots = [];
+  List<allCourts> courts = [];
   bool isLoading = false;
   bool hasCheckedAvailability = false;
   String? selectedSlotId;
@@ -26,6 +25,20 @@ class _HalamanMemberState extends State<HalamanMember> {
 
   TextEditingController startTimeController = TextEditingController();
   TextEditingController endTimeController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _getCourts();
+  }
+
+  void _getCourts() async {
+    List<allCourts> tempcourts = [];
+    tempcourts = await FirebaseService().getAllLapangan();
+    setState(() {
+      courts = tempcourts;
+    });
+  }
 
   List<String> generateTimeOptions() {
     List<String> timeOptions = [];
@@ -58,7 +71,7 @@ class _HalamanMemberState extends State<HalamanMember> {
   };
 
   Future<void> checkAvailability(
-    List<DateTime> selectedDates, // Use string dates directly
+    List<DateTime> selectedDates,
     String startTime,
     String endTime,
   ) async {
@@ -71,7 +84,6 @@ class _HalamanMemberState extends State<HalamanMember> {
       List<availableForMember> allSlots = [];
 
       for (final date in selectedDates) {
-        // Use dateStr directly since it's already in YYYY-MM-DD format
         final slots = await FirebaseService().getAvailableSlotsForMember(
           date,
           startTime,
@@ -97,7 +109,7 @@ class _HalamanMemberState extends State<HalamanMember> {
     }
   }
 
-  Future<void> becomeMember(String slotId) async {
+  Future<void> becomeMember(String startTime, String endTime, [String? courtId]) async {
     try {
       setState(() {
         isLoading = true;
@@ -110,23 +122,63 @@ class _HalamanMemberState extends State<HalamanMember> {
         throw Exception('Username tidak ditemukan');
       }
 
+      debugPrint('User $username is trying to become a member');
+
       // Update user status to member
       await FirebaseService().nonMemberToMember(username);
 
-      // Book the selected slot
-      await FirebaseService().bookSlot(slotId, username);
+      debugPrint('User $username is now a member');
+
+      // If no courtId is provided, use the first court from the list
+      final String selectedCourtId = courtId ?? (courts.isNotEmpty ? courts[0].courtId : '');
+      
+      if (selectedCourtId.isEmpty) {
+        throw Exception('Tidak ada lapangan yang tersedia');
+      }
+
+      // Konversi jam ke menit
+      int timeToMinutes(String time) {
+        final parts = time.split(':');
+        return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+      }
+
+      // Konversi menit ke format HH:mm
+      String minutesToTime(int minutes) {
+        final hours = (minutes ~/ 60).toString().padLeft(2, '0');
+        final mins = (minutes % 60).toString().padLeft(2, '0');
+        return '$hours$mins';
+      }
+
+      final startMinutes = timeToMinutes(startTime);
+      final endMinutes = timeToMinutes(endTime);
+
+      if (endMinutes <= startMinutes) {
+        throw Exception('Jam selesai harus lebih besar dari jam mulai.');
+      }
+
+      for (var date in selectedDates) {
+        final dateStr = DateFormat('yyyy-MM-dd').format(date);
+        
+        for (int minute = startMinutes; minute < endMinutes; minute += 30) {
+          final slotTime = minutesToTime(minute);
+          final slotId = '${selectedCourtId}_${dateStr}_$slotTime';
+
+          debugPrint('Booking slot: $slotId');
+
+          await FirebaseService().bookSlot(slotId, username);
+        }
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selamat! Anda berhasil menjadi member')),
       );
 
-      // Navigate to the next screen or refresh the current one
-      // You might want to replace this with appropriate navigation
       Navigator.of(context).pop();
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal menjadi member: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Gagal menjadi member: $e')),
+      );
+      debugPrint('Error becoming member: $e');
     } finally {
       setState(() {
         isLoading = false;
@@ -134,137 +186,113 @@ class _HalamanMemberState extends State<HalamanMember> {
     }
   }
 
-  void _countSlots(
-    String startTime,
-    String endTime,
-    List<DateTime> selectedDates,
-  ) {
-
-    // Konversi jam mulai dan selesai ke menit (dari format HH:mm)
+  void _checkSlots(String startTime, String endTime) async {
+    if (courts.isEmpty) {
+      _getCourts(); // Ensure courts are loaded
+    }
+    
     int timeToMinutes(String time) {
       final parts = time.split(':');
       return int.parse(parts[0]) * 60 + int.parse(parts[1]);
     }
 
-    final startMinutes = timeToMinutes(startTime);
-    final endMinutes = timeToMinutes(endTime);
+    int startMinutes = timeToMinutes(startTime);
+    int endMinutes = timeToMinutes(endTime);
 
-    final durationPerDay = endMinutes - startMinutes;
-    final slotsPerDay = durationPerDay ~/ 30;
+    for (final court in courts) {
+      bool allDatesAvailable = true;
 
-    count = slotsPerDay * selectedDates.length;
+      for (final selectedDate in selectedDates) {
+        for (
+          int slotStart = startMinutes;
+          slotStart < endMinutes;
+          slotStart += 30
+        ) {
+          final slotStartStr =
+              '${(slotStart ~/ 60).toString().padLeft(2, '0')}:${(slotStart % 60).toString().padLeft(2, '0')}';
 
-    debugPrint('Total slot 30 menit untuk jadwal ini adalah: $count');
-  }
+          final isAvailable = await FirebaseService().isSlotAvailable(
+            slotStartStr,
+            court.courtId,
+            selectedDate,
+          );
 
-  void _checkSlots() {
-    
-  }
+          if (!isAvailable) {
+            allDatesAvailable = false;
+            break;
+          }
+        }
 
-  void _showAvailabilityDialog() {
-    if (availableSlots.isEmpty) {
-      showDialog(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text('Ketersediaan Waktu'),
-              content: const Text(
-                'Tidak ada slot tersedia untuk waktu yang Anda pilih.',
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('OK'),
-                ),
-              ],
-            ),
-      );
-      return;
+        if (!allDatesAvailable) break;
+      }
+
+      if (allDatesAvailable) {
+        debugPrint("Lapangan ${court.courtId} tersedia di semua tanggal!");
+        _showAvailabilityDialog(startTime, endTime, court.courtId);
+        return;
+      }
     }
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Ketersediaan Waktu'),
-            content: SizedBox(
-              width: double.maxFinite,
-              height: 300,
-              child: ListView.builder(
-                itemCount: availableSlots.length,
-                itemBuilder: (context, index) {
-                  final slot = availableSlots[index];
-                  // Parse the date string from the database format (YYYY-MM-DD)
-                  final date = DateFormat('yyyy-MM-dd').parse(slot.date);
-                  return ListTile(
-                    title: Text(
-                      '${_getWeekdayName(date.weekday)}, ${DateFormat('dd MMM yyyy').format(date)} (Lapangan ${slot.courtId})',
-                    ),
-                    subtitle: Text('${slot.startTime} - ${slot.endTime}'),
-                    selected: selectedSlotId == slot.courtId,
-                    onTap: () {
-                      setState(() {
-                        selectedSlotId = slot.courtId;
-                      });
-                      Navigator.of(context).pop();
-
-                      // Show confirmation dialog
-                      _showConfirmationDialog(slot);
-                    },
-                  );
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Batal'),
-              ),
-            ],
-          ),
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Jadwal yang dipilih tidak tersedia')),
     );
   }
 
-  void _showConfirmationDialog(availableForMember slot) {
+  void _showAvailabilityDialog(String startTime, String endTime, String courtId) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Konfirmasi Pemesanan'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Apakah Anda yakin ingin memesan slot ini:'),
-                const SizedBox(height: 10),
-                // Parse the date string from the database format (YYYY-MM-DD)
-                Text('Tanggal: ${slot.date}'),
-                Text('Hari: ${_getWeekdayNameFromDateStr(slot.date)}'),
-                Text('Waktu: ${slot.startTime} - ${slot.endTime}'),
-                Text('Lapangan: ${slot.courtId}'),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Batal'),
+      builder: (context) => AlertDialog(
+        title: const Text('Detail Informasi'),
+        content: SizedBox(
+          width: double.maxFinite,
+          height: 300,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Lapangan : $courtId', style: const TextStyle(fontSize: 18)),
+              Text(
+                'Jam Mulai : $startTime',
+                style: const TextStyle(fontSize: 18),
               ),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  becomeMember(slot.courtId);
-                },
-                child: const Text('Jadi Member'),
+              Text(
+                'Jam Selesai : $endTime',
+                style: const TextStyle(fontSize: 18),
+              ),
+
+              const SizedBox(height: 10),
+              const Text('Tanggal dipilih: ', style: TextStyle(fontSize: 18)),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: selectedDates.length,
+                  itemBuilder: (context, index) {
+                    final date = selectedDates[index];
+                    return ListTile(
+                      title: Text(
+                        '${_getWeekdayName(date.weekday)}, ${DateFormat('dd MMM yyyy').format(date)}',
+                      ),
+                    );
+                  },
+                ),
               ),
             ],
           ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Batal')
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              becomeMember(startTime, endTime, courtId);
+            }, 
+            child: const Text('Jadi Member')
+          ),
+        ],
+      ),
     );
-  }
-
-  String _getWeekdayNameFromDateStr(String dateStr) {
-    // Parse the date string from the database format (YYYY-MM-DD)
-    final date = DateFormat('yyyy-MM-dd').parse(dateStr);
-    return _getWeekdayName(date.weekday);
   }
 
   String _getWeekdayName(int weekday) {
@@ -304,42 +332,37 @@ class _HalamanMemberState extends State<HalamanMember> {
                   height: 40,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    children:
-                        weekdayMap.keys.map((day) {
-                          final isSelected = weekdayMap[day] == selectedWeekday;
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 6),
-                            child: ChoiceChip(
-                              label: Text(
-                                day,
-                                style: TextStyle(
-                                  color:
-                                      isSelected ? Colors.white : Colors.black,
-                                ),
-                              ),
-                              selected: isSelected,
-                              selectedColor: Colors.blue,
-                              onSelected: (_) {
-                                setState(() {
-                                  selectedWeekday = weekdayMap[day];
-                                  selectedDates = getWeekdaysInRange(
-                                    selectedWeekday!,
-                                    now,
-                                  );
-
-                                  // Format dates as strings in "YYYY-MM-DD" format
-                                  selectedDatesString =
-                                      selectedDates.map((date) {
-                                        // Ensure month and day are zero-padded (01, 02, etc.)
-                                        return DateFormat(
-                                          'yyyy-MM-dd',
-                                        ).format(date);
-                                      }).toList();
-                                });
-                              },
+                    children: weekdayMap.keys.map((day) {
+                      final isSelected = weekdayMap[day] == selectedWeekday;
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        child: ChoiceChip(
+                          label: Text(
+                            day,
+                            style: TextStyle(
+                              color: isSelected ? Colors.white : Colors.black,
                             ),
-                          );
-                        }).toList(),
+                          ),
+                          selected: isSelected,
+                          selectedColor: Colors.blue,
+                          onSelected: (_) {
+                            setState(() {
+                              selectedWeekday = weekdayMap[day];
+                              selectedDates = getWeekdaysInRange(
+                                selectedWeekday!,
+                                now,
+                              );
+
+                              // Format dates as strings in "YYYY-MM-DD" format
+                              selectedDatesString = selectedDates.map((date) {
+                                // Ensure month and day are zero-padded (01, 02, etc.)
+                                return DateFormat('yyyy-MM-dd').format(date);
+                              }).toList();
+                            });
+                          },
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
 
@@ -361,6 +384,7 @@ class _HalamanMemberState extends State<HalamanMember> {
                   displayStringForOption: (option) => option,
                   onSelected: (String selection) {
                     setState(() {
+                      if (!mounted) return;
                       selectedStartTime = selection;
                       startTimeController.text = selection;
                     });
@@ -427,65 +451,49 @@ class _HalamanMemberState extends State<HalamanMember> {
 
                 const SizedBox(height: 30),
                 ElevatedButton(
-                  onPressed:
-                      isLoading
-                          ? null
-                          : () async {
-                            if (selectedStartTime == null ||
-                                selectedEndTime == null ||
-                                selectedDatesString.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Lengkapi semua pilihan terlebih dahulu.',
-                                  ),
-                                ),
-                              );
-                              return;
-                            }
+                  onPressed: isLoading
+                    ? null
+                    : () async {
+                        if (selectedStartTime == null ||
+                            selectedEndTime == null ||
+                            selectedDatesString.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Lengkapi semua pilihan terlebih dahulu.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
 
-                            final start = DateFormat.Hm().parse(
-                              selectedStartTime!,
-                            );
-                            final end = DateFormat.Hm().parse(selectedEndTime!);
+                        final start = DateFormat.Hm().parse(
+                          selectedStartTime!,
+                        );
+                        final end = DateFormat.Hm().parse(selectedEndTime!);
 
-                            if (end.isBefore(start) ||
-                                end.isAtSameMomentAs(start)) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Jam selesai harus setelah jam mulai.',
-                                  ),
-                                ),
-                              );
-                              return;
-                            }
+                        if (end.isBefore(start) ||
+                            end.isAtSameMomentAs(start)) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Jam selesai harus setelah jam mulai.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
 
-                            await checkAvailability(
-                              selectedDates,
-                              selectedStartTime!,
-                              selectedEndTime!,
-                            );
+                        await checkAvailability(
+                          selectedDates,
+                          selectedStartTime!,
+                          selectedEndTime!,
+                        );
 
-                            debugPrint('Selected Dates: $selectedDatesString');
+                        debugPrint('Selected Dates: $selectedDatesString');
 
-                            _countSlots(selectedStartTime!, selectedEndTime!, selectedDates);
-
-                            debugPrint('Available Slots: ${availableSlots.length}');
-
-                            if (availableSlots.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Tidak ada slot tersedia untuk waktu yang Anda pilih.',
-                                  ),
-                                ),
-                              );
-                            } else if (availableSlots.length == count) {
-                              // Show dialog to select from multiple available slots
-                              _showAvailabilityDialog();
-                            }
-                          },
+                        _checkSlots(selectedStartTime!, selectedEndTime!);
+                      },
                   child: Text(
                     isLoading ? 'Sedang Mencari...' : 'Cek Ketersediaan Waktu',
                   ),
@@ -495,7 +503,7 @@ class _HalamanMemberState extends State<HalamanMember> {
           ),
           if (isLoading)
             Container(
-              color: Colors.black.withValues(alpha: 0.3),
+              color: Colors.black.withOpacity(0.3),
               child: const Center(child: CircularProgressIndicator()),
             ),
         ],

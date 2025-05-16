@@ -121,14 +121,10 @@ class availableForMember {
 class allCourts {
   final String courtId;
 
-  allCourts({
-    required this.courtId,
-  });
+  allCourts({required this.courtId});
 
   factory allCourts.fromJson(Map<String, dynamic> json) {
-    return allCourts(
-      courtId: json['courtId'],
-    );
+    return allCourts(courtId: json['nomor']);
   }
 }
 
@@ -340,9 +336,7 @@ class FirebaseService {
   Future<List<allCourts>> getAllLapangan() async {
     try {
       QuerySnapshot querySnapshot =
-          await firestore
-              .collection('lapangan')
-              .get();
+          await firestore.collection('lapangan').get();
       return querySnapshot.docs.map((doc) {
         return allCourts.fromJson(doc.data() as Map<String, dynamic>);
       }).toList();
@@ -748,11 +742,21 @@ class FirebaseService {
 
   Future<void> nonMemberToMember(String username) async {
     try {
-      await firestore.collection('users').doc(username).update({
-        'role': 'member',
-      });
+      final querySnapshot =
+          await firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        throw Exception('User tidak ditemukan');
+      }
+
+      final docRef = querySnapshot.docs.first.reference;
+
+      await docRef.update({'role': 'member'});
     } catch (e) {
-      throw Exception('Failed to get time slots: $e');
+      throw Exception('Failed to update user status: $e');
     }
   }
 

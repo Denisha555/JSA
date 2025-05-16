@@ -90,7 +90,7 @@ class _HalamanJadwalState extends State<HalamanJadwal> {
                 .toList();
       });
     } catch (e) {
-      print('Error fetching jadwal: $e');
+      print('Error : $e');
     }
   }
 
@@ -107,7 +107,9 @@ class _HalamanJadwalState extends State<HalamanJadwal> {
     if (duplicate && editingDocId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Jadwal pada tanggal dan jam yang sama sudah ada.'),
+          content: Text(
+            'Jadwal pada tanggal dan jam yang sama sudah ada, silahkan edit pada bagian daftar jadwal.',
+          ),
         ),
       );
       return;
@@ -207,7 +209,11 @@ class _HalamanJadwalState extends State<HalamanJadwal> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[200],
-      appBar: AppBar(title: Text('Jadwal')),
+      appBar: AppBar(
+        title: Text('Jadwal'),
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -337,7 +343,7 @@ class _HalamanJadwalState extends State<HalamanJadwal> {
                             ),
                           ),
                           child: Text(
-                            editingDocId != null ? "Perbarui" : "Simpan",
+                            editingDocId != null ? "Update" : "Simpan",
                           ),
                         ),
                       ),
