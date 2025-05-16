@@ -208,7 +208,7 @@ class _HalamanJadwalState extends State<HalamanJadwal> {
     return Scaffold(
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
-        title: Text('Jadwal Operasional'),
+        title: Text('Jadwal'),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
       ),
