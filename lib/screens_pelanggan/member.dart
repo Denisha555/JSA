@@ -16,8 +16,8 @@ class _HalamanMemberState extends State<HalamanMember> {
   int? selectedWeekday;
   List<DateTime> selectedDates = [];
   List<String> selectedDatesString = []; // Store dates in string format
-  List<availableForMember> availableSlots = [];
-  List<allCourts> courts = [];
+  List<AvailableForMember> availableSlots = [];
+  List<AllCourts> courts = [];
   bool isLoading = false;
   bool hasCheckedAvailability = false;
   String? selectedSlotId;
@@ -33,7 +33,7 @@ class _HalamanMemberState extends State<HalamanMember> {
   }
 
   void _getCourts() async {
-    List<allCourts> tempcourts = [];
+    List<AllCourts> tempcourts = [];
     tempcourts = await FirebaseService().getAllLapangan();
     setState(() {
       courts = tempcourts;
@@ -81,7 +81,7 @@ class _HalamanMemberState extends State<HalamanMember> {
     });
 
     try {
-      List<availableForMember> allSlots = [];
+      List<AvailableForMember> allSlots = [];
 
       for (final date in selectedDates) {
         final slots = await FirebaseService().getAvailableSlotsForMember(

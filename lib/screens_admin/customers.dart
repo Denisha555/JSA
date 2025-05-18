@@ -103,18 +103,30 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
             .map((entry) => _buildUserCard(entry.key, status))
             .toList();
 
-    return filteredUsers.isEmpty
-        ? const Center(
-          child: Text(
-            'Belum ada data',
-            style: TextStyle(fontSize: 16, color: Colors.grey),
-          ),
-        )
-        : ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: filteredUsers.length,
-          itemBuilder: (context, index) => filteredUsers[index],
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        await _fetchUsers();
+      },
+      child:
+          filteredUsers.isEmpty
+              ? ListView(
+                children: const [
+                  SizedBox(height: 100),
+                  Center(
+                    child: Text(
+                      'Belum ada data',
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ),
+                ],
+              )
+              : ListView.builder(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                itemCount: filteredUsers.length,
+                itemBuilder: (context, index) => filteredUsers[index],
+              ),
+    );
   }
 
   Widget _buildUserCard(String username, String status) {
@@ -131,7 +143,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
               backgroundColor:
                   status == 'member' ? Colors.blueAccent : Colors.grey[400],
               child: Text(
-                username[0].toUpperCase(),
+                username[0],
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,

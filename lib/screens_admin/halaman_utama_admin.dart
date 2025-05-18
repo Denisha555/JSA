@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_application_1/main.dart';
 import 'package:flutter_application_1/screens_admin/customers.dart';
 import 'price.dart';
@@ -6,6 +7,7 @@ import 'kalender.dart';
 import 'promo_event.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/screens_admin/jadwal.dart';
+import 'package:flutter_application_1/screens_admin/jadwal copy.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'lapangan.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -66,7 +68,8 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
         });
 
     if (isLoading) {
-      return const Expanded(
+      return const SizedBox(
+        height: 200,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -81,7 +84,8 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     }
 
     if (hasError) {
-      return Expanded(
+      return SizedBox(
+        height: 400,
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -191,7 +195,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
         _processBookingData(slots);
       }
     } catch (e) {
-      print('Error loading slots: $e');
+      debugPrint('Error loading slots: $e');
       if (mounted) {
         setState(() {
           hasError = true;
@@ -228,7 +232,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
         });
       }
     } catch (e) {
-      print('Error processing booking data: $e');
+      debugPrint('Error processing booking data: $e');
       if (mounted) {
         setState(() {
           hasError = true;
@@ -340,11 +344,13 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => HalamanJadwal()),
+                    MaterialPageRoute(
+                      builder: (context) => HalamanJadwalTabs(),
+                    ),
                   );
                 },
               ),
-              SizedBox(width: 5,),
+              SizedBox(width: 5),
 
               _buildQuickAccessButton(
                 icon: 'user',
@@ -367,7 +373,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                 },
               ),
 
-              SizedBox(width: 6,),
+              SizedBox(width: 6),
               _buildQuickAccessButton(
                 icon: 'booking',
                 label: "Booking",
@@ -390,7 +396,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                       MaterialPageRoute(builder: (context) => HalamanPrice()),
                     ),
               ),
-              SizedBox(width: 12,),
+              SizedBox(width: 12),
 
               _buildQuickAccessButton(
                 icon: 'promo_event',
@@ -487,9 +493,11 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
+      }
     }
   }
 
@@ -508,40 +516,52 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          _buildQuickAccessMenu(context),
-          const SizedBox(height: 15),
-          Text(
-            _formatDate(selectedDate),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await _loadOrCreateSlots(selectedDate);
+        },
+        child: ListView(
+          padding: const EdgeInsets.all(8),
+          children: [
+            _buildQuickAccessMenu(context),
+            const SizedBox(height: 15),
+
+            Column(
               children: [
-                Container(
-                  width: 16,
-                  height: 16,
-                  color: availableColor,
-                  margin: const EdgeInsets.only(right: 4),
+                Text(
+                  _formatDate(selectedDate),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-                const Text('Tersedia'),
-                const SizedBox(width: 16),
-                Container(
-                  width: 16,
-                  height: 16,
-                  color: bookedColor,
-                  margin: const EdgeInsets.only(right: 4),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 16,
+                      height: 16,
+                      color: availableColor,
+                      margin: const EdgeInsets.only(right: 4),
+                    ),
+                    const Text('Tersedia'),
+                    const SizedBox(width: 16),
+                    Container(
+                      width: 16,
+                      height: 16,
+                      color: bookedColor,
+                      margin: const EdgeInsets.only(right: 4),
+                    ),
+                    const Text('Sudah Dibooking'),
+                  ],
                 ),
-                const Text('Sudah Dibooking'),
               ],
             ),
-          ),
-          _buildCalendar(selectedDate),
-        ],
+            const SizedBox(height: 10),
+            _buildCalendar(selectedDate),
+          ],
+        ),
       ),
     );
   }

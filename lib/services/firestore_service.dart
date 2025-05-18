@@ -92,14 +92,14 @@ class AllUser {
   }
 }
 
-class availableForMember {
+class AvailableForMember {
   final String courtId;
   final String date;
   final String startTime;
   final String endTime;
   final bool isAvailable;
 
-  availableForMember({
+  AvailableForMember({
     required this.courtId,
     required this.date,
     required this.startTime,
@@ -107,8 +107,8 @@ class availableForMember {
     required this.isAvailable,
   });
 
-  factory availableForMember.fromJson(Map<String, dynamic> json) {
-    return availableForMember(
+  factory AvailableForMember.fromJson(Map<String, dynamic> json) {
+    return AvailableForMember(
       courtId: json['courtId'],
       date: json['date'],
       startTime: json['startTime'],
@@ -118,13 +118,36 @@ class availableForMember {
   }
 }
 
-class allCourts {
+class AllCourts {
   final String courtId;
 
-  allCourts({required this.courtId});
+  AllCourts({required this.courtId});
 
-  factory allCourts.fromJson(Map<String, dynamic> json) {
-    return allCourts(courtId: json['nomor']);
+  factory AllCourts.fromJson(Map<String, dynamic> json) {
+    return AllCourts(courtId: json['nomor']);
+  }
+}
+
+class AllCloseDay {
+  final String date;
+  final String isClose;
+  final String startTime;
+  final String endTime;
+
+  AllCloseDay({
+    required this.date,
+    required this.isClose,
+    required this.startTime,
+    required this.endTime,
+  });
+
+  factory AllCloseDay.fromJson(Map<String, dynamic> json) {
+    return AllCloseDay(
+      date: json['date'],
+      isClose: json['isClose'],
+      startTime: json['startTime'],
+      endTime: json['endTime'],
+    );
   }
 }
 
@@ -333,12 +356,12 @@ class FirebaseService {
     }
   }
 
-  Future<List<allCourts>> getAllLapangan() async {
+  Future<List<AllCourts>> getAllLapangan() async {
     try {
       QuerySnapshot querySnapshot =
           await firestore.collection('lapangan').get();
       return querySnapshot.docs.map((doc) {
-        return allCourts.fromJson(doc.data() as Map<String, dynamic>);
+        return AllCourts.fromJson(doc.data() as Map<String, dynamic>);
       }).toList();
     } catch (e) {
       throw Exception('Error Checking Lapangan: $e');
@@ -670,7 +693,7 @@ class FirebaseService {
     }
   }
 
-  Future<List<availableForMember>> getAvailableSlotsForMember(
+  Future<List<AvailableForMember>> getAvailableSlotsForMember(
     DateTime selectedDate,
     String startTime,
     String endTime,
@@ -706,7 +729,7 @@ class FirebaseService {
       int startMinutes = timeToMinutes(startTime);
       int endMinutes = timeToMinutes(endTime);
 
-      List<availableForMember> availableSlots = [];
+      List<AvailableForMember> availableSlots = [];
 
       // Loop semua slot 30 menit dari start ke end
       for (
@@ -729,7 +752,7 @@ class FirebaseService {
         // Tambahkan slot yang ditemukan
         for (var doc in querySnapshot.docs) {
           availableSlots.add(
-            availableForMember.fromJson(doc.data() as Map<String, dynamic>),
+            AvailableForMember.fromJson(doc.data() as Map<String, dynamic>),
           );
         }
       }
@@ -832,6 +855,157 @@ class FirebaseService {
       }).toList();
     } catch (e) {
       throw Exception('Failed to get users: $e');
+    }
+  }
+
+  Future<void> closeAllDay(DateTime selectedDate) async {
+    try {
+      final courts = await firestore.collection('lapangan').get();
+
+      final targetDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+      );
+
+      final dateStr =
+          "${targetDate.year.toString().padLeft(4, '0')}-"
+          "${targetDate.month.toString().padLeft(2, '0')}-"
+          "${targetDate.day.toString().padLeft(2, '0')}";
+
+      for (var court in courts.docs) {
+        final courtNumber = court.data()['nomor'].toString();
+
+        for (int hour = 7; hour < 22; hour++) {
+          for (int minute = 0; minute < 60; minute += 30) {
+            final startTime =
+                "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
+            final endTime = DateTime(
+              targetDate.year,
+              targetDate.month,
+              targetDate.day,
+              hour,
+              minute,
+            ).add(Duration(minutes: 30));
+            final endTimeStr =
+                "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}";
+
+            final slotId =
+                "${courtNumber}_${dateStr}_${startTime.replaceAll(':', '')}";
+
+            final docRef = firestore.collection('time_slots').doc(slotId);
+            final existingDoc = await docRef.get();
+
+            final data = {
+              'courtId': courtNumber,
+              'date': dateStr,
+              'startTime': startTime,
+              'endTime': endTimeStr,
+              'isAvailable': false,
+              'isClosed': true,
+              'createdAt': FieldValue.serverTimestamp(),
+            };
+
+            if (existingDoc.exists) {
+              // Update data yang sudah ada
+              await docRef.update({
+                'isAvailable': false,
+                'isClosed': true,
+              });
+            } else {
+              // Buat slot baru
+              await docRef.set(data);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      throw Exception('Failed to close all day: $e');
+    }
+  }
+
+  Future<void> closeUseTimeRange(
+    DateTime selectedDate,
+    String startTime,
+    String endTime,
+  ) async {
+    try {
+      final courts = await firestore.collection('lapangan').get();
+
+      final targetDate = DateTime(
+        selectedDate.year,
+        selectedDate.month,
+        selectedDate.day,
+      );
+
+      final dateStr =
+          "${targetDate.year.toString().padLeft(4, '0')}-"
+          "${targetDate.month.toString().padLeft(2, '0')}-"
+          "${targetDate.day.toString().padLeft(2, '0')}";
+
+      // Parse string ke DateTime
+      final startParts = startTime.split(':');
+      final endParts = endTime.split(':');
+      final startDateTime = DateTime(
+        targetDate.year,
+        targetDate.month,
+        targetDate.day,
+        int.parse(startParts[0]),
+        int.parse(startParts[1]),
+      );
+      final endDateTime = DateTime(
+        targetDate.year,
+        targetDate.month,
+        targetDate.day,
+        int.parse(endParts[0]),
+        int.parse(endParts[1]),
+      );
+
+      for (var court in courts.docs) {
+        final courtNumber = court.data()['nomor'].toString();
+        
+        DateTime slotStart = startDateTime;
+
+        while (slotStart.isBefore(endDateTime)) {
+          final slotEnd = slotStart.add(Duration(minutes: 30));
+          final startStr =
+              "${slotStart.hour.toString().padLeft(2, '0')}:${slotStart.minute.toString().padLeft(2, '0')}";
+          final endStr =
+              "${slotEnd.hour.toString().padLeft(2, '0')}:${slotEnd.minute.toString().padLeft(2, '0')}";
+
+          final slotId =
+              "${courtNumber}_${dateStr}_${startStr.replaceAll(':', '')}";
+
+          await firestore.collection('time_slots').doc(slotId).set({
+            'courtId': courtNumber,
+            'date': dateStr,
+            'startTime': startStr,
+            'endTime': endStr,
+            'isAvailable': false,
+            'isClosed': true,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+
+          slotStart = slotEnd;
+        }
+      }
+    } catch (e) {
+      throw Exception('Failed to close range: $e');
+    }
+  }
+
+  Future<List<AllCloseDay>> getAllCloseDay() async {
+    try {
+      final snapshot =
+          await firestore
+              .collection('time_slots')
+              .where('isClosed', isEqualTo: true)
+              .get();
+      return snapshot.docs
+          .map((doc) => AllCloseDay.fromJson(doc.data()))
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to get all close day: $e');
     }
   }
 }

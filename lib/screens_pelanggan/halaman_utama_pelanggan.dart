@@ -89,10 +89,10 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
   Widget? currentBookingCard;
 
   @override
-  void initState() {
+  void initState() async {
     // TODO: implement initState
     super.initState();
-    _checkbooked();
+    await _checkbooked();
   }
 
   @override
@@ -102,7 +102,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
-            _checkbooked();
+            await _checkbooked();
           },
           child: SingleChildScrollView(
             child: Padding(
@@ -315,7 +315,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
     );
   }
 
-  void _checkbooked() async {
+  Future<void> _checkbooked() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String username = prefs.getString('username') ?? '';
     DateTime selectedDate = DateTime.now();
