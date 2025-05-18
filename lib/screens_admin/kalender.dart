@@ -271,7 +271,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         });
       }
     } catch (e) {
-      print('Error processing booking data: $e');
+      debugPrint('Error processing booking data: $e');
       if (mounted) {
         setState(() {
           hasError = true;
@@ -422,9 +422,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     );
   }
 
-  // Define a color for closed slots
-  final Color closedColor = Colors.grey.shade300;
-
   // Widget for court cell
   Widget _buildCourtCell(
     String time,
@@ -458,7 +455,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: isClosed 
-              ? closedColor 
+              ? Colors.grey 
               : (isAvailable ? availableColor : bookedColor),
           border: Border.all(color: Colors.grey.shade300),
         ),
@@ -471,7 +468,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   : (isAvailable ? 'Available' : 'Booked'),
               style: TextStyle(
                 color: isClosed 
-                    ? Colors.grey.shade700
+                    ? Colors.white
                     : (isAvailable ? Colors.green.shade700 : Colors.red.shade700),
                 fontWeight: FontWeight.w500,
                 fontSize: 12,
@@ -716,7 +713,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   color: closedColor,
                   margin: const EdgeInsets.only(right: 4),
                 ),
-                const Text('Closed'),
+                const Text('Tutup'),
               ],
             ),
           ),

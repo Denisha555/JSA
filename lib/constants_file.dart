@@ -9,3 +9,4 @@ const double borderRadius = 10.0;
 
 const Color availableColor = Color(0xFFE0F7E0);
 const Color bookedColor = Color(0xFFFAE0E0);
+Color closedColor = Colors.grey.shade300;

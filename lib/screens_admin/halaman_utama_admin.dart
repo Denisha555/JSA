@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_application_1/main.dart';
 import 'package:flutter_application_1/screens_admin/customers.dart';
 import 'price.dart';
@@ -7,7 +6,6 @@ import 'kalender.dart';
 import 'promo_event.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/screens_admin/jadwal.dart';
-import 'package:flutter_application_1/screens_admin/jadwal copy.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'lapangan.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -145,12 +143,13 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                       _buildTimeCell(time),
                       ...sortedCourtIds.map((id) {
                         final cellData =
-                            courts[id] ?? {'isAvailable': true, 'username': ''};
+                            courts[id] ?? {'isAvailable': true, 'username': '', 'isClosed': false};
                         return _buildCourtCell(
                           time,
                           id,
                           cellData['isAvailable'] ?? true,
                           cellData['username'] ?? '',
+                          cellData['isClosed'] ?? false,
                         );
                       }).toList(),
                     ],
@@ -222,6 +221,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
         tempdata[timeRange]![slot.courtId] = {
           'isAvailable': slot.isAvailable,
           'username': slot.username,
+          'isClosed': slot.isClosed,
         };
       }
 
@@ -295,22 +295,29 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     String court,
     bool isAvailable,
     String username,
+    bool isClosed
   ) {
     return Container(
       width: 120,
       height: 50,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isAvailable ? availableColor : bookedColor,
-        border: Border.all(color: Colors.grey.shade300),
+        color: isClosed 
+              ? Colors.grey 
+              : (isAvailable ? availableColor : bookedColor),
+          border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            isAvailable ? 'Available' : 'Booked',
-            style: TextStyle(
-              color: isAvailable ? Colors.green.shade700 : Colors.red.shade700,
+              isClosed 
+                  ? 'Closed' 
+                  : (isAvailable ? 'Available' : 'Booked'),
+              style: TextStyle(
+                color: isClosed 
+                    ? Colors.white
+                    : (isAvailable ? Colors.green.shade700 : Colors.red.shade700),
               fontWeight: FontWeight.w500,
               fontSize: 12,
             ),
@@ -345,7 +352,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => HalamanJadwalTabs(),
+                      builder: (context) => HalamanJadwal(),
                     ),
                   );
                 },
@@ -556,6 +563,14 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                       margin: const EdgeInsets.only(right: 4),
                     ),
                     const Text('Sudah Dibooking'),
+                    const SizedBox(width: 16),
+                    Container(
+                      width: 16,
+                      height: 16,
+                      color: closedColor,
+                      margin: const EdgeInsets.only(right: 4),
+                    ),
+                    const Text('Tutup'),
                   ],
                 ),
               ],

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/constants_file.dart';
+import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -14,180 +14,107 @@ extension StringToDateTime on String {
   }
 }
 
-class JadwalOperasional {
-  final DateTime tanggal;
-  final TimeOfDay? jamMulai;
-  final TimeOfDay? jamSelesai;
-  final bool close;
-  final String? id;
-
-  JadwalOperasional({
-    required this.tanggal,
-    this.jamMulai,
-    this.jamSelesai,
-    this.close = false,
-    this.id,
-  });
-}
-
 class HalamanJadwal extends StatefulWidget {
   @override
   _HalamanJadwalState createState() => _HalamanJadwalState();
 }
 
-class _HalamanJadwalState extends State<HalamanJadwal> {
+class _HalamanJadwalState extends State<HalamanJadwal>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   final _formKey = GlobalKey<FormState>();
-  List<JadwalOperasional> jadwalKhusus = [];
+  List<AllCloseDay> jadwalKhusus = [];
   DateTime tanggalKhusus = DateTime.now();
   TimeOfDay jamMulaiKhusus = TimeOfDay(hour: 9, minute: 0);
   TimeOfDay jamSelesaiKhusus = TimeOfDay(hour: 18, minute: 0);
   bool isClose = false;
   String? editingDocId;
 
+  // Loading state variables
+  bool _isLoading = false;
+  bool _isLoadingJadwal = true;
+
   @override
   void initState() {
     super.initState();
-    initializeDateFormatting('id_ID', null).then((_) => _fetchJadwalKhusus());
+    _tabController = TabController(length: 2, vsync: this);
+    _init();
   }
 
-  void _fetchJadwalKhusus() async {
-    try {
-      var snapshot =
-          await FirebaseFirestore.instance
-              .collection('jadwal_operasional')
-              .orderBy('tanggal')
-              .get();
-
-      final now = DateTime.now();
-
-      setState(() {
-        jadwalKhusus =
-            snapshot.docs
-                .where(
-                  (doc) => (doc['tanggal'] as Timestamp).toDate().isAfter(
-                    now.subtract(Duration(days: 1)),
-                  ),
-                )
-                .map((doc) {
-                  final isClose = doc['close'] == true;
-                  return JadwalOperasional(
-                    tanggal: (doc['tanggal'] as Timestamp).toDate(),
-                    jamMulai:
-                        isClose
-                            ? null
-                            : TimeOfDay.fromDateTime(
-                              (doc['jam_mulai'] as String).toDate(),
-                            ),
-                    jamSelesai:
-                        isClose
-                            ? null
-                            : TimeOfDay.fromDateTime(
-                              (doc['jam_selesai'] as String).toDate(),
-                            ),
-                    close: isClose,
-                  );
-                })
-                .toList();
-      });
-    } catch (e) {
-      print('Error : $e');
-    }
+  Future<void> _init() async {
+    await initializeDateFormatting('id_ID', null);
+    await _fetchJadwalKhusus();
   }
 
-  void _addOrUpdateJadwalKhusus() async {
-    // Validasi duplikat
-    final duplicate = jadwalKhusus.any((j) {
-      final sameDay = isSameDay(j.tanggal, tanggalKhusus);
-      final sameTime =
-          j.jamMulai == jamMulaiKhusus && j.jamSelesai == jamSelesaiKhusus;
-      final sameClose = j.close == isClose;
-      return sameDay && (isClose || sameTime);
+  Future<void> _fetchJadwalKhusus() async {
+    setState(() {
+      _isLoadingJadwal = true;
     });
 
-    if (duplicate && editingDocId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Jadwal pada tanggal dan jam yang sama sudah ada, silahkan edit pada bagian daftar jadwal.',
-          ),
-        ),
-      );
-      return;
-    }
+    try {
+      await Future.delayed(Duration(seconds: 1)); // Simulate network delay
+      final hasil =
+          await FirebaseService()
+              .getAllCloseDay(); // Fetch jadwal from Firestore
 
-    final data = {
-      'tanggal': tanggalKhusus,
-      'jam_mulai': isClose ? null : formatTime(jamMulaiKhusus),
-      'jam_selesai': isClose ? null : formatTime(jamSelesaiKhusus),
-      'close': isClose,
-    };
-
-    if (editingDocId != null) {
-      // Update
-      await FirebaseFirestore.instance
-          .collection('jadwal_operasional')
-          .doc(editingDocId)
-          .update(data);
-      editingDocId = null;
-    } else {
-      // Add new
-      await FirebaseFirestore.instance
-          .collection('jadwal_operasional')
-          .add(data);
-    }
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Jadwal berhasil disimpan.')));
-    _fetchJadwalKhusus();
-  }
-
-  void _deleteJadwal(DateTime tanggal) async {
-    var snapshot =
-        await FirebaseFirestore.instance
-            .collection('jadwal_operasional')
-            .where('tanggal', isEqualTo: tanggal)
-            .get();
-
-    for (var doc in snapshot.docs) {
-      await FirebaseFirestore.instance
-          .collection('jadwal_operasional')
-          .doc(doc.id)
-          .delete();
-    }
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Jadwal berhasil dihapus.')));
-    _fetchJadwalKhusus();
-  }
-
-  void _editJadwal(DateTime tanggal) async {
-    var snapshot =
-        await FirebaseFirestore.instance
-            .collection('jadwal_operasional')
-            .where('tanggal', isEqualTo: tanggal)
-            .limit(1)
-            .get();
-
-    if (snapshot.docs.isNotEmpty) {
-      var doc = snapshot.docs.first;
       setState(() {
-        editingDocId = doc.id;
-        tanggalKhusus = (doc['tanggal'] as Timestamp).toDate();
-        isClose = doc['close'] == true;
-        jamMulaiKhusus =
-            isClose
-                ? TimeOfDay(hour: 9, minute: 0)
-                : TimeOfDay.fromDateTime((doc['jam_mulai'] as String).toDate());
-        jamSelesaiKhusus =
-            isClose
-                ? TimeOfDay(hour: 18, minute: 0)
-                : TimeOfDay.fromDateTime(
-                  (doc['jam_selesai'] as String).toDate(),
-                );
+        jadwalKhusus = hasil;
       });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Gagal memuat jadwal: ${e.toString()}')),
+        );
+      }
+      debugPrint('Error fetching jadwal: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingJadwal = false;
+        });
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  TimeOfDay parseTime(String timeString) {
+    final parts = timeString.split(':');
+    final hour = int.parse(parts[0]);
+    final minute = int.parse(parts[1]);
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  String _formatDate(DateTime date) {
+    List<String> months = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+    List<String> days = [
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+      'Minggu',
+    ];
+
+    return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
   bool isSameDay(DateTime a, DateTime b) {
@@ -211,212 +138,487 @@ class _HalamanJadwalState extends State<HalamanJadwal> {
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
         title: Text('Jadwal'),
-        backgroundColor: primaryColor,
-        foregroundColor: Colors.white,
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          tabs: [
+            Tab(icon: Icon(Icons.edit_calendar), text: 'Input Jadwal'),
+            Tab(icon: Icon(Icons.calendar_view_week), text: 'Daftar Jadwal'),
+          ],
+        ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Input Jadwal",
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: primaryColor,
-              ),
-            ),
-            SizedBox(height: 16),
-            Form(
-              key: _formKey,
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+      body: Stack(
+        children: [
+          TabBarView(
+            controller: _tabController,
+            children: [
+              // Input Jadwal Tab
+              _buildInputJadwalTab(),
+
+              // Daftar Jadwal Tab
+              _buildDaftarJadwalTab(),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInputJadwalTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Form(
+        key: _formKey,
+        child: Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  editingDocId != null ? "Edit Jadwal" : "Tambah Jadwal Baru",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
                 ),
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
+                SizedBox(height: 16),
+                GestureDetector(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: tanggalKhusus,
+                      firstDate: DateTime(2000),
+                      lastDate: DateTime(2101),
+                    );
+                    if (picked != null) setState(() => tanggalKhusus = picked);
+                  },
+                  child: AbsorbPointer(
+                    child: TextFormField(
+                      decoration: InputDecoration(
+                        labelText: "Tanggal",
+                        border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.calendar_today),
+                      ),
+                      controller: TextEditingController(
+                        text: formatTanggal(tanggalKhusus),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: 16),
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: CheckboxListTile(
+                    title: Text("Tutup Sepanjang Hari"),
+                    value: isClose,
+                    onChanged: (val) => setState(() => isClose = val ?? false),
+                    controlAffinity: ListTileControlAffinity.leading,
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                  ),
+                ),
+                SizedBox(height: 16),
+                if (!isClose)
+                  Column(
                     children: [
                       GestureDetector(
                         onTap: () async {
-                          final picked = await showDatePicker(
+                          final picked = await showTimePicker(
                             context: context,
-                            initialDate: tanggalKhusus,
-                            firstDate: DateTime(2000),
-                            lastDate: DateTime(2101),
+                            initialTime: jamMulaiKhusus,
                           );
                           if (picked != null)
-                            setState(() => tanggalKhusus = picked);
+                            setState(() => jamMulaiKhusus = picked);
                         },
                         child: AbsorbPointer(
                           child: TextFormField(
                             decoration: InputDecoration(
-                              labelText: "Tanggal",
+                              labelText: "Jam Mulai",
                               border: OutlineInputBorder(),
-                              suffixIcon: Icon(Icons.calendar_today),
+                              suffixIcon: Icon(Icons.access_time),
                             ),
                             controller: TextEditingController(
-                              text: formatTanggal(tanggalKhusus),
+                              text: jamMulaiKhusus.format(context),
                             ),
                           ),
                         ),
                       ),
                       SizedBox(height: 16),
-                      Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: CheckboxListTile(
-                          title: Text("Tutup Sepanjang Hari"),
-                          value: isClose,
-                          onChanged:
-                              (val) => setState(() => isClose = val ?? false),
-                          controlAffinity: ListTileControlAffinity.leading,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12),
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      if (!isClose)
-                        Column(
-                          children: [
-                            GestureDetector(
-                              onTap: () async {
-                                final picked = await showTimePicker(
-                                  context: context,
-                                  initialTime: jamMulaiKhusus,
-                                );
-                                if (picked != null)
-                                  setState(() => jamMulaiKhusus = picked);
-                              },
-                              child: AbsorbPointer(
-                                child: TextFormField(
-                                  decoration: InputDecoration(
-                                    labelText: "Jam Mulai",
-                                    border: OutlineInputBorder(),
-                                    suffixIcon: Icon(Icons.access_time),
-                                  ),
-                                  controller: TextEditingController(
-                                    text: jamMulaiKhusus.format(context),
-                                  ),
-                                ),
-                              ),
+                      GestureDetector(
+                        onTap: () async {
+                          final picked = await showTimePicker(
+                            context: context,
+                            initialTime: jamSelesaiKhusus,
+                          );
+                          if (picked != null)
+                            setState(() => jamSelesaiKhusus = picked);
+                        },
+                        child: AbsorbPointer(
+                          child: TextFormField(
+                            decoration: InputDecoration(
+                              labelText: "Jam Selesai",
+                              border: OutlineInputBorder(),
+                              suffixIcon: Icon(Icons.access_time),
                             ),
-                            SizedBox(height: 16),
-                            GestureDetector(
-                              onTap: () async {
-                                final picked = await showTimePicker(
-                                  context: context,
-                                  initialTime: jamSelesaiKhusus,
-                                );
-                                if (picked != null)
-                                  setState(() => jamSelesaiKhusus = picked);
-                              },
-                              child: AbsorbPointer(
-                                child: TextFormField(
-                                  decoration: InputDecoration(
-                                    labelText: "Jam Selesai",
-                                    border: OutlineInputBorder(),
-                                    suffixIcon: Icon(Icons.access_time),
-                                  ),
-                                  controller: TextEditingController(
-                                    text: jamSelesaiKhusus.format(context),
-                                  ),
-                                ),
-                              ),
+                            controller: TextEditingController(
+                              text: jamSelesaiKhusus.format(context),
                             ),
-                          ],
-                        ),
-                      SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _addOrUpdateJadwalKhusus,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          child: Text(
-                            editingDocId != null ? "Update" : "Simpan",
                           ),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ),
-            ),
-            SizedBox(height: 24),
-            Text(
-              "Daftar Jadwal",
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: primaryColor,
-              ),
-            ),
-            SizedBox(height: 8),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              itemCount: jadwalKhusus.length,
-              itemBuilder: (context, index) {
-                final jadwal = jadwalKhusus[index];
-                return Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          formatTanggal(jadwal.tanggal),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
+                SizedBox(height: 24),
+                Row(
+                  children: [
+                    if (editingDocId != null)
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed:
+                              _isLoading
+                                  ? null
+                                  : () {
+                                    setState(() {
+                                      editingDocId = null;
+                                      tanggalKhusus = DateTime.now();
+                                      jamMulaiKhusus = TimeOfDay(
+                                        hour: 9,
+                                        minute: 0,
+                                      );
+                                      jamSelesaiKhusus = TimeOfDay(
+                                        hour: 18,
+                                        minute: 0,
+                                      );
+                                      isClose = false;
+                                    });
+                                  },
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text("Batal"),
+                        ),
+                      ),
+                    if (editingDocId != null) SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : () => _saveJadwal(),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          jadwal.close
-                              ? 'Tutup Sepanjang Hari'
-                              : 'Jam Operasional: ${jadwal.jamMulai!.format(context)} - ${jadwal.jamSelesai!.format(context)}',
-                        ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            IconButton(
-                              icon: const Icon(Icons.edit, color: primaryColor),
-                              onPressed: () => _editJadwal(jadwal.tanggal),
-                              tooltip: 'Edit',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _deleteJadwal(jadwal.tanggal),
-                              tooltip: 'Hapus',
-                            ),
-                          ],
-                        ),
-                      ],
+                        child:
+                            _isLoading
+                                ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : Text(
+                                  editingDocId != null ? "Update" : "Simpan",
+                                ),
+                      ),
                     ),
-                  ),
-                );
-              },
+                  ],
+                ),
+              ],
             ),
-            SizedBox(height: 100),
-          ],
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _loadOrCreateSlots(DateTime selectedDate) async {
+    setState(() => _isLoading = true);
+    final dateStr =
+        "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
+    final slots = await FirebaseService().getTimeSlotsByDate(dateStr);
+
+    if (slots.isEmpty) {
+      debugPrint('Slots not exist');
+      await FirebaseService().generateSlotsOneDay(selectedDate);
+
+      await FirebaseService().closeUseTimeRange(
+        tanggalKhusus,
+        formatTime(jamMulaiKhusus),
+        formatTime(jamSelesaiKhusus),
+      );
+    } else {
+      debugPrint('Slots already exist');
+      await FirebaseService().closeUseTimeRange(
+        tanggalKhusus,
+        formatTime(jamMulaiKhusus),
+        formatTime(jamSelesaiKhusus),
+      );
+    }
+  }
+
+  Future<void> _saveJadwal() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      if (isClose) {
+        await FirebaseService().closeAllDay(tanggalKhusus);
+      } else {
+        await _loadOrCreateSlots(tanggalKhusus);
+      }
+
+      // Reset form after saving
+      setState(() {
+        editingDocId = null;
+        tanggalKhusus = DateTime.now();
+        jamMulaiKhusus = TimeOfDay(hour: 9, minute: 0);
+        jamSelesaiKhusus = TimeOfDay(hour: 18, minute: 0);
+        isClose = false;
+      });
+
+      if (!mounted) return;
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Jadwal berhasil disimpan'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // Refresh jadwal list and switch to the list tab
+      await _fetchJadwalKhusus();
+      _tabController.animateTo(1);
+    } catch (e) {
+      if (mounted) {
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menyimpan jadwal: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildDaftarJadwalTab() {
+    if (_isLoadingJadwal) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(color: primaryColor),
+            SizedBox(height: 16),
+            Text(
+              'Memuat jadwal...',
+              style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return jadwalKhusus.isEmpty
+        ? RefreshIndicator(
+          onRefresh: () async {
+            await _fetchJadwalKhusus();
+          },
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: const [
+              SizedBox(height: 200),
+              Column(
+                children: [Center(child: Text("Belum ada jadwal khusus"))],
+              ),
+            ],
+          ),
+        )
+        : RefreshIndicator(
+          onRefresh: _fetchJadwalKhusus,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: jadwalKhusus.length,
+            itemBuilder: (context, index) {
+              final jadwal = jadwalKhusus[index];
+              return Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                margin: const EdgeInsets.only(bottom: 12),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _formatDate(DateTime.parse(jadwal.date)),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: primaryColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        jadwal.isClose == 'all day'
+                            ? 'Tutup Sepanjang Hari'
+                            : 'Jam Tutup: ${jadwal.startTime} - ${jadwal.endTime})}',
+                        style: TextStyle(fontSize: 15),
+                      ),
+                      Divider(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton.icon(
+                            icon: Icon(Icons.edit, size: 18),
+                            label: Text("Edit"),
+                            onPressed: () {
+                              if (!_isLoading) {
+                                _editJadwal(jadwal);
+                              }
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: primaryColor,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          TextButton.icon(
+                            icon: Icon(Icons.delete, size: 18),
+                            label: Text("Hapus"),
+                            onPressed: () {
+                             
+                                      _showDeleteConfirmation(jadwal.date);
+                               
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+  }
+
+  void _editJadwal(AllCloseDay jadwal) {
+    setState(() {
+      tanggalKhusus = DateTime.parse(jadwal.date);
+      if (jadwal.isClose == 'time range') {
+        isClose = false;
+      } else if (jadwal.isClose == 'all day') {
+        isClose = true;
+      }
+      if (!isClose) {
+        jamMulaiKhusus = parseTime(jadwal.startTime);
+        jamSelesaiKhusus = parseTime(jadwal.endTime);
+      }
+      editingDocId = jadwal.date;
+    });
+
+    debugPrint('Current tab index: ${_tabController.index}');
+
+    if (_tabController != null && _tabController.index != 0) {
+      debugPrint('Changing tab to 0');
+      _tabController.animateTo(0);
+    }
+  }
+
+  void _showDeleteConfirmation(String date) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text("Konfirmasi"),
+            content: Text("Anda yakin ingin menghapus jadwal ini?"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text("Batal"),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await FirebaseService().deleteCloseDay(date);
+                },
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text("Hapus"),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Future<void> _deleteJadwal(String jadwalId) async {
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+      await Future.delayed(Duration(seconds: 1)); // Simulate network delay
+
+      // Update local list
+      // setState(() {
+      //   jadwalKhusus.removeWhere((jadwal) => jadwal.id == jadwalId);
+      // });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Jadwal berhasil dihapus'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menghapus jadwal: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 }
