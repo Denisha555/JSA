@@ -494,7 +494,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                       Text(
                         jadwal.isClose == 'all day'
                             ? 'Tutup Sepanjang Hari'
-                            : 'Jam Tutup: ${jadwal.startTime} - ${jadwal.endTime})}',
+                            : 'Jam Tutup: ${jadwal.startTime} - ${jadwal.endTime}',
                         style: TextStyle(fontSize: 15),
                       ),
                       Divider(height: 24),
