@@ -16,7 +16,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   DateTime selectedDate = DateTime.now();
   bool isLoading = true;
 
-  Map<String, Map<String, bool>> bookingData = {};
+  // Modified to include isClosed state
+  Map<String, Map<String, Map<String, dynamic>>> bookingData = {};
 
   List<String> courtIds = [];
 
@@ -108,7 +109,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             ),
           ),
 
-          // Legenda status
+          // Legenda status - added closed status
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
@@ -129,6 +130,14 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   margin: const EdgeInsets.only(right: 4),
                 ),
                 const Text('Sudah Dibooking'),
+                const SizedBox(width: 16),
+                Container(
+                  width: 16,
+                  height: 16,
+                  color: Colors.grey,
+                  margin: const EdgeInsets.only(right: 4),
+                ),
+                const Text('Tutup'),
               ],
             ),
           ),
@@ -194,7 +203,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                                         (id) => _buildCourtCell(
                                           time,
                                           id,
-                                          courts[id]!,
+                                          courts[id]!['isAvailable'],
+                                          courts[id]!['isClosed'],
                                         ),
                                       )
                                       .toList(),
@@ -261,7 +271,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     setState(() {
       isLoading = true;
     });
-    Map<String, Map<String, bool>> tempdata = {};
+    Map<String, Map<String, Map<String, dynamic>>> tempdata = {};
 
     await _loadCourts();
 
@@ -270,10 +280,16 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
       // Inisialisasi hanya jika belum ada
       if (!tempdata.containsKey(timeRange)) {
-        tempdata[timeRange] = {for (var courtId in courtIds) courtId: true};
+        tempdata[timeRange] = {
+          for (var courtId in courtIds)
+            courtId: {'isAvailable': true, 'isClosed': false}
+        };
       }
 
-      tempdata[timeRange]![slot.courtId] = slot.isAvailable;
+      tempdata[timeRange]![slot.courtId] = {
+        'isAvailable': slot.isAvailable,
+        'isClosed': slot.isClosed
+      };
     }
 
     setState(() {
@@ -353,8 +369,20 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     String time,
     String court,
     bool isAvailable,
+    bool isClosed,
     DateTime selectedDate,
   ) async {
+    // Don't show booking dialog if the slot is closed
+    if (isClosed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lapangan ditutup pada waktu ini'),
+          backgroundColor: Colors.grey,
+        ),
+      );
+      return;
+    }
+    
     DateTime today = DateTime.now();
     int maxConsecutiveSlots = 1;
     String startTime = time.split(' - ')[0];
@@ -387,13 +415,20 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         String nextTimeSlot =
             '${nextSlotHour.toString().padLeft(2, '0')}:${nextSlotMinute.toString().padLeft(2, '0')}';
 
+        // Check if the next slot is available and not closed
         bool isNextSlotAvailable = await FirebaseService().isSlotAvailable(
           nextTimeSlot,
           court,
           selectedDate,
         );
+        
+        bool isNextSlotClosed = await FirebaseService().isSlotClosed(
+          nextTimeSlot,
+          court,
+          selectedDate,
+        );
 
-        if (isNextSlotAvailable) {
+        if (isNextSlotAvailable && !isNextSlotClosed) {
           maxConsecutiveSlots = i + 1;
         } else {
           break;
@@ -559,10 +594,34 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     );
   }
 
-  // Widget untuk sel lapangan
-  Widget _buildCourtCell(String time, String court, bool isAvailable) {
+  // Widget untuk sel lapangan - modified to handle closed state
+  Widget _buildCourtCell(String time, String court, bool isAvailable, bool isClosed) {
+    // First check if the court is closed for this time slot
+    if (isClosed) {
+      return GestureDetector(
+        onTap: () => _showBookingDialog(time, court, isAvailable, isClosed, selectedDate),
+        child: Container(
+          width: 100,
+          height: 50,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Colors.grey, // Grey color for closed courts
+            border: Border.all(color: Colors.grey.shade300),
+          ),
+          child: const Text(
+            'Closed',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      );
+    }
+    
+    // If not closed, show the regular available/booked state
     return GestureDetector(
-      onTap: () => _showBookingDialog(time, court, isAvailable, selectedDate),
+      onTap: () => _showBookingDialog(time, court, isAvailable, isClosed, selectedDate),
       child: Container(
         width: 100,
         height: 50,

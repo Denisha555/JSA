@@ -124,7 +124,6 @@ class _SplashScreenState extends State<SplashScreen> {
     String username = prefs.getString('username') ?? '';
     if (username.isNotEmpty) {
       if (username == 'admin_1') {
-        debugPrint('admin_1');
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -132,7 +131,6 @@ class _SplashScreenState extends State<SplashScreen> {
           );
         }
       } else if (username == 'owner_1') {
-        debugPrint('owner_1');
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -140,7 +138,6 @@ class _SplashScreenState extends State<SplashScreen> {
           );
         }
       } else {
-        debugPrint('pelanggan');
         if (mounted) {
           Navigator.pushReplacement(
             context,

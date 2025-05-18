@@ -6,6 +6,7 @@ class TimeSlot {
   final String startTime;
   final String endTime;
   final bool isAvailable;
+  final bool isClosed;
 
   TimeSlot({
     required this.courtId,
@@ -13,6 +14,7 @@ class TimeSlot {
     required this.startTime,
     required this.endTime,
     required this.isAvailable,
+    required this.isClosed,
   });
 
   factory TimeSlot.fromJson(Map<String, dynamic> json) {
@@ -22,6 +24,7 @@ class TimeSlot {
       startTime: json['startTime'],
       endTime: json['endTime'],
       isAvailable: json['isAvailable'],
+      isClosed: json['isClosed'] ?? false,
     );
   }
 }
@@ -32,6 +35,7 @@ class TimeSlotForAdmin {
   final String startTime;
   final String endTime;
   final bool isAvailable;
+  final bool isClosed;
   final String? username;
 
   TimeSlotForAdmin({
@@ -40,6 +44,7 @@ class TimeSlotForAdmin {
     required this.startTime,
     required this.endTime,
     required this.isAvailable,
+    required this.isClosed,
     required this.username,
   });
 
@@ -50,6 +55,7 @@ class TimeSlotForAdmin {
       startTime: json['startTime'],
       endTime: json['endTime'],
       isAvailable: json['isAvailable'],
+      isClosed: json['isClosed'] ?? false,
       username: json['username'] ?? "",
     );
   }
@@ -98,6 +104,7 @@ class AvailableForMember {
   final String startTime;
   final String endTime;
   final bool isAvailable;
+  final bool isClosed;
 
   AvailableForMember({
     required this.courtId,
@@ -105,6 +112,7 @@ class AvailableForMember {
     required this.startTime,
     required this.endTime,
     required this.isAvailable,
+    required this.isClosed,
   });
 
   factory AvailableForMember.fromJson(Map<String, dynamic> json) {
@@ -114,6 +122,7 @@ class AvailableForMember {
       startTime: json['startTime'],
       endTime: json['endTime'],
       isAvailable: json['isAvailable'],
+      isClosed: json['isClosed'] ?? false,
     );
   }
 }
@@ -144,7 +153,7 @@ class AllCloseDay {
   factory AllCloseDay.fromJson(Map<String, dynamic> json) {
     return AllCloseDay(
       date: json['date'],
-      isClose: json['isClose'],
+      isClose: json['isClosed'],
       startTime: json['startTime'],
       endTime: json['endTime'],
     );
@@ -808,7 +817,7 @@ class FirebaseService {
         final TimeSlot slot = TimeSlot.fromJson(
           slotSnapshot.docs.first.data() as Map<String, dynamic>,
         );
-        return slot.isAvailable;
+        return (slot.isAvailable & !slot.isClosed);
       } else {
         return false;
       }
@@ -843,6 +852,30 @@ class FirebaseService {
       });
     } catch (e) {
       throw Exception('Failed to book slot: $e');
+    }
+  }
+
+  Future<bool> isSlotClosed(
+    String startTime,
+    String courtId,
+    DateTime selectedDate,
+  ) async {
+    try {
+      final dateStr =
+          "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
+      final formatStartTime = startTime.split(':')[0] + startTime.split(':')[1];
+      final slotId = '${courtId}_${dateStr}_$formatStartTime';
+
+      final DocumentSnapshot slotDoc =
+          await firestore.collection('time_slots').doc(slotId).get();
+
+      if (slotDoc.exists) {
+        final data = slotDoc.data() as Map<String, dynamic>;
+        return data['isClosed'] ?? false;
+      }
+      return false;
+    } catch (e) {
+      throw('Error checking if slot is closed: $e');
     }
   }
 
@@ -901,14 +934,14 @@ class FirebaseService {
               'date': dateStr,
               'startTime': startTime,
               'endTime': endTimeStr,
-              'isAvailable': false,
+              'isAvailable': true,
               'isClosed': true,
               'createdAt': FieldValue.serverTimestamp(),
             };
 
             if (existingDoc.exists) {
               // Update data yang sudah ada
-              await docRef.update({'isAvailable': false, 'isClosed': true});
+              await docRef.update({'isAvailable': true, 'isClosed': true});
             } else {
               // Buat slot baru
               await docRef.set(data);
@@ -917,7 +950,12 @@ class FirebaseService {
         }
       }
       CollectionReference closeDay = firestore.collection('closed_days');
-      await closeDay.add({'date': dateStr, 'startTime': '07:00', 'endTime': '23:00', 'isClosed': 'all day'});
+      await closeDay.add({
+        'date': dateStr,
+        'startTime': '07:00',
+        'endTime': '23:00',
+        'isClosed': 'all day',
+      });
     } catch (e) {
       throw Exception('Failed to close all day: $e');
     }
@@ -980,7 +1018,7 @@ class FirebaseService {
             'date': dateStr,
             'startTime': startStr,
             'endTime': endStr,
-            'isAvailable': false,
+            'isAvailable': true,
             'isClosed': true,
             'createdAt': FieldValue.serverTimestamp(),
           });
@@ -989,7 +1027,12 @@ class FirebaseService {
         }
       }
       CollectionReference closeDay = firestore.collection('closed_days');
-      await closeDay.add({'date': dateStr, 'startTime': startTime, 'endTime': endTime, 'isClosed': 'time range'});
+      await closeDay.add({
+        'date': dateStr,
+        'startTime': startTime,
+        'endTime': endTime,
+        'isClosed': 'time range',
+      });
     } catch (e) {
       throw Exception('Failed to close range: $e');
     }
@@ -998,13 +1041,40 @@ class FirebaseService {
   Future<List<AllCloseDay>> getAllCloseDay() async {
     try {
       final QuerySnapshot querySnapshot =
-          await firestore.collection('close_dates').get();
+          await firestore.collection('closed_days').get();
 
       return querySnapshot.docs.map((doc) {
         return AllCloseDay.fromJson(doc.data() as Map<String, dynamic>);
       }).toList();
     } catch (e) {
       throw Exception('Failed to get all closed days: $e');
+    }
+  }
+
+  Future<void> deleteCloseDay(String selectedDate) async {
+    try {
+      await firestore
+          .collection('closed_days')
+          .where('date', isEqualTo: selectedDate)
+          .limit(1)
+          .get()
+          .then((snapshot) {
+            for (var doc in snapshot.docs) {
+              doc.reference.delete();
+            }
+          });
+
+      await firestore
+          .collection('time_slots')
+          .where('date', isEqualTo: selectedDate)
+          .get()
+          .then((snapshot) {
+            for (var doc in snapshot.docs) {
+              doc.reference.update({'isClosed': false});
+            }
+          });
+    } catch (e) {
+      throw Exception('Failed to delete closed day: $e');
     }
   }
 }
