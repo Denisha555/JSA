@@ -90,7 +90,13 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         selectedDate,
       );
 
-      if (isNextSlotAvailable) {
+      bool isNextSlotClosed = await FirebaseService().isSlotClosed(
+        nextTimeSlot,
+        court,
+        selectedDate,
+      );
+
+      if (isNextSlotAvailable && !isNextSlotClosed) {
         maxConsecutiveSlots = i + 1;
       } else {
         break;
@@ -180,7 +186,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                       }
 
                       setState(() {
-                        bookingData[time]![court]!['status'] = 'booked';
+                        bookingData[time]![court]!['isAvailable'] = false;
                         bookingData[time]![court]!['username'] =
                             nameController.text;
                       });
@@ -254,6 +260,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         tempdata[timeRange]![slot.courtId] = {
           'isAvailable': slot.isAvailable,
           'username': slot.username,
+          'isClosed': slot.isClosed,
         };
       }
 
@@ -318,7 +325,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               TextButton(
                 onPressed: () {
                   setState(() {
-                    bookingData[time]![court]!['status'] = 'available';
+                    bookingData[time]![court]!['isAvailable'] = true;
                     bookingData[time]![court]!['username'] = '';
                   });
                   Navigator.pop(context);
@@ -415,15 +422,30 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     );
   }
 
+  // Define a color for closed slots
+  final Color closedColor = Colors.grey.shade300;
+
   // Widget for court cell
   Widget _buildCourtCell(
     String time,
     String court,
     bool isAvailable,
     String username,
+    bool isClosed,
   ) {
     return InkWell(
       onTap: () {
+        if (isClosed) {
+          // Do nothing or show a message that the court is closed
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('This time slot is closed and not available for booking'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+        
         if (!isAvailable) {
           _showBookingDetails(time, court, username);
         } else {
@@ -435,22 +457,27 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         height: 50,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isAvailable ? availableColor : bookedColor,
+          color: isClosed 
+              ? closedColor 
+              : (isAvailable ? availableColor : bookedColor),
           border: Border.all(color: Colors.grey.shade300),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              isAvailable ? 'Available' : 'Booked',
+              isClosed 
+                  ? 'Closed' 
+                  : (isAvailable ? 'Available' : 'Booked'),
               style: TextStyle(
-                color:
-                    isAvailable ? Colors.green.shade700 : Colors.red.shade700,
+                color: isClosed 
+                    ? Colors.grey.shade700
+                    : (isAvailable ? Colors.green.shade700 : Colors.red.shade700),
                 fontWeight: FontWeight.w500,
                 fontSize: 12,
               ),
             ),
-            if (!isAvailable)
+            if (!isAvailable && !isClosed)
               Text(
                 username,
                 style: TextStyle(fontSize: 11),
@@ -542,8 +569,15 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
                         Navigator.pop(context);
 
-                        if (bookingData[selectedTimeSlot]![selectedCourt]!['status'] ==
-                            'booked') {
+                        final courtData = bookingData[selectedTimeSlot]![selectedCourt]!;
+                        
+                        if (courtData['isClosed'] == true) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('This time slot is closed and not available for booking'),
+                            ),
+                          );
+                        } else if (!courtData['isAvailable']) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text('This time slot is already booked'),
@@ -565,11 +599,11 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   }
 
   @override
-  void initState() async {
+  void initState() {
     super.initState();
     // Load data after widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
-    _loadOrCreateSlots(selectedDate);
+      _loadOrCreateSlots(selectedDate);
     });
   }
 
@@ -675,6 +709,14 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   margin: const EdgeInsets.only(right: 4),
                 ),
                 const Text('Sudah Dibooking'),
+                const SizedBox(width: 16),
+                Container(
+                  width: 16,
+                  height: 16,
+                  color: closedColor,
+                  margin: const EdgeInsets.only(right: 4),
+                ),
+                const Text('Closed'),
               ],
             ),
           ),
@@ -741,12 +783,14 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                                             {
                                               'isAvailable': true,
                                               'username': '',
+                                              'isClosed': false,
                                             };
                                         return _buildCourtCell(
                                           time,
                                           id,
                                           cellData['isAvailable'] ?? true,
                                           cellData['username'] ?? '',
+                                          cellData['isClosed'] ?? false,
                                         );
                                       }).toList(),
                                     ],
