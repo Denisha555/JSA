@@ -876,7 +876,7 @@ class FirebaseService {
       for (var court in courts.docs) {
         final courtNumber = court.data()['nomor'].toString();
 
-        for (int hour = 7; hour < 22; hour++) {
+        for (int hour = 7; hour <= 22; hour++) {
           for (int minute = 0; minute < 60; minute += 30) {
             final startTime =
                 "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
@@ -908,10 +908,7 @@ class FirebaseService {
 
             if (existingDoc.exists) {
               // Update data yang sudah ada
-              await docRef.update({
-                'isAvailable': false,
-                'isClosed': true,
-              });
+              await docRef.update({'isAvailable': false, 'isClosed': true});
             } else {
               // Buat slot baru
               await docRef.set(data);
@@ -919,6 +916,8 @@ class FirebaseService {
           }
         }
       }
+      CollectionReference closeDay = firestore.collection('closed_days');
+      await closeDay.add({'date': dateStr, 'startTime': '07:00', 'endTime': '23:00', 'isClosed': 'all day'});
     } catch (e) {
       throw Exception('Failed to close all day: $e');
     }
@@ -963,7 +962,7 @@ class FirebaseService {
 
       for (var court in courts.docs) {
         final courtNumber = court.data()['nomor'].toString();
-        
+
         DateTime slotStart = startDateTime;
 
         while (slotStart.isBefore(endDateTime)) {
@@ -989,6 +988,8 @@ class FirebaseService {
           slotStart = slotEnd;
         }
       }
+      CollectionReference closeDay = firestore.collection('closed_days');
+      await closeDay.add({'date': dateStr, 'startTime': startTime, 'endTime': endTime, 'isClosed': 'time range'});
     } catch (e) {
       throw Exception('Failed to close range: $e');
     }
@@ -996,16 +997,14 @@ class FirebaseService {
 
   Future<List<AllCloseDay>> getAllCloseDay() async {
     try {
-      final snapshot =
-          await firestore
-              .collection('time_slots')
-              .where('isClosed', isEqualTo: true)
-              .get();
-      return snapshot.docs
-          .map((doc) => AllCloseDay.fromJson(doc.data()))
-          .toList();
+      final QuerySnapshot querySnapshot =
+          await firestore.collection('close_dates').get();
+
+      return querySnapshot.docs.map((doc) {
+        return AllCloseDay.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
     } catch (e) {
-      throw Exception('Failed to get all close day: $e');
+      throw Exception('Failed to get all closed days: $e');
     }
   }
 }

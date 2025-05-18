@@ -118,23 +118,13 @@ class _SplashScreenState extends State<SplashScreen> {
     _checkLoginStatus();
   }
 
-  // Future<void> _initializeApp() async {
-  //   await Future.delayed(const Duration(seconds: 2));
-  //   // berpindah ke halaman utama
-  //   if (mounted) {
-  //     Navigator.pushReplacement(
-  //       context,
-  //       MaterialPageRoute(builder: (context) => const MainApp()),
-  //     );
-  //   }
-  // }
-
   Future<void> _checkLoginStatus() async {
     await Future.delayed(const Duration(seconds: 2));
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String username = prefs.getString('username') ?? '';
     if (username.isNotEmpty) {
       if (username == 'admin_1') {
+        debugPrint('admin_1');
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -142,6 +132,7 @@ class _SplashScreenState extends State<SplashScreen> {
           );
         }
       } else if (username == 'owner_1') {
+        debugPrint('owner_1');
         if (mounted) {
           Navigator.pushReplacement(
             context,
@@ -149,6 +140,7 @@ class _SplashScreenState extends State<SplashScreen> {
           );
         }
       } else {
+        debugPrint('pelanggan');
         if (mounted) {
           Navigator.pushReplacement(
             context,

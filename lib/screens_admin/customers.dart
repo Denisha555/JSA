@@ -13,9 +13,9 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
   bool isLoading = true;
 
   @override
-  void initState() {
+  void initState() async {
     super.initState();
-    _fetchUsers();
+    await _fetchUsers();
   }
 
   Future<void> _fetchUsers() async {
@@ -103,7 +103,8 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
             .map((entry) => _buildUserCard(entry.key, status))
             .toList();
 
-    return RefreshIndicator(
+    return 
+    RefreshIndicator(
       onRefresh: () async {
         await _fetchUsers();
       },
@@ -125,7 +126,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                 padding: const EdgeInsets.all(16),
                 itemCount: filteredUsers.length,
                 itemBuilder: (context, index) => filteredUsers[index],
-              ),
+              )
     );
   }
 

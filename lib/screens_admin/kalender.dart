@@ -565,11 +565,11 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   }
 
   @override
-  void initState() {
+  void initState() async {
     super.initState();
     // Load data after widget is built
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadOrCreateSlots(selectedDate);
+    _loadOrCreateSlots(selectedDate);
     });
   }
 
@@ -692,11 +692,13 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                       ),
                     )
                     // Header row
-                    : RefreshIndicator(
+                    : 
+                    RefreshIndicator(
                       onRefresh: () async {
                         _loadOrCreateSlots(selectedDate);
                       },
-                      child: SingleChildScrollView(
+                      child: 
+                      SingleChildScrollView(
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: Padding(
