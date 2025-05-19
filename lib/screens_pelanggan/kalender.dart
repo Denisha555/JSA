@@ -179,11 +179,11 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
                               child: Row(
                                 children: [
-                                  _buildHeaderCell('Jam', width: 100),
+                                  _buildHeaderCell('Jam', width: 110),
                                   ...sortedCourtIds
                                       .map(
                                         (id) =>
-                                            _buildHeaderCell('Lapangan $id'),
+                                            _buildHeaderCell('Lapangan $id', width: 110),
                                       )
                                       .toList(),
                                 ],
@@ -197,7 +197,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
                               return Row(
                                 children: [
-                                  _buildTimeCell(time),
+                                  _buildTimeCell(time, width: 110),
                                   ...sortedCourtIds
                                       .map(
                                         (id) => _buildCourtCell(
@@ -531,6 +531,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                         (selectedDate.year == today.year &&
                             selectedDate.month == today.month &&
                             selectedDate.day == today.day))
+                        
                       TextButton(
                         onPressed: () async{
                           await _booking(
@@ -542,7 +543,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                           );
                           await _updateSlot(selectedDate);
 
-                          ScaffoldMessenger.of(Navigator.of(context).context).showSnackBar(
+                          ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
                                 'Berhasil booking Lapangan $court pada hari ${_formatDate(selectedDate)} pukul $startTime - $endTime',
@@ -561,7 +562,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   }
 
   // Widget untuk sel header
-  Widget _buildHeaderCell(String text, {double width = 100}) {
+  Widget _buildHeaderCell(String text, {double width = 110}) {
     return Container(
       width: width,
       height: 50,
@@ -581,7 +582,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   }
 
   // Widget untuk sel waktu
-  Widget _buildTimeCell(String time, {double width = 100}) {
+  Widget _buildTimeCell(String time, {double width = 110}) {
     return Container(
       width: width,
       height: 50,
@@ -601,7 +602,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       return GestureDetector(
         onTap: () => _showBookingDialog(time, court, isAvailable, isClosed, selectedDate),
         child: Container(
-          width: 100,
+          width: 110,
           height: 50,
           alignment: Alignment.center,
           decoration: BoxDecoration(
@@ -623,7 +624,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     return GestureDetector(
       onTap: () => _showBookingDialog(time, court, isAvailable, isClosed, selectedDate),
       child: Container(
-        width: 100,
+        width: 110,
         height: 50,
         alignment: Alignment.center,
         decoration: BoxDecoration(

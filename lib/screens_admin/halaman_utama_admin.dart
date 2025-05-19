@@ -125,7 +125,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                   ),
                   child: Row(
                     children: [
-                      _buildHeaderCell('Jam', width: 100),
+                      _buildHeaderCell('Jam', width: 110),
                       ...sortedCourtIds
                           .map((id) => _buildHeaderCell('Lapangan $id'))
                           .toList(),
@@ -278,7 +278,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   // Widget for time cell
   Widget _buildTimeCell(String time) {
     return Container(
-      width: 100,
+      width: 110,
       height: 50,
       alignment: Alignment.center,
       decoration: BoxDecoration(

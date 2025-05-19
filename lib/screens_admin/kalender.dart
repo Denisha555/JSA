@@ -411,7 +411,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   // Widget for time cell
   Widget _buildTimeCell(String time) {
     return Container(
-      width: 100,
+      width: 110,
       height: 50,
       alignment: Alignment.center,
       decoration: BoxDecoration(
@@ -754,7 +754,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                                   ),
                                   child: Row(
                                     children: [
-                                      _buildHeaderCell('Jam', width: 100),
+                                      _buildHeaderCell('Jam', width: 110),
                                       ...sortedCourtIds
                                           .map(
                                             (id) => _buildHeaderCell(

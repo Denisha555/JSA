@@ -23,12 +23,16 @@ class _HalamanMemberState extends State<HalamanMember> {
   String? selectedSlotId;
   int count = 0;
 
-  TextEditingController startTimeController = TextEditingController();
-  TextEditingController endTimeController = TextEditingController();
+  // Properly initialize controllers in initState
+  late TextEditingController startTimeController;
+  late TextEditingController endTimeController;
 
   @override
   void initState() {
     super.initState();
+    // Initialize controllers here to ensure they're always created
+    startTimeController = TextEditingController();
+    endTimeController = TextEditingController();
     _getCourts();
   }
 
@@ -109,7 +113,11 @@ class _HalamanMemberState extends State<HalamanMember> {
     }
   }
 
-  Future<void> becomeMember(String startTime, String endTime, [String? courtId]) async {
+  Future<void> becomeMember(
+    String startTime,
+    String endTime, [
+    String? courtId,
+  ]) async {
     try {
       setState(() {
         isLoading = true;
@@ -130,8 +138,9 @@ class _HalamanMemberState extends State<HalamanMember> {
       debugPrint('User $username is now a member');
 
       // If no courtId is provided, use the first court from the list
-      final String selectedCourtId = courtId ?? (courts.isNotEmpty ? courts[0].courtId : '');
-      
+      final String selectedCourtId =
+          courtId ?? (courts.isNotEmpty ? courts[0].courtId : '');
+
       if (selectedCourtId.isEmpty) {
         throw Exception('Tidak ada lapangan yang tersedia');
       }
@@ -158,7 +167,7 @@ class _HalamanMemberState extends State<HalamanMember> {
 
       for (var date in selectedDates) {
         final dateStr = DateFormat('yyyy-MM-dd').format(date);
-        
+
         for (int minute = startMinutes; minute < endMinutes; minute += 30) {
           final slotTime = minutesToTime(minute);
           final slotId = '${selectedCourtId}_${dateStr}_$slotTime';
@@ -175,9 +184,9 @@ class _HalamanMemberState extends State<HalamanMember> {
 
       Navigator.of(context).pop();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Gagal menjadi member: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal menjadi member: $e')));
       debugPrint('Error becoming member: $e');
     } finally {
       setState(() {
@@ -190,7 +199,7 @@ class _HalamanMemberState extends State<HalamanMember> {
     if (courts.isEmpty) {
       _getCourts(); // Ensure courts are loaded
     }
-    
+
     int timeToMinutes(String time) {
       final parts = time.split(':');
       return int.parse(parts[0]) * 60 + int.parse(parts[1]);
@@ -232,66 +241,77 @@ class _HalamanMemberState extends State<HalamanMember> {
         return;
       }
     }
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Jadwal yang dipilih tidak tersedia')),
     );
   }
 
-  void _showAvailabilityDialog(String startTime, String endTime, String courtId) {
+  void _showAvailabilityDialog(
+    String startTime,
+    String endTime,
+    String courtId,
+  ) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Detail Informasi'),
-        content: SizedBox(
-          width: double.maxFinite,
-          height: 300,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Lapangan : $courtId', style: const TextStyle(fontSize: 18)),
-              Text(
-                'Jam Mulai : $startTime',
-                style: const TextStyle(fontSize: 18),
-              ),
-              Text(
-                'Jam Selesai : $endTime',
-                style: const TextStyle(fontSize: 18),
-              ),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Detail Informasi'),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 300,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Lapangan : $courtId',
+                    style: const TextStyle(fontSize: 18),
+                  ),
+                  Text(
+                    'Jam Mulai : $startTime',
+                    style: const TextStyle(fontSize: 18),
+                  ),
+                  Text(
+                    'Jam Selesai : $endTime',
+                    style: const TextStyle(fontSize: 18),
+                  ),
 
-              const SizedBox(height: 10),
-              const Text('Tanggal dipilih: ', style: TextStyle(fontSize: 18)),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: selectedDates.length,
-                  itemBuilder: (context, index) {
-                    final date = selectedDates[index];
-                    return ListTile(
-                      title: Text(
-                        '${_getWeekdayName(date.weekday)}, ${DateFormat('dd MMM yyyy').format(date)}',
-                      ),
-                    );
-                  },
-                ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Tanggal dipilih: ',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: selectedDates.length,
+                      itemBuilder: (context, index) {
+                        final date = selectedDates[index];
+                        return ListTile(
+                          title: Text(
+                            '${_getWeekdayName(date.weekday)}, ${DateFormat('dd MMM yyyy').format(date)}',
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  becomeMember(startTime, endTime, courtId);
+                },
+                child: const Text('Jadi Member'),
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Batal')
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              becomeMember(startTime, endTime, courtId);
-            }, 
-            child: const Text('Jadi Member')
-          ),
-        ],
-      ),
     );
   }
 
@@ -307,8 +327,13 @@ class _HalamanMemberState extends State<HalamanMember> {
 
   @override
   void dispose() {
-    startTimeController.dispose();
-    endTimeController.dispose();
+    // Safely dispose controllers with null checks to avoid potential errors
+    if(startTimeController != null) {
+      startTimeController.dispose();
+    }
+    if(endTimeController != null) {
+      endTimeController.dispose();
+    }
     super.dispose();
   }
 
@@ -332,37 +357,42 @@ class _HalamanMemberState extends State<HalamanMember> {
                   height: 40,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    children: weekdayMap.keys.map((day) {
-                      final isSelected = weekdayMap[day] == selectedWeekday;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 6),
-                        child: ChoiceChip(
-                          label: Text(
-                            day,
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black,
-                            ),
-                          ),
-                          selected: isSelected,
-                          selectedColor: Colors.blue,
-                          onSelected: (_) {
-                            setState(() {
-                              selectedWeekday = weekdayMap[day];
-                              selectedDates = getWeekdaysInRange(
-                                selectedWeekday!,
-                                now,
-                              );
+                    children:
+                        weekdayMap.keys.map((day) {
+                          final isSelected = weekdayMap[day] == selectedWeekday;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            child: ChoiceChip(
+                              label: Text(
+                                day,
+                                style: TextStyle(
+                                  color:
+                                      isSelected ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              selected: isSelected,
+                              selectedColor: Colors.blue,
+                              onSelected: (_) {
+                                setState(() {
+                                  selectedWeekday = weekdayMap[day];
+                                  selectedDates = getWeekdaysInRange(
+                                    selectedWeekday!,
+                                    now,
+                                  );
 
-                              // Format dates as strings in "YYYY-MM-DD" format
-                              selectedDatesString = selectedDates.map((date) {
-                                // Ensure month and day are zero-padded (01, 02, etc.)
-                                return DateFormat('yyyy-MM-dd').format(date);
-                              }).toList();
-                            });
-                          },
-                        ),
-                      );
-                    }).toList(),
+                                  // Format dates as strings in "YYYY-MM-DD" format
+                                  selectedDatesString =
+                                      selectedDates.map((date) {
+                                        // Ensure month and day are zero-padded (01, 02, etc.)
+                                        return DateFormat(
+                                          'yyyy-MM-dd',
+                                        ).format(date);
+                                      }).toList();
+                                });
+                              },
+                            ),
+                          );
+                        }).toList(),
                   ),
                 ),
 
@@ -377,16 +407,15 @@ class _HalamanMemberState extends State<HalamanMember> {
                     if (textEditingValue.text == '') {
                       return const Iterable<String>.empty();
                     }
-                    return generateTimeOptions().where((option) {
-                      return option.contains(textEditingValue.text);
-                    });
+                    return generateTimeOptions().where(
+                      (option) => option.contains(textEditingValue.text),
+                    );
                   },
                   displayStringForOption: (option) => option,
                   onSelected: (String selection) {
                     setState(() {
-                      if (!mounted) return;
                       selectedStartTime = selection;
-                      startTimeController.text = selection;
+                      startTimeController.text = selection;  // Update the controller's value
                     });
                   },
                   fieldViewBuilder: (
@@ -395,10 +424,9 @@ class _HalamanMemberState extends State<HalamanMember> {
                     FocusNode focusNode,
                     VoidCallback onFieldSubmitted,
                   ) {
-                    // Store controller reference
-                    startTimeController = fieldTextEditingController;
+                    // Use our class-level controller instead of the provided one
                     return TextField(
-                      controller: fieldTextEditingController,
+                      controller: startTimeController,
                       focusNode: focusNode,
                       decoration: const InputDecoration(
                         hintText: 'Pilih waktu mulai',
@@ -427,7 +455,7 @@ class _HalamanMemberState extends State<HalamanMember> {
                   onSelected: (String selection) {
                     setState(() {
                       selectedEndTime = selection;
-                      endTimeController.text = selection;
+                      endTimeController.text = selection;  // Update the controller's value
                     });
                   },
                   fieldViewBuilder: (
@@ -436,10 +464,9 @@ class _HalamanMemberState extends State<HalamanMember> {
                     FocusNode focusNode,
                     VoidCallback onFieldSubmitted,
                   ) {
-                    // Store controller reference
-                    endTimeController = fieldTextEditingController;
+                    // Use our class-level controller instead of the provided one
                     return TextField(
-                      controller: fieldTextEditingController,
+                      controller: endTimeController,
                       focusNode: focusNode,
                       decoration: const InputDecoration(
                         hintText: 'Pilih waktu selesai',
@@ -451,49 +478,50 @@ class _HalamanMemberState extends State<HalamanMember> {
 
                 const SizedBox(height: 30),
                 ElevatedButton(
-                  onPressed: isLoading
-                    ? null
-                    : () async {
-                        if (selectedStartTime == null ||
-                            selectedEndTime == null ||
-                            selectedDatesString.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Lengkapi semua pilihan terlebih dahulu.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
+                  onPressed:
+                      isLoading
+                          ? null
+                          : () async {
+                            if (selectedStartTime == null ||
+                                selectedEndTime == null ||
+                                selectedDatesString.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Lengkapi semua pilihan terlebih dahulu.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
 
-                        final start = DateFormat.Hm().parse(
-                          selectedStartTime!,
-                        );
-                        final end = DateFormat.Hm().parse(selectedEndTime!);
+                            final start = DateFormat.Hm().parse(
+                              selectedStartTime!,
+                            );
+                            final end = DateFormat.Hm().parse(selectedEndTime!);
 
-                        if (end.isBefore(start) ||
-                            end.isAtSameMomentAs(start)) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Jam selesai harus setelah jam mulai.',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
+                            if (end.isBefore(start) ||
+                                end.isAtSameMomentAs(start)) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Jam selesai harus setelah jam mulai.',
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
 
-                        await checkAvailability(
-                          selectedDates,
-                          selectedStartTime!,
-                          selectedEndTime!,
-                        );
+                            await checkAvailability(
+                              selectedDates,
+                              selectedStartTime!,
+                              selectedEndTime!,
+                            );
 
-                        debugPrint('Selected Dates: $selectedDatesString');
+                            debugPrint('Selected Dates: $selectedDatesString');
 
-                        _checkSlots(selectedStartTime!, selectedEndTime!);
-                      },
+                            _checkSlots(selectedStartTime!, selectedEndTime!);
+                          },
                   child: Text(
                     isLoading ? 'Sedang Mencari...' : 'Cek Ketersediaan Waktu',
                   ),

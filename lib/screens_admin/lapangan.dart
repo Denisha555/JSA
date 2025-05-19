@@ -255,7 +255,7 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
         try {
           await FirebaseStorage.instance.refFromURL(imageUrl).delete();
         } catch (e) {
-          print('Error deleting image: $e');
+          debugPrint('Error deleting image: $e');
         }
       }
       

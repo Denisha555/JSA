@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:async';
 
 class HalamanTentangKami extends StatefulWidget {
   const HalamanTentangKami({super.key});
@@ -12,87 +13,98 @@ class HalamanTentangKami extends StatefulWidget {
 }
 
 class _HalamanTentangKamiState extends State<HalamanTentangKami> {
-  final LatLng _lokasiArena = LatLng(-0.05687, 109.35996);
+  final LatLng _lokasiArena = const LatLng(-0.05687, 109.35996);
   LatLng? _lokasiPengguna;
   late final MapController _mapController = MapController();
-  Stream<Position>? _streamLokasi;
+  bool _isLoading = false;
+  bool _mapReady = false;
 
   @override
   void initState() {
     super.initState();
-    _mulaiPantauLokasi();
+    // Hanya dapatkan lokasi pengguna untuk Google Maps tanpa memindahkan peta
+    _dapatkanLokasiPengguna();
   }
 
-  Future<void> _mulaiPantauLokasi() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Layanan lokasi tidak aktif')),
-      );
-      return;
-    }
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Izin lokasi ditolak')),
-        );
+  // Metode baru yang hanya mendapatkan lokasi pengguna tanpa memindahkan peta
+  Future<void> _dapatkanLokasiPengguna() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
         return;
       }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      // Dapatkan lokasi hanya sekali untuk link Google Maps
+      try {
+        Position posisi = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.reduced, // Gunakan akurasi lebih rendah
+          timeLimit: const Duration(seconds: 5), // Timeout lebih cepat
+        );
+        
+        if (mounted) {
+          setState(() {
+            _lokasiPengguna = LatLng(posisi.latitude, posisi.longitude);
+          });
+        }
+      } catch (e) {
+        // Lewati error tanpa menampilkan pesan
+      }
+    } catch (e) {
+      // Lewati error tanpa menampilkan pesan
     }
-
-    if (permission == LocationPermission.deniedForever) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Izin lokasi ditolak permanen')),
-      );
-      return;
-    }
-
-    // Ambil lokasi awal
-    Position posisiAwal = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.high,
-    );
-    final LatLng posisiAwalLatLng = LatLng(posisiAwal.latitude, posisiAwal.longitude);
-
-    setState(() {
-      _lokasiPengguna = posisiAwalLatLng;
-    });
-
-    // Pusatkan peta ke lokasi pengguna
-    _mapController.move(posisiAwalLatLng, 16);
-
-    // Stream posisi real-time
-    _streamLokasi = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 10,
-      ),
-    );
-
-    _streamLokasi!.listen((pos) {
-      final LatLng posisiBaru = LatLng(pos.latitude, pos.longitude);
-      setState(() {
-        _lokasiPengguna = posisiBaru;
-      });
-      _mapController.move(posisiBaru, _mapController.camera.zoom);
-    });
   }
 
   void _bukaLink(String url) async {
-    final Uri uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      throw 'Tidak dapat membuka: $url';
+    try {
+      final Uri uri = Uri.parse(url);
+      if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+        throw 'Tidak dapat membuka: $url';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error membuka link: $e')),
+        );
+      }
     }
   }
 
   void _bukaGoogleMaps() async {
-    final Uri mapsUrl = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&origin=${_lokasiPengguna?.latitude ?? ''},${_lokasiPengguna?.longitude ?? ''}&destination=${_lokasiArena.latitude},${_lokasiArena.longitude}',
-    );
-    if (!await launchUrl(mapsUrl, mode: LaunchMode.externalApplication)) {
-      throw 'Tidak bisa membuka Google Maps';
+    try {
+      final String origin = _lokasiPengguna != null 
+          ? '${_lokasiPengguna!.latitude},${_lokasiPengguna!.longitude}' 
+          : '';
+      
+      final Uri mapsUrl = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=${_lokasiArena.latitude},${_lokasiArena.longitude}',
+      );
+      
+      if (!await launchUrl(mapsUrl, mode: LaunchMode.externalApplication)) {
+        throw 'Tidak bisa membuka Google Maps';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error membuka Google Maps: $e')),
+        );
+      }
     }
   }
 
@@ -106,7 +118,19 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
           Center(
             child: Column(
               children: [
-                Image.asset('assets/image/LogoJSA.jpg', height: 100),
+                // Use error handler for asset loading
+                Image.asset(
+                  'assets/image/LogoJSA.jpg',
+                  height: 100,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      height: 100,
+                      width: 100,
+                      color: Colors.grey[300],
+                      child: const Icon(Icons.error),
+                    );
+                  },
+                ),
                 const SizedBox(height: 12),
                 const Text(
                   'JUMP SMASH ARENA',
@@ -125,45 +149,70 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
             height: 200,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: FlutterMap(
-                mapController: _mapController,
-                options: MapOptions(
-                  initialCenter: _lokasiArena,
-                  initialZoom: 16,
-                  interactionOptions: const InteractionOptions(
-                    flags: ~InteractiveFlag.doubleTapZoom,
-                  ),
-                ),
+              child: Stack(
                 children: [
-                  TileLayer(
-                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.example.app',
-                  ),
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: _lokasiArena,
-                        width: 40,
-                        height: 40,
-                        child: const Icon(
-                          Icons.location_pin,
-                          color: Colors.red,
-                          size: 40,
-                        ),
+                  FlutterMap(
+                    mapController: _mapController,
+                    options: MapOptions(
+                      initialCenter: _lokasiArena,
+                      initialZoom: 16,
+                      interactionOptions: const InteractionOptions(
+                        flags: ~InteractiveFlag.doubleTapZoom,
                       ),
-                      if (_lokasiPengguna != null)
-                        Marker(
-                          point: _lokasiPengguna!,
-                          width: 30,
-                          height: 30,
-                          child: const Icon(
-                            Icons.person_pin_circle,
-                            color: Colors.blue,
-                            size: 30,
+                      onMapReady: () {
+                        setState(() {
+                          _mapReady = true;
+                        });
+                        // Move to user location if available
+                        if (_lokasiPengguna != null) {
+                          _mapController.move(_lokasiPengguna!, 16);
+                        }
+                      },
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.example.app',
+                        tileProvider: NetworkTileProvider(),
+                        errorImage: Image.asset(
+                          'assets/image/map_placeholder.png',
+                          fit: BoxFit.cover,
+                        ).image,
+                      ),
+                      MarkerLayer(
+                        markers: [
+                          Marker(
+                            point: _lokasiArena,
+                            width: 40,
+                            height: 40,
+                            child: const Icon(
+                              Icons.location_pin,
+                              color: Colors.red,
+                              size: 40,
+                            ),
                           ),
-                        ),
+                          if (_lokasiPengguna != null)
+                            Marker(
+                              point: _lokasiPengguna!,
+                              width: 30,
+                              height: 30,
+                              child: const Icon(
+                                Icons.person_pin_circle,
+                                color: Colors.blue,
+                                size: 30,
+                              ),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
+                  if (_isLoading)
+                    Container(
+                      color: Colors.white.withOpacity(0.7),
+                      child: const Center(
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -205,11 +254,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               ElevatedButton.icon(
-                // icon: SizedBox(
-                //   width: 24,
-                //   height: 24,
-                //   child: Image.asset('assets/image/whatsapp.jpg'),
-                // ),
+                // icon: const Icon(Icons.whatsapp, color: Colors.white),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                 label: const Text("WhatsApp", style: TextStyle(color: Colors.white)),
                 onPressed: () {
@@ -217,11 +262,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                 },
               ),
               ElevatedButton.icon(
-                // icon: SizedBox(
-                //   width: 24,
-                //   height: 24,
-                //   child: Image.asset('assets/image/insta.png'),
-                // ),
+                icon: const Icon(Icons.camera_alt, color: Colors.white),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Color.fromARGB(255, 255, 64, 156),
                 ),
