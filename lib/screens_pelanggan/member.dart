@@ -188,87 +188,57 @@ class _HalamanMemberState extends State<HalamanMember> {
     }
   }
 
-  // void _checkSlots(String startTime, String endTime) async {
-  //   if (courts.isEmpty) {
-  //     _getCourts(); // Ensure courts are loaded
-  //   }
-
-  //   int timeToMinutes(String time) {
-  //     final parts = time.split(':');
-  //     return int.parse(parts[0]) * 60 + int.parse(parts[1]);
-  //   }
-
-  //   int startMinutes = timeToMinutes(startTime);
-  //   int endMinutes = timeToMinutes(endTime);
-
-  //   for (final court in courts) {
-  //     bool allDatesAvailable = true;
-
-  //     for (final selectedDate in selectedDates) {
-  //       for (
-  //         int slotStart = startMinutes;
-  //         slotStart < endMinutes;
-  //         slotStart += 30
-  //       ) {
-  //         final slotStartStr =
-  //             '${(slotStart ~/ 60).toString().padLeft(2, '0')}:${(slotStart % 60).toString().padLeft(2, '0')}';
-
-  //         final isAvailable = await FirebaseService().isSlotAvailable(
-  //           slotStartStr,
-  //           court.courtId,
-  //           selectedDate,
-  //         );
-
-  //         if (!isAvailable) {
-  //           allDatesAvailable = false;
-  //           break;
-  //         }
-  //       }
-
-  //       if (!allDatesAvailable) break;
-  //     }
-
-  //     if (allDatesAvailable) {
-  //       debugPrint("Lapangan ${court.courtId} tersedia di semua tanggal!");
-  //       _showAvailabilityDialog(startTime, endTime, court.courtId);
-  //       return;
-  //     }
-  //   }
-
-  //   ScaffoldMessenger.of(context).showSnackBar(
-  //     const SnackBar(content: Text('Jadwal yang dipilih tidak tersedia')),
-  //   );
-  // }
-
-  Future<void> _checkSlots(String startTime, String endTime) async {
-  if (courts.isEmpty) await _getCourts();
-
-  // 1. 转换时间范围
-  final timeRange = TimeRange(startTime, endTime);
-  final dateStrings = selectedDates.map((d) => _formatDate(d)).toList();
-
-  // 2. 批量获取所有需要的数据
-  final allSlots = await FirebaseService().getMultiDayCourtAvailability(
-    dates: dateStrings,
-    timeRange: timeRange,
-    courtIds: courts.map((c) => c.courtId).toList(),
-  );
-
-  // 3. 查找第一个完全可用的场地
-  for (final court in courts) {
-    final isAvailable = allSlots.any((slot) => 
-      slot.courtId == court.courtId && 
-      slot.isFullyAvailable
-    );
-
-    if (isAvailable) {
-      _showAvailabilityDialog(startTime, endTime, court.courtId);
-      return;
+  void _checkSlots(String startTime, String endTime) async {
+    if (courts.isEmpty) {
+      _getCourts(); // Ensure courts are loaded
     }
-  }
 
-  _showNotAvailableSnackbar();
-}
+    int timeToMinutes(String time) {
+      final parts = time.split(':');
+      return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+    }
+
+    int startMinutes = timeToMinutes(startTime);
+    int endMinutes = timeToMinutes(endTime);
+
+    for (final court in courts) {
+      bool allDatesAvailable = true;
+
+      for (final selectedDate in selectedDates) {
+        for (
+          int slotStart = startMinutes;
+          slotStart < endMinutes;
+          slotStart += 30
+        ) {
+          final slotStartStr =
+              '${(slotStart ~/ 60).toString().padLeft(2, '0')}:${(slotStart % 60).toString().padLeft(2, '0')}';
+
+          final isAvailable = await FirebaseService().isSlotAvailable(
+            slotStartStr,
+            court.courtId,
+            selectedDate,
+          );
+
+          if (!isAvailable) {
+            allDatesAvailable = false;
+            break;
+          }
+        }
+
+        if (!allDatesAvailable) break;
+      }
+
+      if (allDatesAvailable) {
+        debugPrint("Lapangan ${court.courtId} tersedia di semua tanggal!");
+        _showAvailabilityDialog(startTime, endTime, court.courtId);
+        return;
+      }
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Jadwal yang dipilih tidak tersedia')),
+    );
+  }
 
   void _showAvailabilityDialog(
     String startTime,
