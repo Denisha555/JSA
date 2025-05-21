@@ -4,15 +4,23 @@ import 'aktivitas.dart';
 import 'profile.dart';
 
 class PilihHalamanPelanggan extends StatefulWidget {
-  const PilihHalamanPelanggan({super.key});
+  final int selectedIndex;
+
+  const PilihHalamanPelanggan({super.key, this.selectedIndex = 0});
 
   @override
   State<PilihHalamanPelanggan> createState() => _PilihHalamanPelangganState();
 }
 
 class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
-  int _selectedIndex = 0;
-  
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.selectedIndex;
+  }
+
   // Daftar halaman dengan type safety
   static const List<Widget> _pages = <Widget>[
     HalamanUtamaPelanggan(),
@@ -22,22 +30,19 @@ class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
 
   void _onItemTapped(int index) {
     setState(() {
-      _selectedIndex = index;
+      _currentIndex = index;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: _pages,
-      ),
+      body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
+        currentIndex: _currentIndex,
         onTap: _onItemTapped,
-        selectedItemColor: Colors.blue, 
-        unselectedItemColor: Colors.grey, 
+        selectedItemColor: Colors.blue,
+        unselectedItemColor: Colors.grey,
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
@@ -52,7 +57,7 @@ class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person),
-            label: 'Profil',
+            label: 'Profile',
           ),
         ],
       ),

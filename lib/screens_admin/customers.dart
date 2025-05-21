@@ -13,9 +13,13 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
   bool isLoading = true;
 
   @override
-  void initState() async {
+  void initState() {
     super.initState();
-    await _fetchUsers();
+    _init();
+  }
+
+  void _init () {
+    _fetchUsers();
   }
 
   Future<void> _fetchUsers() async {

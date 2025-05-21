@@ -490,22 +490,42 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   }
 
   Future<void> _handleLogout() async {
+    final shouldLogout = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Konfirmasi Logout'),
+      content: const Text('Apakah kamu yakin ingin logout?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false), 
+          child: const Text('Batal'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true), 
+          child: const Text('Logout'),
+        ),
+      ],
+    ),
+  );
+
+  // Kalau pengguna setuju untuk logout
+  if (shouldLogout == true) {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.remove('username');
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => MyApp()),
-        );
-      }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const MainApp(),
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error logging out: $e')),
+      );
     }
+  }
   }
 
   @override

@@ -1,9 +1,26 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_application_1/screens_pelanggan/member.dart';
+import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/main.dart';
+import 'package:flutter_application_1/screens_pelanggan/aktivitas.dart';
+import 'package:flutter_application_1/screens_pelanggan/member.dart';
+import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_1/services/firestore_service.dart';
+
+// Define the missing reward class
+class UserReward {
+  final double currentHours;
+  final double requiredHours;
+
+  UserReward({required this.currentHours, required this.requiredHours});
+}
+
+class LastActivity {
+  final String courtId;
+  final String date;
+
+  LastActivity({required this.courtId, required this.date});
+}
 
 class HalamanProfil extends StatefulWidget {
   const HalamanProfil({super.key});
@@ -14,7 +31,12 @@ class HalamanProfil extends StatefulWidget {
 
 class _HalamanProfilState extends State<HalamanProfil> {
   String? username;
-  String? fotoPath;
+  bool isLoading = true;
+  bool isMember = false;
+  List<LastActivity> activity = [];
+
+  // Initialize with default values
+  UserReward currentReward = UserReward(currentHours: 0, requiredHours: 100);
 
   @override
   void initState() {
@@ -22,323 +44,683 @@ class _HalamanProfilState extends State<HalamanProfil> {
     _init();
   }
 
-  void _init() async {
-    await _loadData();
+  Future<void> _init() async {
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      await _loadData();
+      if (username != null && username!.isNotEmpty) {
+        isMember = await FirebaseService().memberOrNonmember(username!);
+        await getLastActivity();
+        // Here we would also fetch the reward data
+        // For now using dummy data
+        currentReward = UserReward(currentHours: 35, requiredHours: 100);
+      }
+    } catch (e) {
+      debugPrint('Error initializing profile: $e');
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
   }
 
   Future<void> _loadData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      username = prefs.getString('username') ?? ' ';
-      fotoPath = prefs.getString('fotoProfil');
+      username = prefs.getString('username');
     });
   }
 
-  Future<void> _pickImage() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('fotoProfil', picked.path);
-      setState(() {
-        fotoPath = picked.path;
-      });
+  Widget _buildRewardSection(BuildContext context) {
+    double progress = (currentReward.currentHours / currentReward.requiredHours)
+        .clamp(0.0, 1.0);
+
+    // Calculate next stage hours (every 10 hours)
+    double nextStageHours =
+        ((currentReward.currentHours / 10).floor() + 1) * 10;
+
+    if (nextStageHours > currentReward.requiredHours) {
+      nextStageHours = currentReward.requiredHours;
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: primaryColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Your Reward Progress',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              double barWidth = constraints.maxWidth;
+              double nextMarkerPos =
+                  nextStageHours / currentReward.requiredHours * barWidth;
+
+              return Stack(
+                alignment: Alignment.centerLeft,
+                children: [
+                  // Background bar
+                  Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: Colors.blue[300],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  // Foreground progress
+                  FractionallySizedBox(
+                    widthFactor: progress,
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  // Marker for next reward stage
+                  Positioned(
+                    left: nextMarkerPos - 5,
+                    child: Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.black26, width: 1),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+
+          // Description text
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${currentReward.currentHours.toInt()}h played',
+                style: const TextStyle(color: Colors.white),
+              ),
+              Text(
+                '${(nextStageHours - currentReward.currentHours).clamp(0, double.infinity).toInt()}h to next reward',
+                style: const TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _updateUsername(String newUsername) async {
+    try {
+      if (username != null && newUsername.isNotEmpty) {
+        await FirebaseService().editUsername(username!, newUsername);
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('username', newUsername);
+
+        // Update the username in state
+        setState(() {
+          username = newUsername;
+        });
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Username updated successfully!')),
+        );
+
+        // Close dialog
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error updating username: $e')));
     }
   }
 
-  void _showEditNamaDialog() {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const EditNama())).then((_) {
-      // Reload data setelah edit nama selesai
-      _loadData();
-    });
+  Future<void> _updatePassword(String newPassword) async {
+    try {
+      if (username != null && newPassword.isNotEmpty) {
+        await FirebaseService().editPassword(username!, newPassword);
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('password', newPassword);
+
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Password updated successfully!')),
+        );
+
+        // Close dialog
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error updating password: $e')));
+    }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: Drawer(
-        child: ListView(
+  Widget editUsername(BuildContext context) {
+    TextEditingController usernameController = TextEditingController();
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            DrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue),
-              child: Text('Menu', style: TextStyle(color: Colors.white, fontSize: 24)),
+            const Text(
+              'Ubah Username',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
-            ListTile(
-              title: Text('Pusat Akun'),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PusatAkun()),
+            const SizedBox(height: 20),
+            TextField(
+              controller: usernameController,
+              decoration: InputDecoration(
+                hintText: 'Input username baru',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
-            ListTile(
-              leading: Icon(Icons.logout),
-              title: Text('Keluar'),
-              onTap: () {
-                // Tambahkan aksi logout jika perlu
-              },
+
+            const SizedBox(height: 15),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => _updateUsername(usernameController.text),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(120, 45),
+                  ),
+                  child: const Text('Update'),
+                ),
+              ],
             ),
           ],
         ),
       ),
-      appBar: AppBar(title: Text('Profil')),
-      body: username == null 
-      ? CircularProgressIndicator()
-      : SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Row(children: [
-            GestureDetector(
-              onTap: _pickImage,
-              child: CircleAvatar(
-                radius: 30,
-                backgroundImage: fotoPath != null
-                    ? FileImage(File(fotoPath!))
-                    : AssetImage('assets/avatar.jpg') as ImageProvider,
-              ),
-            ),
-            SizedBox(width: 12),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(username!, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              Text('2.450 Poin'),
-            ]),
-          ]),
-          SizedBox(height: 16),
-          Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            elevation: 2,
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text('25 Booking', style: TextStyle(fontSize: 16)),
-                  Text('2.450 Poin', style: TextStyle(fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-          ),
-          SizedBox(height: 20),
-          Text('👑 Member\n@seabar dalam 8 hari', style: TextStyle(fontSize: 14)),
-          SizedBox(height: 20),
-          Text('Aktivitas', style: TextStyle(fontWeight: FontWeight.bold)),
-          ListTile(
-            leading: Icon(Icons.sports_soccer),
-            title: Text('Booking Lapangan - Lapangan 3'),
-            subtitle: Text('2 hari yang lalu'),
-          ),
-          Divider(),
-          SizedBox(height: 10),
-          Text('Progres', style: TextStyle(fontWeight: FontWeight.bold)),
-          SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('2.450', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              ElevatedButton(
-                onPressed: () {},
-                child: Text('Riwayat Poin'),
-              )
-            ],
-          ),
-          SizedBox(height: 5),
-          Text('Poin terkumpul bulan ini: +450'),
-          SizedBox(height: 20),
-          ListTile(
-            title: Text("Ubah Nama Pengguna"),
-            trailing: Icon(Icons.edit),
-            onTap: _showEditNamaDialog,
-          ),
-        ]),
-      ),
     );
   }
-}
 
-// ===================== PUSAT AKUN =====================
-class PusatAkun extends StatelessWidget {
-  const PusatAkun({super.key});
+  Widget editPassword(BuildContext context) {
+    TextEditingController passwordController = TextEditingController();
+    bool obscureText = true;
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Pusat Akun")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(children: [
-          ListTile(
-            leading: Icon(Icons.person),
-            title: Text("Profil"),
-            onTap: () {
-              showModalBottomSheet(
-                context: context,
-                builder: (_) => Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ListTile(
-                      leading: Icon(Icons.edit),
-                      title: Text("Nama Pengguna"),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const EditNama()),
-                      ),
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Ubah Password',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: passwordController,
+                  obscureText: obscureText,
+                  decoration: InputDecoration(
+                    hintText: 'Input password baru',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    ListTile(
-                      leading: Icon(Icons.image),
-                      title: Text("Foto Profil"),
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const UbahFoto()),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscureText ? Icons.visibility : Icons.visibility_off,
                       ),
+                      onPressed: () {
+                        setState(() {
+                          obscureText = !obscureText;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => _updatePassword(passwordController.text),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(120, 45),
+                      ),
+                      child: const Text('Update'),
                     ),
                   ],
                 ),
-              );
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.lock),
-            title: Text("Kata Sandi dan Keamanan"),
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const UbahPassword()),
+              ],
             ),
-          )
-        ]),
-      ),
-    );
-  }
-}
-
-// ===================== EDIT NAMA =====================
-class EditNama extends StatefulWidget {
-  const EditNama({super.key});
-  @override
-  State<EditNama> createState() => _EditNamaState();
-}
-
-class _EditNamaState extends State<EditNama> {
-  final TextEditingController _controller = TextEditingController();
-
-  Future<void> _simpanNama() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('namaPengguna', _controller.text);
-    Navigator.pop(context);
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    SharedPreferences.getInstance().then((prefs) {
-      _controller.text = prefs.getString('namaPengguna') ?? '';
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Edit nama pengguna")),
-      body: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(children: [
-          TextField(
-            controller: _controller,
-            decoration: InputDecoration(labelText: "Nama Pengguna"),
           ),
-          SizedBox(height: 20),
-          ElevatedButton(onPressed: _simpanNama, child: Text("Konfirmasi"))
-        ]),
-      ),
+        );
+      },
     );
   }
-}
 
-// ===================== UBAH FOTO =====================
-class UbahFoto extends StatefulWidget {
-  const UbahFoto({super.key});
-  @override
-  State<UbahFoto> createState() => _UbahFotoState();
-}
-
-class _UbahFotoState extends State<UbahFoto> {
-  String? _fotoPath;
-
-  Future<void> _pilihFoto() async {
-    final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('fotoProfil', picked.path);
-      setState(() => _fotoPath = picked.path);
+  Future<void> getLastActivity() async {
+    try {
+      if (username != null) {
+        final temp = await FirebaseService().getLastActivity(username!);
+        if (temp.isNotEmpty) {
+          setState(() {
+            // activity = temp;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting last activity: $e');
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    SharedPreferences.getInstance().then((prefs) {
-      setState(() => _fotoPath = prefs.getString('fotoProfil'));
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Ubah Foto Profil")),
-      body: Center(
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          _fotoPath != null
-              ? CircleAvatar(radius: 60, backgroundImage: FileImage(File(_fotoPath!)))
-              : Icon(Icons.account_circle, size: 120),
-          SizedBox(height: 20),
-          ElevatedButton(onPressed: _pilihFoto, child: Text("Pilih Foto Baru")),
-        ]),
-      ),
+  Future<void> _logout() async {
+    final shouldLogout = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Konfirmasi Logout'),
+            content: const Text('Apakah kamu yakin ingin logout?'),
+            actions: [
+              TextButton(
+                onPressed:
+                    () => Navigator.pop(context, false), // Tidak jadi logout
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true), // Lanjut logout
+                child: const Text('Logout'),
+              ),
+            ],
+          ),
     );
-  }
-}
 
-// ===================== UBAH PASSWORD =====================
-class UbahPassword extends StatefulWidget {
-  const UbahPassword({super.key});
-  @override
-  State<UbahPassword> createState() => _UbahPasswordState();
-}
+    // Kalau pengguna setuju untuk logout
+    if (shouldLogout == true) {
+      try {
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.remove('username');
 
-class _UbahPasswordState extends State<UbahPassword> {
-  final TextEditingController _password = TextEditingController();
-  final TextEditingController _ulangPassword = TextEditingController();
-
-  void _konfirmasi() {
-    if (_password.text == _ulangPassword.text && _password.text.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Kata sandi berhasil diperbarui!")),
-      );
-      Navigator.pop(context);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Kata sandi tidak cocok atau kosong!")),
-      );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainApp()),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // If username is null, redirect to login
+    if (username == null || username!.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainApp()),
+        );
+      });
+      return const Scaffold(
+        body: Center(child: Text('Redirecting to login...')),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(title: Text("Ubah Kata Sandi")),
-      body: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(children: [
-          TextField(
-            controller: _password,
-            obscureText: true,
-            decoration: InputDecoration(labelText: "Kata Sandi Baru"),
+      body: RefreshIndicator(
+        onRefresh: _init,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              // Profile header with avatar
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Container(
+                    height: 180,
+                    padding: const EdgeInsets.only(
+                      top: 25,
+                      right: 20,
+                      left: 20,
+                    ),
+                    decoration: BoxDecoration(color: primaryColor),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 35,
+                          backgroundColor:
+                              isMember ? Colors.blueAccent : Colors.grey[400]!,
+                          child: Text(
+                            username![0].toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 35,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              username!,
+                              style: const TextStyle(
+                                fontSize: 25,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const Text(
+                              '2.450 Poin',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  Positioned(
+                    bottom: -40,
+                    left: 20,
+                    right: 20,
+                    child: Card(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      color: Colors.grey[100],
+                      elevation: 2,
+                      child: const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            Column(
+                              children: [
+                                Text(
+                                  '25',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text('Booking', style: TextStyle(fontSize: 12)),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                Text(
+                                  '2.450',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text('Point', style: TextStyle(fontSize: 12)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 55),
+
+              // Membership status
+              Padding(
+                padding: const EdgeInsets.only(right: 20.0, left: 20.0),
+                child:
+                    isMember
+                        ? GestureDetector(
+                          onTap: () {},
+                          child: Row(
+                            children: const [
+                              Text('💎', style: TextStyle(fontSize: 30)),
+                              SizedBox(width: 10),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Member',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Berakhir dalam 30 hari',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        )
+                        : GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const HalamanMember(),
+                              ),
+                            ).then((_) => _init());
+                          },
+                          child: Row(
+                            children: const [
+                              Text('🪨', style: TextStyle(fontSize: 30)),
+                              SizedBox(width: 10),
+                              Text(
+                                'Non Member',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Reward progress section
+              Padding(
+                padding: const EdgeInsets.only(right: 20, left: 20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Progres',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                    ),
+                    const Divider(),
+                    const SizedBox(height: 5),
+                    _buildRewardSection(context),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Activity history section
+              Padding(
+                padding: const EdgeInsets.only(right: 20.0, left: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Aktivitas',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                    ),
+                    const Divider(),
+
+                    activity.isEmpty
+                        ? GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PilihHalamanPelanggan(selectedIndex: 1,),
+                              ),
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              Icon(Icons.history, size: 25),
+                              SizedBox(width: 10),
+                              Text('Belum Ada Aktivitas'),
+                            ],
+                          ),
+                        )
+                        : GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => PilihHalamanPelanggan(selectedIndex: 1,),
+                              ),
+                            );
+                          },
+                          child: Row(
+                            children: [
+                              const Icon(Icons.history, size: 25),
+                              const SizedBox(width: 10),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Booked Court - Lapangan ${activity[0].courtId}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(activity[0].date),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Profile management section
+              Padding(
+                padding: const EdgeInsets.only(left: 20.0, right: 20.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Profile',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Divider(),
+                    ListTile(
+                      leading: const Icon(Icons.edit, size: 20),
+                      title: const Text('Ubah Username'),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => editUsername(context),
+                        );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.lock, size: 20),
+                      title: const Text('Ubah Password'),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (context) => editPassword(context),
+                        );
+                      },
+                    ),
+                    ListTile(
+                      leading: const Icon(Icons.logout_sharp, size: 20),
+                      title: const Text('Log Out'),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      onTap: _logout,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+            ],
           ),
-          TextField(
-            controller: _ulangPassword,
-            obscureText: true,
-            decoration: InputDecoration(labelText: "Ulangi Kata Sandi"),
-          ),
-          SizedBox(height: 20),
-          ElevatedButton(onPressed: _konfirmasi, child: Text("Konfirmasi"))
-        ]),
+        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 class TimeSlot {
   final String courtId;
@@ -160,14 +161,91 @@ class AllCloseDay {
   }
 }
 
+class LastActivity {
+  final String date;
+  final String startTime;
+  final String endTime;
+  final String courtId;
+
+  LastActivity({
+    required this.date,
+    required this.startTime,
+    required this.endTime,
+    required this.courtId,
+  });
+
+  factory LastActivity.fromJson(Map<String, dynamic> json) {
+    return LastActivity(
+      date: json['date'],
+      startTime: json['startTime'],
+      endTime: json['endTime'],
+      courtId: json['courtId'],
+    );
+  }
+}
+
+const _timeSlots = [
+  '07:00',
+  '07:30',
+  '08:00',
+  '08:30',
+  '09:00',
+  '09:30',
+  '10:00',
+  '10:30',
+  '11:00',
+  '11:30',
+  '12:00',
+  '12:30',
+  '13:00',
+  '13:30',
+  '14:00',
+  '14:30',
+  '15:00',
+  '15:30',
+  '16:00',
+  '16:30',
+  '17:00',
+  '17:30',
+  '18:00',
+  '18:30',
+  '19:00',
+  '19:30',
+  '20:00',
+  '20:30',
+  '21:00',
+  '21:30',
+  '22:00',
+  '22:30',
+];
+
 class FirebaseService {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+  final Map<String, List<TimeSlot>> _timeSlotCache = {};
+  final Map<String, dynamic> _courtsCache = {};
 
   // Fungsi untuk menambahkan user ke Firestore
   Future<void> addUser(String userName, String password) async {
     try {
       CollectionReference users = firestore.collection('users');
       await users.add({'username': userName, 'password': password});
+    } catch (e) {
+      throw Exception('Error Adding User: $e');
+    }
+  }
+
+  Future<void> addUserByAdmin(String username) async {
+    try {
+      CollectionReference users = firestore.collection('users');
+      if (username.length < 6) {
+        await users.add({
+          'username': username,
+          'password': '$username$username',
+        });
+      } else {
+        await users.add({'username': username, 'password': username});
+      }
     } catch (e) {
       throw Exception('Error Adding User: $e');
     }
@@ -205,6 +283,38 @@ class FirebaseService {
       } else {
         return false;
       }
+    } catch (e) {
+      throw Exception('Error Checking User: $e');
+    }
+  }
+
+  Future<void> editUsername(String username, String newUsername) async {
+    try {
+      await firestore
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .get()
+          .then((snapshot) {
+            for (DocumentSnapshot doc in snapshot.docs) {
+              doc.reference.update({'username': newUsername});
+            }
+          });
+    } catch (e) {
+      throw Exception('Error Checking User: $e');
+    }
+  }
+
+  Future<void> editPassword(String username, String newPassword) async {
+    try {
+      await firestore
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .get()
+          .then((snapshot) {
+            for (DocumentSnapshot doc in snapshot.docs) {
+              doc.reference.update({'password': newPassword});
+            }
+          });
     } catch (e) {
       throw Exception('Error Checking User: $e');
     }
@@ -411,46 +521,62 @@ class FirebaseService {
   }
 
   // Fungsi untuk mengenerate slot 7 hari
+  // OPTIMIZATION 1: Use batch writes for generating time slots
   Future<void> generateSlots7day() async {
     try {
-      final courts = await firestore.collection('lapangan').get();
+      if (_courtsCache.isEmpty) {
+        final courts = await firestore.collection('lapangan').get();
+        for (var court in courts.docs) {
+          _courtsCache[court.id] = court.data();
+        }
+      }
+
       final today = DateTime.now();
+      var batch = firestore.batch(); // Changed to var instead of final
+      int batchCount = 0;
+      final maxBatchSize = 500; // Firestore limit is 500 operations per batch
 
       for (var i = 0; i < 7; i++) {
         final targetDate = DateTime(today.year, today.month, today.day + i);
         final dateStr =
             "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
 
-        for (var court in courts.docs) {
-          final courtNumber = court.data()['nomor'].toString();
+        // Get all existing slots for this date in a single query
+        final allExistingSlots =
+            await firestore
+                .collection('time_slots')
+                .where('date', isEqualTo: dateStr)
+                .get();
 
-          // Cek apakah slot untuk tanggal dan lapangan ini sudah ada
-          final existing =
-              await firestore
-                  .collection('time_slots')
-                  .where('courtId', isEqualTo: courtNumber)
-                  .where('date', isEqualTo: dateStr)
-                  .limit(1)
-                  .get();
+        // Create a map for easy lookup of existing slots
+        final existingSlotIds = <String>{};
+        for (var doc in allExistingSlots.docs) {
+          existingSlotIds.add(doc.id);
+        }
 
-          if (existing.docs.isEmpty) {
-            for (int hour = 7; hour <= 22; hour++) {
-              for (int minute = 0; minute < 60; minute += 30) {
-                final startTime =
-                    "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
-                final endTime = DateTime(
-                  targetDate.year,
-                  targetDate.month,
-                  targetDate.day,
-                  hour,
-                  minute,
-                ).add(Duration(minutes: 30));
-                final endTimeStr =
-                    "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}";
-                final slotId =
-                    "${courtNumber}_${dateStr}_${startTime.replaceAll(':', '')}";
+        for (var courtData in _courtsCache.values) {
+          final courtNumber = courtData['nomor'].toString();
 
-                await firestore.collection('time_slots').doc(slotId).set({
+          for (int hour = 7; hour <= 22; hour++) {
+            for (int minute = 0; minute < 60; minute += 30) {
+              final startTime =
+                  "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
+              final endTime = DateTime(
+                targetDate.year,
+                targetDate.month,
+                targetDate.day,
+                hour,
+                minute,
+              ).add(Duration(minutes: 30));
+              final endTimeStr =
+                  "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}";
+              final slotId =
+                  "${courtNumber}_${dateStr}_${startTime.replaceAll(':', '')}";
+
+              // Only add to batch if slot doesn't exist
+              if (!existingSlotIds.contains(slotId)) {
+                final slotRef = firestore.collection('time_slots').doc(slotId);
+                batch.set(slotRef, {
                   'courtId': courtNumber,
                   'date': dateStr,
                   'startTime': startTime,
@@ -458,11 +584,29 @@ class FirebaseService {
                   'isAvailable': true,
                   'createdAt': FieldValue.serverTimestamp(),
                 });
+
+                batchCount++;
+
+                // Commit batch if we reach the limit
+                if (batchCount >= maxBatchSize) {
+                  await batch.commit();
+                  // Create a new batch
+                  batch = firestore.batch();
+                  batchCount = 0;
+                }
               }
             }
           }
         }
       }
+
+      // Commit any remaining operations in the batch
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+
+      // Clear cache after successful operation
+      _timeSlotCache.clear();
     } catch (e) {
       throw Exception('Failed to generate slots: $e');
     }
@@ -523,61 +667,98 @@ class FirebaseService {
     }
   }
 
-  // Fungsi mengenerate slot satu hari
   Future<void> generateSlotsOneDay(DateTime selectedDate) async {
-    try {
-      final courts = await firestore.collection('lapangan').get();
+    final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
+    final courts = await firestore.collection('lapangan').get();
 
-      final targetDate = DateTime(
-        selectedDate.year,
-        selectedDate.month,
-        selectedDate.day,
-      );
-      final dateStr =
-          "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
-      for (var court in courts.docs) {
-        final courtNumber = court.data()['nomor'].toString();
+    // 批量操作计数器
+    var batch = FirebaseFirestore.instance.batch();
+    var operationCount = 0;
 
-        // Cek apakah slot untuk tanggal dan lapangan ini sudah ada
-        final existing =
-            await firestore
-                .collection('time_slots')
-                .where('courtId', isEqualTo: courtNumber)
-                .where('date', isEqualTo: dateStr)
-                .limit(1)
-                .get();
+    for (final court in courts.docs) {
+      final courtNumber = court['nomor'].toString();
 
-        if (existing.docs.isEmpty) {
-          for (int hour = 7; hour <= 22; hour++) {
-            for (int minute = 0; minute < 60; minute += 30) {
-              final startTime =
-                  "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
-              final endTime = DateTime(
-                targetDate.year,
-                targetDate.month,
-                targetDate.day,
-                hour,
-                minute,
-              ).add(Duration(minutes: 30));
-              final endTimeStr =
-                  "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}";
-              final slotId =
-                  "${courtNumber}_${dateStr}_${startTime.replaceAll(':', '')}";
+      // 检查是否已存在（优化版）
+      if (await _hasExistingSlots(courtNumber, dateStr)) continue;
 
-              await firestore.collection('time_slots').doc(slotId).set({
-                'courtId': courtNumber,
-                'date': dateStr,
-                'startTime': startTime,
-                'endTime': endTimeStr,
-                'isAvailable': true,
-                'createdAt': FieldValue.serverTimestamp(),
-              });
-            }
-          }
+      // 使用预定义的时间段生成slot
+      for (final slot in _timeSlots) {
+        final [hourStr, minuteStr] = slot.split(':');
+        final hour = int.parse(hourStr);
+        final minute = int.parse(minuteStr);
+
+        final slotData = _buildSlotData(courtNumber, dateStr, hour, minute);
+        final slotId = '${courtNumber}_${dateStr}_${hourStr}${minuteStr}';
+
+        batch.set(firestore.collection('time_slots').doc(slotId), slotData);
+        operationCount++;
+
+        // 防止超过Firestore批量操作限制（500次/批）
+        if (operationCount % 450 == 0) {
+          await batch.commit();
+          batch = FirebaseFirestore.instance.batch();
         }
       }
+    }
+
+    // 提交剩余操作
+    if (operationCount % 450 != 0) {
+      await batch.commit();
+    }
+  }
+
+  // 优化的存在性检查
+  Future<bool> _hasExistingSlots(String courtNumber, String dateStr) async {
+    final doc =
+        await firestore
+            .collection('time_slots')
+            .doc('${courtNumber}_${dateStr}_0700') // 检查第一个slot
+            .get();
+    return doc.exists;
+  }
+
+  // 生成slot数据（不变）
+  Map<String, dynamic> _buildSlotData(
+    String courtNumber,
+    String dateStr,
+    int hour,
+    int minute,
+  ) {
+    final endHour = minute == 30 ? hour + 1 : hour;
+    final endMinute = minute == 30 ? 0 : 30;
+
+    return {
+      'courtId': courtNumber,
+      'date': dateStr,
+      'startTime':
+          '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}',
+      'endTime':
+          '${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}',
+      'isAvailable': true,
+      'createdAt': FieldValue.serverTimestamp(),
+    };
+  }
+
+  Future<bool> _checkExistingSlots(String court, String date) async {
+    final snapshot =
+        await firestore
+            .collection('time_slots')
+            .where('courtId', isEqualTo: court)
+            .where('date', isEqualTo: date)
+            .limit(1)
+            .get();
+    return snapshot.docs.isNotEmpty;
+  }
+
+  Future<void> _commitWithRetry(WriteBatch batch, {int retries = 3}) async {
+    try {
+      await batch.commit();
     } catch (e) {
-      throw Exception('Failed to generate slots: $e');
+      if (retries > 0) {
+        await Future.delayed(Duration(seconds: 2));
+        return _commitWithRetry(batch, retries: retries - 1);
+      }
+      rethrow;
     }
   }
 
@@ -687,6 +868,45 @@ class FirebaseService {
     }
   }
 
+  Future<List<TimeSlot>> getTimeSlotsByDatePaginated(
+    String dateStr, {
+    String? lastCourtId,
+    String? lastStartTime,
+    int limit = 50,
+  }) async {
+    try {
+      // Check cache first
+      final cacheKey = '${dateStr}_${lastCourtId ?? ''}_${lastStartTime ?? ''}';
+      if (_timeSlotCache.containsKey(cacheKey)) {
+        return _timeSlotCache[cacheKey]!;
+      }
+
+      Query query = firestore
+          .collection('time_slots')
+          .where('date', isEqualTo: dateStr)
+          .limit(limit);
+
+      // Apply pagination if needed
+      if (lastCourtId != null && lastStartTime != null) {
+        query = query.startAfter([lastCourtId, lastStartTime]);
+      }
+
+      final QuerySnapshot querySnapshot = await query.get();
+
+      final slots =
+          querySnapshot.docs.map((doc) {
+            return TimeSlot.fromJson(doc.data() as Map<String, dynamic>);
+          }).toList();
+
+      // Cache results
+      _timeSlotCache[cacheKey] = slots;
+
+      return slots;
+    } catch (e) {
+      throw Exception('Failed to get time slots: $e');
+    }
+  }
+
   Future<List<AllBookedUser>> getAllBookingsByUsername(String username) async {
     try {
       final QuerySnapshot querySnapshot =
@@ -697,6 +917,32 @@ class FirebaseService {
       return querySnapshot.docs.map((doc) {
         return AllBookedUser.fromJson(doc.data() as Map<String, dynamic>);
       }).toList();
+    } catch (e) {
+      throw Exception('Failed to get time slots for $username: $e');
+    }
+  }
+
+  Future<List<LastActivity>> getLastActivity(String username) async {
+    try {
+      final targetDate = DateTime.now();
+
+      final dateStr =
+          "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
+
+      final QuerySnapshot querySnapshot =
+          await firestore
+              .collection('time_slots')
+              .where('username', isEqualTo: username)
+              .where('date', isLessThan: dateStr)
+              .limit(1)
+              .get();
+      if (querySnapshot.docs.isNotEmpty) {
+        return querySnapshot.docs.map((doc) {
+          return LastActivity.fromJson(doc.data() as Map<String, dynamic>);
+        }).toList();
+      } else {
+        return [];
+      }
     } catch (e) {
       throw Exception('Failed to get time slots for $username: $e');
     }
@@ -772,6 +1018,21 @@ class FirebaseService {
     }
   }
 
+  Future<bool> memberOrNonmember(String username) async {
+    try {
+      final querySnapshot =
+          await firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .where('role', isEqualTo: 'member')
+              .get();
+
+      return querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      throw Exception('Failed to update user status: $e');
+    }
+  }
+
   Future<void> nonMemberToMember(String username) async {
     try {
       final querySnapshot =
@@ -806,18 +1067,19 @@ class FirebaseService {
       );
       final dateStr =
           "${targetDate.year}-${targetDate.month.toString().padLeft(2, '0')}-${targetDate.day.toString().padLeft(2, '0')}";
-      final QuerySnapshot slotSnapshot =
-          await firestore
-              .collection('time_slots')
-              .where('date', isEqualTo: dateStr)
-              .where('courtId', isEqualTo: courts)
-              .where('startTime', isEqualTo: startTime)
-              .get();
-      if (slotSnapshot.docs.isNotEmpty) {
+
+      // Create unique slot ID
+      final slotId = "${courts}_${dateStr}_${startTime.replaceAll(':', '')}";
+
+      // Try to get directly with document ID instead of querying
+      final slotDoc =
+          await firestore.collection('time_slots').doc(slotId).get();
+
+      if (slotDoc.exists) {
         final TimeSlot slot = TimeSlot.fromJson(
-          slotSnapshot.docs.first.data() as Map<String, dynamic>,
+          slotDoc.data() as Map<String, dynamic>,
         );
-        return (slot.isAvailable & !slot.isClosed);
+        return (slot.isAvailable && !slot.isClosed);
       } else {
         return false;
       }
@@ -855,6 +1117,24 @@ class FirebaseService {
     }
   }
 
+  Future<void> bookMultipleSlots(List<String> slotIds, String username) async {
+    try {
+      final batch = firestore.batch();
+
+      for (String slotId in slotIds) {
+        final slotRef = firestore.collection('time_slots').doc(slotId);
+        batch.update(slotRef, {'isAvailable': false, 'username': username});
+      }
+
+      await batch.commit();
+
+      // Clear affected cache entries
+      _timeSlotCache.clear();
+    } catch (e) {
+      throw Exception('Failed to book multiple slots: $e');
+    }
+  }
+
   Future<bool> isSlotClosed(
     String startTime,
     String courtId,
@@ -875,7 +1155,7 @@ class FirebaseService {
       }
       return false;
     } catch (e) {
-      throw('Error checking if slot is closed: $e');
+      throw ('Error checking if slot is closed: $e');
     }
   }
 
@@ -891,9 +1171,35 @@ class FirebaseService {
     }
   }
 
+  Future<List<AllUser>> getAllUsersPaginated({
+    String? lastUsername,
+    int limit = 50,
+  }) async {
+    try {
+      Query query = firestore.collection('users').limit(limit);
+
+      if (lastUsername != null) {
+        query = query.startAfter([lastUsername]);
+      }
+
+      final QuerySnapshot querySnapshot = await query.get();
+
+      return querySnapshot.docs.map((doc) {
+        return AllUser.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to get users: $e');
+    }
+  }
+
   Future<void> closeAllDay(DateTime selectedDate) async {
     try {
-      final courts = await firestore.collection('lapangan').get();
+      if (_courtsCache.isEmpty) {
+        final courts = await firestore.collection('lapangan').get();
+        for (var court in courts.docs) {
+          _courtsCache[court.id] = court.data();
+        }
+      }
 
       final targetDate = DateTime(
         selectedDate.year,
@@ -906,56 +1212,105 @@ class FirebaseService {
           "${targetDate.month.toString().padLeft(2, '0')}-"
           "${targetDate.day.toString().padLeft(2, '0')}";
 
-      for (var court in courts.docs) {
-        final courtNumber = court.data()['nomor'].toString();
+      // First, check if we have existing slots for this date
+      final existingSlots =
+          await firestore
+              .collection('time_slots')
+              .where('date', isEqualTo: dateStr)
+              .get();
 
-        for (int hour = 7; hour <= 22; hour++) {
-          for (int minute = 0; minute < 60; minute += 30) {
-            final startTime =
-                "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
-            final endTime = DateTime(
-              targetDate.year,
-              targetDate.month,
-              targetDate.day,
-              hour,
-              minute,
-            ).add(Duration(minutes: 30));
-            final endTimeStr =
-                "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}";
+      // If we have existing slots, update them in batches
+      if (existingSlots.docs.isNotEmpty) {
+        var updateBatch = firestore.batch();
+        int updateCount = 0;
+        final maxBatchSize = 500;
 
-            final slotId =
-                "${courtNumber}_${dateStr}_${startTime.replaceAll(':', '')}";
+        for (var doc in existingSlots.docs) {
+          updateBatch.update(doc.reference, {
+            'isAvailable': true,
+            'isClosed': true,
+          });
 
-            final docRef = firestore.collection('time_slots').doc(slotId);
-            final existingDoc = await docRef.get();
+          updateCount++;
 
-            final data = {
-              'courtId': courtNumber,
-              'date': dateStr,
-              'startTime': startTime,
-              'endTime': endTimeStr,
-              'isAvailable': true,
-              'isClosed': true,
-              'createdAt': FieldValue.serverTimestamp(),
-            };
+          // Commit batch if we reach the limit
+          if (updateCount >= maxBatchSize) {
+            await updateBatch.commit();
+            updateBatch = firestore.batch();
+            updateCount = 0;
+          }
+        }
 
-            if (existingDoc.exists) {
-              // Update data yang sudah ada
-              await docRef.update({'isAvailable': true, 'isClosed': true});
-            } else {
-              // Buat slot baru
-              await docRef.set(data);
+        // Commit any remaining operations
+        if (updateCount > 0) {
+          await updateBatch.commit();
+        }
+      } else {
+        // If no existing slots, generate them with isClosed = true
+        var createBatch = firestore.batch();
+        int createCount = 0;
+        final maxBatchSize = 500;
+
+        for (var courtData in _courtsCache.values) {
+          final courtNumber = courtData['nomor'].toString();
+
+          for (int hour = 7; hour <= 22; hour++) {
+            for (int minute = 0; minute < 60; minute += 30) {
+              final startTime =
+                  "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
+              final endTime = DateTime(
+                targetDate.year,
+                targetDate.month,
+                targetDate.day,
+                hour,
+                minute,
+              ).add(Duration(minutes: 30));
+              final endTimeStr =
+                  "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}";
+
+              final slotId =
+                  "${courtNumber}_${dateStr}_${startTime.replaceAll(':', '')}";
+
+              final docRef = firestore.collection('time_slots').doc(slotId);
+
+              createBatch.set(docRef, {
+                'courtId': courtNumber,
+                'date': dateStr,
+                'startTime': startTime,
+                'endTime': endTimeStr,
+                'isAvailable': true,
+                'isClosed': true,
+                'createdAt': FieldValue.serverTimestamp(),
+              });
+
+              createCount++;
+
+              // Commit batch if we reach the limit
+              if (createCount >= maxBatchSize) {
+                await createBatch.commit();
+                createBatch = firestore.batch();
+                createCount = 0;
+              }
             }
           }
         }
+
+        // Commit any remaining operations
+        if (createCount > 0) {
+          await createBatch.commit();
+        }
       }
-      CollectionReference closeDay = firestore.collection('closed_days');
-      await closeDay.add({
+
+      // Add to closed_days collection
+      await firestore.collection('closed_days').add({
         'date': dateStr,
         'startTime': '07:00',
         'endTime': '23:00',
         'isClosed': 'all day',
       });
+
+      // Clear cache
+      _timeSlotCache.clear();
     } catch (e) {
       throw Exception('Failed to close all day: $e');
     }
@@ -1075,6 +1430,33 @@ class FirebaseService {
           });
     } catch (e) {
       throw Exception('Failed to delete closed day: $e');
+    }
+  }
+
+  Future<void> updateCloseDay(String selectedDate) async {
+    try {
+      await firestore
+          .collection('time_slots')
+          .where('date', isEqualTo: selectedDate)
+          .get()
+          .then((snapshot) {
+            for (var doc in snapshot.docs) {
+              doc.reference.update({'isClosed': false});
+            }
+          });
+
+      await firestore
+          .collection('closed_days')
+          .where('date', isEqualTo: selectedDate)
+          .limit(1)
+          .get()
+          .then((snapshot) {
+            for (var doc in snapshot.docs) {
+              doc.reference.delete();
+            }
+          });
+    } catch (e) {
+      throw Exception('Failed to update closed day: $e');
     }
   }
 }

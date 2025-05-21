@@ -132,6 +132,13 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     return formatter.format(date);
   }
 
+  // Check if a date already has a schedule
+  bool hasScheduleForDate(DateTime date) {
+    String formattedDate =
+        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    return jadwalKhusus.any((jadwal) => jadwal.date == formattedDate);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -198,7 +205,15 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                       firstDate: DateTime(2000),
                       lastDate: DateTime(2101),
                     );
-                    if (picked != null) setState(() => tanggalKhusus = picked);
+                    if (picked != null) {
+                      // If not in edit mode, check if there's already a schedule for this day
+                      if (editingDocId == null && hasScheduleForDate(picked)) {
+                        // Show warning and move to edit mode for that date
+                        _showAlreadyExistsDialog(picked);
+                      } else {
+                        setState(() => tanggalKhusus = picked);
+                      }
+                    }
                   },
                   child: AbsorbPointer(
                     child: TextFormField(
@@ -250,6 +265,12 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                             controller: TextEditingController(
                               text: jamMulaiKhusus.format(context),
                             ),
+                            validator: (value) {
+                              if (!isClose && value!.isEmpty) {
+                                return 'Jam mulai harus diisi';
+                              }
+                              return null;
+                            },
                           ),
                         ),
                       ),
@@ -273,6 +294,12 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                             controller: TextEditingController(
                               text: jamSelesaiKhusus.format(context),
                             ),
+                            validator: (value) {
+                              if (!isClose && value!.isEmpty) {
+                                return 'Jam selesai harus diisi';
+                              }
+                              return null;
+                            },
                           ),
                         ),
                       ),
@@ -348,6 +375,44 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     );
   }
 
+  void _showAlreadyExistsDialog(DateTime date) {
+    // Find the existing schedule for this date
+    String formattedDate =
+        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    AllCloseDay? existingSchedule = jadwalKhusus.firstWhere(
+      (jadwal) => jadwal.date == formattedDate,
+      orElse:
+          () => AllCloseDay(date: "", isClose: "", startTime: "", endTime: ""),
+    );
+
+    if (existingSchedule.date.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text("Jadwal Sudah Ada"),
+            content: Text(
+              "Jadwal untuk tanggal ini sudah ada. Apakah Anda ingin mengedit jadwal tersebut?",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text("Batal"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _editJadwal(existingSchedule);
+                },
+                style: TextButton.styleFrom(foregroundColor: primaryColor),
+                child: Text("Edit Jadwal"),
+              ),
+            ],
+          ),
+    );
+  }
+
   Future<void> _loadOrCreateSlots(DateTime selectedDate) async {
     setState(() => _isLoading = true);
     final dateStr =
@@ -373,17 +438,66 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     }
   }
 
+  bool isTimeValid() {
+    // Convert TimeOfDay to comparable format
+    int startMinutes = jamMulaiKhusus.hour * 60 + jamMulaiKhusus.minute;
+    int endMinutes = jamSelesaiKhusus.hour * 60 + jamSelesaiKhusus.minute;
+
+    return startMinutes < endMinutes;
+  }
+
   Future<void> _saveJadwal() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Check if the date is before today
+    DateTime today = DateTime.now();
+    DateTime startOfToday = DateTime(today.year, today.month, today.day);
+    DateTime tomorrow = startOfToday.add(Duration(days: 1));
+
+    if (tanggalKhusus.isBefore(tomorrow)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Hanya dapat membuat jadwal untuk hari besok dan seterusnya',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // If not in edit mode, check if there's already a schedule for this day
+    if (editingDocId == null && hasScheduleForDate(tanggalKhusus)) {
+      _showAlreadyExistsDialog(tanggalKhusus);
+      return;
+    }
+
+    // Check if end time is after start time
+    if (!isClose && !isTimeValid()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Jam selesai harus setelah jam mulai'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     try {
       setState(() {
         _isLoading = true;
       });
 
+      // If editing, first clear existing data
+      if (editingDocId != null) {
+        await FirebaseService().updateCloseDay(formatTanggal(tanggalKhusus));
+      }
+
       if (isClose) {
+        // Close all day
         await FirebaseService().closeAllDay(tanggalKhusus);
       } else {
+        // Close specific time range
         await _loadOrCreateSlots(tanggalKhusus);
       }
 
@@ -400,7 +514,11 @@ class _HalamanJadwalState extends State<HalamanJadwal>
       // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Jadwal berhasil disimpan'),
+          content: Text(
+            editingDocId != null
+                ? 'Jadwal berhasil diperbarui'
+                : 'Jadwal berhasil disimpan',
+          ),
           backgroundColor: Colors.green,
         ),
       );
@@ -518,9 +636,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                             icon: Icon(Icons.delete, size: 18),
                             label: Text("Hapus"),
                             onPressed: () {
-                             
-                                      _showDeleteConfirmation(jadwal.date);
-                               
+                              _showDeleteConfirmation(jadwal);
                             },
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.red,
@@ -537,30 +653,26 @@ class _HalamanJadwalState extends State<HalamanJadwal>
         );
   }
 
-  void _editJadwal(AllCloseDay jadwal) {
+  void _editJadwal(AllCloseDay jadwal) async {
     setState(() {
       tanggalKhusus = DateTime.parse(jadwal.date);
       if (jadwal.isClose == 'time range') {
         isClose = false;
-      } else if (jadwal.isClose == 'all day') {
-        isClose = true;
-      }
-      if (!isClose) {
         jamMulaiKhusus = parseTime(jadwal.startTime);
         jamSelesaiKhusus = parseTime(jadwal.endTime);
+      } else if (jadwal.isClose == 'all day') {
+        isClose = true;
       }
       editingDocId = jadwal.date;
     });
 
-    debugPrint('Current tab index: ${_tabController.index}');
-
-    if (_tabController != null && _tabController.index != 0) {
+    if (_tabController.index != 0) {
       debugPrint('Changing tab to 0');
       _tabController.animateTo(0);
     }
   }
 
-  void _showDeleteConfirmation(String date) {
+  void _showDeleteConfirmation(AllCloseDay jadwal) {
     showDialog(
       context: context,
       builder:
@@ -575,7 +687,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
               TextButton(
                 onPressed: () async {
                   Navigator.pop(context);
-                  await FirebaseService().deleteCloseDay(date);
+                  await _deleteJadwal(jadwal);
                 },
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
                 child: Text("Hapus"),
@@ -585,17 +697,14 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     );
   }
 
-  Future<void> _deleteJadwal(String jadwalId) async {
+  Future<void> _deleteJadwal(AllCloseDay jadwal) async {
     try {
       setState(() {
         _isLoading = true;
       });
-      await Future.delayed(Duration(seconds: 1)); // Simulate network delay
 
-      // Update local list
-      // setState(() {
-      //   jadwalKhusus.removeWhere((jadwal) => jadwal.id == jadwalId);
-      // });
+      await FirebaseService().deleteCloseDay(jadwal.date);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -604,6 +713,9 @@ class _HalamanJadwalState extends State<HalamanJadwal>
           ),
         );
       }
+
+      // Refresh the list
+      await _fetchJadwalKhusus();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

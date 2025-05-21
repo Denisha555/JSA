@@ -76,7 +76,7 @@ class Reward {
   Reward({required this.currentHours});
 }
 
-final Reward currentReward = Reward(currentHours: 7);
+final Reward currentReward = Reward(currentHours: 6);
 
 class HalamanUtamaPelanggan extends StatefulWidget {
   const HalamanUtamaPelanggan({super.key});
@@ -91,7 +91,14 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
   @override
   void initState() {
     super.initState();
-    _init(); 
+    _init();
+  }
+
+  // Add a didChangeDependencies to refresh when returning to the screen
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _checkbooked();
   }
 
   Future<void> _init() async {
@@ -103,50 +110,58 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
     return Scaffold(
       appBar: AppBar(title: Text("Dashboard")),
       body: SafeArea(
-        // child: RefreshIndicator(
-        //   onRefresh: () async {
-        //     await _checkbooked();
-        //   },
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Current booking card
-                if (currentBookingCard != null) currentBookingCard!,
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await _checkbooked();
+          },
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Current booking card
+                  if (currentBookingCard != null) currentBookingCard!,
 
-                SizedBox(height: 10),
+                  SizedBox(height: 10),
 
-                // Quick access buttons
-                _buildQuickAccessMenu(),
+                  // Quick access buttons
+                  _buildQuickAccessMenu(),
 
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                // Reward section
-                _buildRewardection(context),
+                  // Reward section
+                  _buildRewardSection(context),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                // Promotions Events
-                _buildPromotionsEvents(),
+                  // Promotions Events
+                  _buildPromotionsEvents(),
 
-                const SizedBox(height: 24),
+                  const SizedBox(height: 24),
 
-                // Available courts section
-                _buildAvailableCourtsSection(),
-              ],
+                  // Available courts section
+                  _buildAvailableCourtsSection(),
+                ],
+              ),
             ),
           ),
         ),
-        // ),
       ),
     );
   }
 
-  Widget _buildRewardection(BuildContext context) {
+  Widget _buildRewardSection(BuildContext context) {
     double progress = (currentReward.currentHours / currentReward.requiredHours)
         .clamp(0.0, 1.0);
+
+    // Hitung reward berikutnya (tiap kelipatan 10 jam)
+    double nextStageHours =
+        ((currentReward.currentHours / 10).floor() + 1) * 10;
+
+    if (nextStageHours > currentReward.requiredHours) {
+      nextStageHours = currentReward.requiredHours;
+    }
 
     return Container(
       width: double.infinity,
@@ -170,14 +185,8 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
           LayoutBuilder(
             builder: (context, constraints) {
               double barWidth = constraints.maxWidth;
-              double markerPos =
-                  (currentReward.requiredHours / 2) /
-                  currentReward.requiredHours *
-                  barWidth;
-              double markerPos2 =
-                  (currentReward.requiredHours) /
-                  currentReward.requiredHours *
-                  barWidth;
+              double nextMarkerPos =
+                  nextStageHours / currentReward.requiredHours * barWidth;
 
               return Stack(
                 alignment: Alignment.centerLeft,
@@ -201,22 +210,9 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                       ),
                     ),
                   ),
-                  // Marker (halfway point)
+                  // Marker for next reward stage
                   Positioned(
-                    left: markerPos - 5,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black26, width: 1),
-                      ),
-                    ),
-                  ),
-                  // marker (end point)
-                  Positioned(
-                    left: markerPos2 - 10,
+                    left: nextMarkerPos - 5,
                     child: Container(
                       width: 10,
                       height: 10,
@@ -232,6 +228,8 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
             },
           ),
           const SizedBox(height: 12),
+
+          // Teks keterangan
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -240,7 +238,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                 style: const TextStyle(color: Colors.white),
               ),
               Text(
-                '${(currentReward.requiredHours - currentReward.currentHours).clamp(0, currentReward.requiredHours).toInt()}h to next reward',
+                '${(nextStageHours - currentReward.currentHours).clamp(0, double.infinity).toInt()}h to next reward',
                 style: const TextStyle(color: Colors.white),
               ),
             ],
@@ -371,36 +369,33 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
             _buildQuickAccessButton(
               icon: 'priceList',
               label: "Daftar Harga",
-              onTap:
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => HalamanPriceList()),
-                  ),
+              onTap: () => _navigateToScreen(HalamanPriceList()),
             ),
             _buildQuickAccessButton(
               icon: 'calender',
               label: "Booking",
-              onTap:
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => HalamanKalender()),
-                  ),
+              onTap: () => _navigateToScreen(HalamanKalender()),
             ),
             _buildQuickAccessButton(
               icon: 'aboutUs',
               label: "Tentang Kami",
-              onTap:
-                  () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => HalamanTentangKami(),
-                    ),
-                  ),
+              onTap: () => _navigateToScreen(HalamanTentangKami()),
             ),
           ],
         ),
       ),
     );
+  }
+
+  // Navigate to screen and refresh when returning
+  Future<void> _navigateToScreen(Widget screen) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    );
+    
+    // Refresh after returning
+    _checkbooked();
   }
 
   // Individual quick access button
@@ -516,10 +511,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => HalamanKalender()),
-          );
+          _navigateToScreen(HalamanKalender());
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(

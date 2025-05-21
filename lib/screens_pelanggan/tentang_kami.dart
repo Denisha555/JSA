@@ -254,7 +254,6 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               ElevatedButton.icon(
-                // icon: const Icon(Icons.whatsapp, color: Colors.white),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                 label: const Text("WhatsApp", style: TextStyle(color: Colors.white)),
                 onPressed: () {
@@ -262,7 +261,6 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                 },
               ),
               ElevatedButton.icon(
-                icon: const Icon(Icons.camera_alt, color: Colors.white),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Color.fromARGB(255, 255, 64, 156),
                 ),

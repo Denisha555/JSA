@@ -126,12 +126,6 @@ class _HalamanMemberState extends State<HalamanMember> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String username = prefs.getString('username') ?? '';
 
-      if (username.isEmpty) {
-        throw Exception('Username tidak ditemukan');
-      }
-
-      debugPrint('User $username is trying to become a member');
-
       // Update user status to member
       await FirebaseService().nonMemberToMember(username);
 
@@ -531,7 +525,7 @@ class _HalamanMemberState extends State<HalamanMember> {
           ),
           if (isLoading)
             Container(
-              color: Colors.black.withOpacity(0.3),
+              color: Colors.black.withValues(alpha: 0.3),
               child: const Center(child: CircularProgressIndicator()),
             ),
         ],

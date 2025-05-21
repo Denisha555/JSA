@@ -177,7 +177,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     child: Text('Cancel'),
                   ),
                   TextButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (nameController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(content: Text('Please enter customer name')),
@@ -190,6 +190,18 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                         bookingData[time]![court]!['username'] =
                             nameController.text;
                       });
+
+                      bool used = await FirebaseService().checkUser(nameController.text);
+
+                      if (used) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Customer name already used')),
+                        );
+                        return;
+                      } else {
+                        await FirebaseService().addUserByAdmin(nameController.text);
+                        // await FirebaseService().
+                      }
 
                       Navigator.pop(context);
                     },
