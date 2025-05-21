@@ -184,6 +184,26 @@ class LastActivity {
   }
 }
 
+class SlotStatus {
+  final String startTime;
+  final bool isAvailable;
+  final bool isClosed;
+
+  SlotStatus({
+    required this.startTime,
+    required this.isAvailable,
+    required this.isClosed,
+  });
+
+  factory SlotStatus.fromJson(Map<String, dynamic> json) {
+    return SlotStatus(
+      startTime: json['startTime'],
+      isAvailable: json['isAvailable'],
+      isClosed: json['isClosed'] ?? false,
+    );
+  }
+}
+
 const _timeSlots = [
   '07:00',
   '07:30',
@@ -1047,7 +1067,7 @@ class FirebaseService {
 
       final docRef = querySnapshot.docs.first.reference;
 
-      await docRef.update({'role': 'member'});
+      await docRef.update({'role': 'member', });
     } catch (e) {
       throw Exception('Failed to update user status: $e');
     }
@@ -1086,6 +1106,37 @@ class FirebaseService {
     } catch (e) {
       throw Exception('Failed to check slot availability: $e');
     }
+  }
+
+  Future<List<SlotStatus>> getSlotRangeAvailability({
+    required String startTime,
+    required String court,
+    required DateTime date,
+    required int maxSlots,
+  }) async {
+    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    final startHour = int.parse(startTime.split(':')[0]);
+    final startMinute = int.parse(startTime.split(':')[1]);
+
+    final query = firestore
+        .collection('time_slots')
+        .where('date', isEqualTo: dateStr)
+        .where('courtId', isEqualTo: court)
+        .where('startTime', isGreaterThan: startTime)
+        .orderBy('startTime', descending: false)
+        .limit(maxSlots);
+
+    return await query.get().then(
+      (snapshot) =>
+          snapshot.docs.map((doc) {
+            final data = doc.data();
+            return SlotStatus(
+              startTime: data['startTime'],
+              isAvailable: data['isAvailable'],
+              isClosed: data['isClosed'] ?? false,
+            );
+          }).toList(),
+    );
   }
 
   // Fungsi untuk menghapus slot perhari

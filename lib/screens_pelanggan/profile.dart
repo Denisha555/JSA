@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/main.dart';
-import 'package:flutter_application_1/screens_pelanggan/aktivitas.dart';
 import 'package:flutter_application_1/screens_pelanggan/member.dart';
 import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -52,10 +51,13 @@ class _HalamanProfilState extends State<HalamanProfil> {
     try {
       await _loadData();
       if (username != null && username!.isNotEmpty) {
-        isMember = await FirebaseService().memberOrNonmember(username!);
+        final result = await FirebaseService().memberOrNonmember(username!);
+
+        setState(() {
+          isMember = result;
+        });
+
         await getLastActivity();
-        // Here we would also fetch the reward data
-        // For now using dummy data
         currentReward = UserReward(currentHours: 35, requiredHours: 100);
       }
     } catch (e) {
@@ -577,29 +579,6 @@ class _HalamanProfilState extends State<HalamanProfil> {
 
               const SizedBox(height: 20),
 
-              // Reward progress section
-              Padding(
-                padding: const EdgeInsets.only(right: 20, left: 20),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Progres',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 20,
-                      ),
-                    ),
-                    const Divider(),
-                    const SizedBox(height: 5),
-                    _buildRewardSection(context),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
               // Activity history section
               Padding(
                 padding: const EdgeInsets.only(right: 20.0, left: 20),
@@ -621,7 +600,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => PilihHalamanPelanggan(selectedIndex: 1,),
+                                builder:
+                                    (context) =>
+                                        PilihHalamanPelanggan(selectedIndex: 1),
                               ),
                             );
                           },
@@ -638,7 +619,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (context) => PilihHalamanPelanggan(selectedIndex: 1,),
+                                builder:
+                                    (context) =>
+                                        PilihHalamanPelanggan(selectedIndex: 1),
                               ),
                             );
                           },
@@ -661,6 +644,29 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             ],
                           ),
                         ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Reward progress section
+              Padding(
+                padding: const EdgeInsets.only(right: 20, left: 20),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Progres',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                      ),
+                    ),
+                    const Divider(),
+                    const SizedBox(height: 5),
+                    _buildRewardSection(context),
                   ],
                 ),
               ),

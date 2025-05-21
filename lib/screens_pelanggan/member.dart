@@ -129,8 +129,6 @@ class _HalamanMemberState extends State<HalamanMember> {
       // Update user status to member
       await FirebaseService().nonMemberToMember(username);
 
-      debugPrint('User $username is now a member');
-
       // If no courtId is provided, use the first court from the list
       final String selectedCourtId =
           courtId ?? (courts.isNotEmpty ? courts[0].courtId : '');
@@ -178,10 +176,11 @@ class _HalamanMemberState extends State<HalamanMember> {
 
       Navigator.of(context).pop();
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal menjadi member: $e')));
-      debugPrint('Error becoming member: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal menjadi member: $e')));
+      }
     } finally {
       setState(() {
         isLoading = false;
@@ -189,57 +188,87 @@ class _HalamanMemberState extends State<HalamanMember> {
     }
   }
 
-  void _checkSlots(String startTime, String endTime) async {
-    if (courts.isEmpty) {
-      _getCourts(); // Ensure courts are loaded
-    }
+  // void _checkSlots(String startTime, String endTime) async {
+  //   if (courts.isEmpty) {
+  //     _getCourts(); // Ensure courts are loaded
+  //   }
 
-    int timeToMinutes(String time) {
-      final parts = time.split(':');
-      return int.parse(parts[0]) * 60 + int.parse(parts[1]);
-    }
+  //   int timeToMinutes(String time) {
+  //     final parts = time.split(':');
+  //     return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+  //   }
 
-    int startMinutes = timeToMinutes(startTime);
-    int endMinutes = timeToMinutes(endTime);
+  //   int startMinutes = timeToMinutes(startTime);
+  //   int endMinutes = timeToMinutes(endTime);
 
-    for (final court in courts) {
-      bool allDatesAvailable = true;
+  //   for (final court in courts) {
+  //     bool allDatesAvailable = true;
 
-      for (final selectedDate in selectedDates) {
-        for (
-          int slotStart = startMinutes;
-          slotStart < endMinutes;
-          slotStart += 30
-        ) {
-          final slotStartStr =
-              '${(slotStart ~/ 60).toString().padLeft(2, '0')}:${(slotStart % 60).toString().padLeft(2, '0')}';
+  //     for (final selectedDate in selectedDates) {
+  //       for (
+  //         int slotStart = startMinutes;
+  //         slotStart < endMinutes;
+  //         slotStart += 30
+  //       ) {
+  //         final slotStartStr =
+  //             '${(slotStart ~/ 60).toString().padLeft(2, '0')}:${(slotStart % 60).toString().padLeft(2, '0')}';
 
-          final isAvailable = await FirebaseService().isSlotAvailable(
-            slotStartStr,
-            court.courtId,
-            selectedDate,
-          );
+  //         final isAvailable = await FirebaseService().isSlotAvailable(
+  //           slotStartStr,
+  //           court.courtId,
+  //           selectedDate,
+  //         );
 
-          if (!isAvailable) {
-            allDatesAvailable = false;
-            break;
-          }
-        }
+  //         if (!isAvailable) {
+  //           allDatesAvailable = false;
+  //           break;
+  //         }
+  //       }
 
-        if (!allDatesAvailable) break;
-      }
+  //       if (!allDatesAvailable) break;
+  //     }
 
-      if (allDatesAvailable) {
-        debugPrint("Lapangan ${court.courtId} tersedia di semua tanggal!");
-        _showAvailabilityDialog(startTime, endTime, court.courtId);
-        return;
-      }
-    }
+  //     if (allDatesAvailable) {
+  //       debugPrint("Lapangan ${court.courtId} tersedia di semua tanggal!");
+  //       _showAvailabilityDialog(startTime, endTime, court.courtId);
+  //       return;
+  //     }
+  //   }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Jadwal yang dipilih tidak tersedia')),
+  //   ScaffoldMessenger.of(context).showSnackBar(
+  //     const SnackBar(content: Text('Jadwal yang dipilih tidak tersedia')),
+  //   );
+  // }
+
+  Future<void> _checkSlots(String startTime, String endTime) async {
+  if (courts.isEmpty) await _getCourts();
+
+  // 1. 转换时间范围
+  final timeRange = TimeRange(startTime, endTime);
+  final dateStrings = selectedDates.map((d) => _formatDate(d)).toList();
+
+  // 2. 批量获取所有需要的数据
+  final allSlots = await FirebaseService().getMultiDayCourtAvailability(
+    dates: dateStrings,
+    timeRange: timeRange,
+    courtIds: courts.map((c) => c.courtId).toList(),
+  );
+
+  // 3. 查找第一个完全可用的场地
+  for (final court in courts) {
+    final isAvailable = allSlots.any((slot) => 
+      slot.courtId == court.courtId && 
+      slot.isFullyAvailable
     );
+
+    if (isAvailable) {
+      _showAvailabilityDialog(startTime, endTime, court.courtId);
+      return;
+    }
   }
+
+  _showNotAvailableSnackbar();
+}
 
   void _showAvailabilityDialog(
     String startTime,
@@ -322,10 +351,10 @@ class _HalamanMemberState extends State<HalamanMember> {
   @override
   void dispose() {
     // Safely dispose controllers with null checks to avoid potential errors
-    if(startTimeController != null) {
+    if (startTimeController != null) {
       startTimeController.dispose();
     }
-    if(endTimeController != null) {
+    if (endTimeController != null) {
       endTimeController.dispose();
     }
     super.dispose();
@@ -409,7 +438,8 @@ class _HalamanMemberState extends State<HalamanMember> {
                   onSelected: (String selection) {
                     setState(() {
                       selectedStartTime = selection;
-                      startTimeController.text = selection;  // Update the controller's value
+                      startTimeController.text =
+                          selection; // Update the controller's value
                     });
                   },
                   fieldViewBuilder: (
@@ -449,7 +479,8 @@ class _HalamanMemberState extends State<HalamanMember> {
                   onSelected: (String selection) {
                     setState(() {
                       selectedEndTime = selection;
-                      endTimeController.text = selection;  // Update the controller's value
+                      endTimeController.text =
+                          selection; // Update the controller's value
                     });
                   },
                   fieldViewBuilder: (
