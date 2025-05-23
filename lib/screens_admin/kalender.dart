@@ -16,6 +16,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   bool isLoading = true;
   bool hasError = false;
   String errorMessage = '';
+  Set<String> processingCells = {};
 
   Map<String, Map<String, Map<String, dynamic>>> bookingData = {};
   List<String> courtIds = [];
@@ -107,7 +108,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       context: context,
       builder: (context) {
         int selectedDuration = 1;
-        String endTime = '';
 
         void updateEndTime() {
           int startHour = int.parse(startTime.split(':')[0]);
@@ -116,7 +116,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               startHour * 60 + startMinute + (selectedDuration * 30);
           int endHour = totalMinutes ~/ 60;
           int endMinute = totalMinutes % 60;
-          endTime =
+          String endTime =
               '${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}';
         }
 
@@ -180,7 +180,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     onPressed: () async {
                       if (nameController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Please enter customer name')),
+                          SnackBar(
+                            content: Text('Silahkan inputkan nama customer'),
+                          ),
                         );
                         return;
                       }
@@ -191,15 +193,21 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                             nameController.text;
                       });
 
-                      bool used = await FirebaseService().checkUser(nameController.text);
+                      bool used = await FirebaseService().checkUser(
+                        nameController.text,
+                      );
 
                       if (used) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Customer name already used')),
+                          SnackBar(
+                            content: Text('Nama customer sudah digunakan'),
+                          ),
                         );
                         return;
                       } else {
-                        await FirebaseService().addUserByAdmin(nameController.text);
+                        await FirebaseService().addUserByAdmin(
+                          nameController.text,
+                        );
                         // await FirebaseService().
                       }
 
@@ -245,7 +253,10 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         _processBookingData(slots);
       }
     } catch (e) {
-      print('Error loading slots: $e');
+      debugPrint('Error loading slots: $e');
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading slots: $e')));
       if (mounted) {
         setState(() {
           hasError = true;
@@ -283,7 +294,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         });
       }
     } catch (e) {
-      debugPrint('Error processing booking data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error processing booking data: $e')),
+      );
       if (mounted) {
         setState(() {
           hasError = true;
@@ -301,14 +314,17 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       courtIds =
           courtsSnapshot.docs.map((doc) => doc['nomor'].toString()).toList();
     } catch (e) {
-      debugPrint('Error loading courts: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading courts: $e')));
       throw Exception('Failed to load courts: $e');
     }
   }
 
   // Show booking details
-  void _showBookingDetails(String time, String court, String username) {
-    showDialog(
+  void _showBookingDetails(String time, String court, String username) async {
+    await showDialog(
       context: context,
       builder:
           (context) => AlertDialog(
@@ -381,7 +397,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 onPressed: () {
                   if (nameController.text.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Please enter customer name')),
+                      SnackBar(content: Text('Silahkan inputkan nama customers')),
                     );
                     return;
                   }
@@ -434,178 +450,145 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     );
   }
 
+  bool _isTimePast(String timeSlot, DateTime date) {
+    try {
+      debugPrint("Cek timeSlot: $timeSlot"); // debug
+      final now = DateTime.now();
+      final startTime = timeSlot.split(' - ')[0];
+      final hour = int.parse(startTime.split(':')[0]);
+      final minute = int.parse(startTime.split(':')[1]);
+
+      final slotDateTime = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        hour,
+        minute,
+      );
+
+      debugPrint("Now: $now | Slot: $slotDateTime"); // debug
+
+      return slotDateTime.isBefore(now);
+    } catch (e) {
+      debugPrint("Error parsing timeSlot: $e");
+      return false;
+    }
+  }
+
+  // Generate unique key for each cell to track processing state
+  String _getCellKey(String time, String court) {
+    return '${time}_$court';
+  }
+
   // Widget for court cell
   Widget _buildCourtCell(
-    String time,
-    String court,
-    bool isAvailable,
-    String username,
-    bool isClosed,
-  ) {
-    return InkWell(
-      onTap: () {
-        if (isClosed) {
-          // Do nothing or show a message that the court is closed
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('This time slot is closed and not available for booking'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-          return;
-        }
-        
-        if (!isAvailable) {
-          _showBookingDetails(time, court, username);
-        } else {
-          _showAddBookingDialog(time, court);
-        }
-      },
-      child: Container(
-        width: 120,
-        height: 50,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isClosed 
-              ? Colors.grey 
-              : (isAvailable ? availableColor : bookedColor),
-          border: Border.all(color: Colors.grey.shade300),
+  String time,
+  String court,
+  bool isAvailable,
+  String username,
+  bool isClosed,
+) {
+  // Cek apakah waktu ini sudah lewat
+  bool isPast = _isTimePast(time, selectedDate);
+
+  // Key unik untuk cell
+  String cellKey = _getCellKey(time, court);
+  bool isProcessing = processingCells.contains(cellKey);
+
+  void handleTap() async {
+    if (isProcessing) return;
+
+    if (isPast) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Waktu ini sudah lewat, tidak bisa dibooking'),
+          backgroundColor: Colors.grey,
+          duration: Duration(seconds: 2),
         ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              isClosed 
-                  ? 'Closed' 
-                  : (isAvailable ? 'Available' : 'Booked'),
-              style: TextStyle(
-                color: isClosed 
-                    ? Colors.white
-                    : (isAvailable ? Colors.green.shade700 : Colors.red.shade700),
-                fontWeight: FontWeight.w500,
-                fontSize: 12,
-              ),
-            ),
-            if (!isAvailable && !isClosed)
-              Text(
-                username,
-                style: TextStyle(fontSize: 11),
-                overflow: TextOverflow.ellipsis,
-              ),
-          ],
+      );
+      return;
+    }
+
+    if (isClosed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Lapangan ditutup pada waktu ini'),
+          backgroundColor: Colors.grey,
+          duration: Duration(seconds: 2),
         ),
+      );
+      return;
+    }
+
+    // Tandai cell sedang diproses
+    setState(() {
+      processingCells.add(cellKey);
+    });
+
+    try {
+      if (!isAvailable) {
+        _showBookingDetails(time, court, username);
+      } else {
+        _showAddBookingDialog(time, court);
+      }
+    } finally {
+      // Hapus dari daftar proses
+      setState(() {
+        processingCells.remove(cellKey);
+      });
+    }
+  }
+
+  return GestureDetector(
+    onTap: handleTap,
+    child: Container(
+      width: 120,
+      height: 50,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: isClosed
+            ? Colors.grey
+            : (isAvailable ? availableColor : bookedColor),
+        border: Border.all(color: Colors.grey.shade300),
       ),
-    );
-  }
-
-  // Show dialog to select time slot and court
-  void _showTimeSlotCourtSelectionDialog() {
-    String? selectedTimeSlot;
-    String? selectedCourt;
-
-    final timeSlots = bookingData.keys.toList();
-    final courts = [
-      'Lapangan 1',
-      'Lapangan 2',
-      'Lapangan 3',
-      'Lapangan 4',
-      'Lapangan 5',
-      'Lapangan 6',
-    ];
-
-    showDialog(
-      context: context,
-      builder:
-          (context) => StatefulBuilder(
-            builder:
-                (context, setState) => AlertDialog(
-                  title: Text('Select Time and Court'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(labelText: 'Time Slot'),
-                        value: selectedTimeSlot,
-                        items:
-                            timeSlots.map((timeSlot) {
-                              return DropdownMenuItem<String>(
-                                value: timeSlot,
-                                child: Text(timeSlot),
-                              );
-                            }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedTimeSlot = value;
-                          });
-                        },
-                      ),
-                      SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        decoration: InputDecoration(labelText: 'Court'),
-                        value: selectedCourt,
-                        items:
-                            courts.map((court) {
-                              return DropdownMenuItem<String>(
-                                value: court,
-                                child: Text(court),
-                              );
-                            }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            selectedCourt = value;
-                          });
-                        },
-                      ),
-                    ],
+      child: isProcessing
+          ? SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white,
+              ),
+            )
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  isClosed
+                      ? 'Tutup'
+                      : (isAvailable ? 'Tersedia' : 'Telah Dibooking'),
+                  style: TextStyle(
+                    color: isClosed
+                        ? Colors.white
+                        : (isAvailable
+                            ? Colors.green.shade700
+                            : Colors.red.shade700),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
                   ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        if (selectedTimeSlot == null || selectedCourt == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Please select both time slot and court',
-                              ),
-                            ),
-                          );
-                          return;
-                        }
-
-                        Navigator.pop(context);
-
-                        final courtData = bookingData[selectedTimeSlot]![selectedCourt]!;
-                        
-                        if (courtData['isClosed'] == true) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('This time slot is closed and not available for booking'),
-                            ),
-                          );
-                        } else if (!courtData['isAvailable']) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('This time slot is already booked'),
-                            ),
-                          );
-                        } else {
-                          _showAddBookingDialog(
-                            selectedTimeSlot!,
-                            selectedCourt!,
-                          );
-                        }
-                      },
-                      child: Text('Next'),
-                    ),
-                  ],
                 ),
-          ),
-    );
-  }
+                if (!isAvailable && !isClosed)
+                  Text(
+                    username,
+                    style: TextStyle(fontSize: 11),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
+            ),
+    ),
+  );
+}
+
 
   @override
   void initState() {
@@ -717,7 +700,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   color: bookedColor,
                   margin: const EdgeInsets.only(right: 4),
                 ),
-                const Text('Sudah Dibooking'),
+                const Text('Telah Dibooking'),
                 const SizedBox(width: 16),
                 Container(
                   width: 16,
@@ -743,13 +726,11 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                       ),
                     )
                     // Header row
-                    : 
-                    RefreshIndicator(
+                    : RefreshIndicator(
                       onRefresh: () async {
                         _loadOrCreateSlots(selectedDate);
                       },
-                      child: 
-                      SingleChildScrollView(
+                      child: SingleChildScrollView(
                         child: SingleChildScrollView(
                           scrollDirection: Axis.horizontal,
                           child: Padding(

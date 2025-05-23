@@ -30,12 +30,14 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
 
 flutter:
   uses-material-design: true
 
   assets:
     - assets/image/LogoJSA.jpg
+    - assets/image/LogoJSA.png
     - assets/image/PriceList.jpeg
     - assets/image/Promo.jpeg
     - assets/image/Kalender.jpeg
@@ -43,3 +45,8 @@ flutter:
     - assets/image/TentangKami.png
     - assets/image/Lapangan.jpg
     - assets/image/PromoEvent.jpeg
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/image/LogoJSA.png"

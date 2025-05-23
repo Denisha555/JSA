@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
+import 'package:flutter_application_1/constants_file.dart';
 
 class HalamanCustomers extends StatefulWidget {
   const HalamanCustomers({super.key});
@@ -96,6 +97,9 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                     _buildUserList('nonMember'),
                   ],
                 ),
+                floatingActionButton: FloatingActionButton(onPressed: () {
+                 
+                }, backgroundColor: primaryColor, child: Icon(Icons.add, color: Colors.white, )),
       ),
     );
   }

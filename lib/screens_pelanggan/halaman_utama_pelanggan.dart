@@ -292,7 +292,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                   onPressed: () {
                     // TODO: Implement reschedule functionality
                   },
-                  label: const Text("Reschedule"),
+                  label: const Text("Ubah Jadwal"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: primaryColor,
                     foregroundColor: Colors.white,
@@ -302,7 +302,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
                   onPressed: () {
                     // TODO: Implement cancel functionality
                   },
-                  label: const Text("Cancel"),
+                  label: const Text("Batal"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,

@@ -5,21 +5,8 @@ import 'package:flutter_application_1/screens_pelanggan/member.dart';
 import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
+import 'package:flutter_application_1/screens_pelanggan/halaman_utama_pelanggan.dart';
 
-// Define the missing reward class
-class UserReward {
-  final double currentHours;
-  final double requiredHours;
-
-  UserReward({required this.currentHours, required this.requiredHours});
-}
-
-class LastActivity {
-  final String courtId;
-  final String date;
-
-  LastActivity({required this.courtId, required this.date});
-}
 
 class HalamanProfil extends StatefulWidget {
   const HalamanProfil({super.key});
@@ -33,9 +20,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
   bool isLoading = true;
   bool isMember = false;
   List<LastActivity> activity = [];
-
-  // Initialize with default values
-  UserReward currentReward = UserReward(currentHours: 0, requiredHours: 100);
+  List<UserData> data = [];
 
   @override
   void initState() {
@@ -58,7 +43,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
         });
 
         await getLastActivity();
-        currentReward = UserReward(currentHours: 35, requiredHours: 100);
+        final Reward currentReward = Reward(currentHours: 6);
       }
     } catch (e) {
       debugPrint('Error initializing profile: $e');
@@ -70,9 +55,13 @@ class _HalamanProfilState extends State<HalamanProfil> {
   }
 
   Future<void> _loadData() async {
+    List<UserData> temp = [];
+    temp = FirebaseService().getUserData(username!);
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       username = prefs.getString('username');
+      data = temp;
     });
   }
 
@@ -185,6 +174,8 @@ class _HalamanProfilState extends State<HalamanProfil> {
           username = newUsername;
         });
 
+        if (!mounted) return;
+
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Username updated successfully!')),
@@ -194,6 +185,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
         Navigator.of(context).pop();
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Error updating username: $e')));
@@ -207,6 +199,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.setString('password', newPassword);
 
+        if (!mounted) return;
         // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Password updated successfully!')),
@@ -257,7 +250,11 @@ class _HalamanProfilState extends State<HalamanProfil> {
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                  onPressed: () => _updateUsername(usernameController.text),
+                  onPressed: () async {
+                    _updateUsername(usernameController.text);
+                    SharedPreferences prefs = await SharedPreferences.getInstance();
+                    await prefs.setString('username', usernameController.text);
+                  },
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(120, 45),
                   ),
@@ -342,7 +339,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
         final temp = await FirebaseService().getLastActivity(username!);
         if (temp.isNotEmpty) {
           setState(() {
-            // activity = temp;
+            activity = temp;
           });
         }
       }
@@ -378,11 +375,13 @@ class _HalamanProfilState extends State<HalamanProfil> {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.remove('username');
 
+        if (!mounted) return;
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => const MainApp()),
         );
       } catch (e) {
+        if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
@@ -458,8 +457,8 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                 color: Colors.white,
                               ),
                             ),
-                            const Text(
-                              '2.450 Poin',
+                            Text(
+                              '${data.isNotEmpty ? data[0].totalHour.toStringAsFixed(1) : 0} Poin',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 13,
@@ -480,7 +479,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                       ),
                       color: Colors.grey[100],
                       elevation: 2,
-                      child: const Padding(
+                      child: Padding(
                         padding: EdgeInsets.all(10),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -488,7 +487,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             Column(
                               children: [
                                 Text(
-                                  '25',
+                                  '${data.isNotEmpty ? data[0].totalBooking.toStringAsFixed(1) : 0}',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -500,13 +499,13 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             Column(
                               children: [
                                 Text(
-                                  '2.450',
+                                  '${data.isNotEmpty ? data[0].totalHour.toStringAsFixed(1) : 0}',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
-                                Text('Point', style: TextStyle(fontSize: 12)),
+                                Text('Poin', style: TextStyle(fontSize: 12)),
                               ],
                             ),
                           ],
@@ -597,7 +596,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                     activity.isEmpty
                         ? GestureDetector(
                           onTap: () {
-                            Navigator.push(
+                            Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
                                 builder:
@@ -616,7 +615,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                         )
                         : GestureDetector(
                           onTap: () {
-                            Navigator.push(
+                            Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
                                 builder:

@@ -15,7 +15,7 @@ class _HalamanMemberState extends State<HalamanMember> {
   String? selectedEndTime;
   int? selectedWeekday;
   List<DateTime> selectedDates = [];
-  List<String> selectedDatesString = []; // Store dates in string format
+  List<String> selectedDatesString = [];
   List<AvailableForMember> availableSlots = [];
   List<AllCourts> courts = [];
   bool isLoading = false;
@@ -101,8 +101,7 @@ class _HalamanMemberState extends State<HalamanMember> {
         hasCheckedAvailability = true;
       });
     } catch (e) {
-      debugPrint("Error checking availability: $e");
-
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Terjadi kesalahan: $e')));
@@ -166,10 +165,10 @@ class _HalamanMemberState extends State<HalamanMember> {
 
           debugPrint('Booking slot: $slotId');
 
-          await FirebaseService().bookSlot(slotId, username);
+          await FirebaseService().bookSlotForMember(slotId, username);
         }
       }
-
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selamat! Anda berhasil menjadi member')),
       );
@@ -234,7 +233,7 @@ class _HalamanMemberState extends State<HalamanMember> {
         return;
       }
     }
-
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Jadwal yang dipilih tidak tersedia')),
     );
@@ -397,11 +396,12 @@ class _HalamanMemberState extends State<HalamanMember> {
                 const SizedBox(height: 10),
                 Autocomplete<String>(
                   optionsBuilder: (TextEditingValue textEditingValue) {
-                    if (textEditingValue.text == '') {
+                    if (textEditingValue.text.isEmpty) {
                       return const Iterable<String>.empty();
                     }
                     return generateTimeOptions().where(
-                      (option) => option.contains(textEditingValue.text),
+                      (option) =>
+                          option.contains(textEditingValue.text.toLowerCase()),
                     );
                   },
                   displayStringForOption: (option) => option,
@@ -409,7 +409,7 @@ class _HalamanMemberState extends State<HalamanMember> {
                     setState(() {
                       selectedStartTime = selection;
                       startTimeController.text =
-                          selection; // Update the controller's value
+                          selection; // Simpan ke controller utama
                     });
                   },
                   fieldViewBuilder: (
@@ -418,9 +418,8 @@ class _HalamanMemberState extends State<HalamanMember> {
                     FocusNode focusNode,
                     VoidCallback onFieldSubmitted,
                   ) {
-                    // Use our class-level controller instead of the provided one
                     return TextField(
-                      controller: startTimeController,
+                      controller: fieldTextEditingController,
                       focusNode: focusNode,
                       decoration: const InputDecoration(
                         hintText: 'Pilih waktu mulai',
@@ -450,7 +449,7 @@ class _HalamanMemberState extends State<HalamanMember> {
                     setState(() {
                       selectedEndTime = selection;
                       endTimeController.text =
-                          selection; // Update the controller's value
+                          selection; // Update your external controller
                     });
                   },
                   fieldViewBuilder: (
@@ -459,9 +458,8 @@ class _HalamanMemberState extends State<HalamanMember> {
                     FocusNode focusNode,
                     VoidCallback onFieldSubmitted,
                   ) {
-                    // Use our class-level controller instead of the provided one
                     return TextField(
-                      controller: endTimeController,
+                      controller: fieldTextEditingController,
                       focusNode: focusNode,
                       decoration: const InputDecoration(
                         hintText: 'Pilih waktu selesai',

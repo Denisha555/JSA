@@ -250,7 +250,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
       courtIds =
           courtsSnapshot.docs.map((doc) => doc['nomor'].toString()).toList();
     } catch (e) {
-      print('Error loading courts: $e');
+      debugPrint('Error loading courts: $e');
       throw Exception('Failed to load courts: $e');
     }
   }
@@ -312,8 +312,8 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
         children: [
           Text(
               isClosed 
-                  ? 'Closed' 
-                  : (isAvailable ? 'Available' : 'Booked'),
+                  ? 'Tutup' 
+                  : (isAvailable ? 'Tersedia' : 'Telah Dibooking'),
               style: TextStyle(
                 color: isClosed 
                     ? Colors.white
@@ -514,6 +514,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.remove('username');
 
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -521,6 +522,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
         ),
       );
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error logging out: $e')),
       );
@@ -582,7 +584,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                       color: bookedColor,
                       margin: const EdgeInsets.only(right: 4),
                     ),
-                    const Text('Sudah Dibooking'),
+                    const Text('Telah Dibooking'),
                     const SizedBox(width: 16),
                     Container(
                       width: 16,
