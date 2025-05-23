@@ -363,6 +363,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     try {
       await _loadCourts();
 
+      if (!mounted) return;
+
       Map<String, Map<String, CourtSlotData>> tempData = {};
 
       // Initialize all time slots with default values

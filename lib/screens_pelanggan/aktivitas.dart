@@ -53,13 +53,19 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
   }
 
   Future<void> _fetchBookingData() async {
+    if (!mounted) return;
+
     setState(() {
       isLoading = true;
     });
 
     try {
-      final allBookings = await FirebaseService().getAllBookingsByUsername(username);
+      final allBookings = await FirebaseService().getAllBookingsByUsername(
+        username,
+      );
 
+      if (!mounted) return; 
+      
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
 
@@ -71,7 +77,8 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
         String formattedDate = DateFormat('yyyy-MM-dd').format(bookingDate);
 
         if (bookingDate.isBefore(today) ||
-            (bookingDate.isAtSameMomentAs(today) && _isTimeInPast(booking.startTime))) {
+            (bookingDate.isAtSameMomentAs(today) &&
+                _isTimeInPast(booking.startTime))) {
           pastBookings.add(
             Riwayat(
               tanggal: formattedDate,
@@ -132,97 +139,120 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
             tabs: [Tab(text: "Riwayat"), Tab(text: "Terjadwal")],
           ),
         ),
-        body: isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : TabBarView(
-                children: [
-                  // Riwayat Tab
-                  RefreshIndicator(
-                    onRefresh: _fetchBookingData,
-                    child: riwayats.isEmpty
-                        ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: const [
-                              SizedBox(height: 200),
-                              Center(
-                                child: Text("Tidak ada riwayat pemesanan"),
-                              ),
-                            ],
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: riwayats.length,
-                            itemBuilder: (context, index) {
-                              final riwayat = riwayats[index];
-                              return Card(
-                                elevation: 2,
-                                margin: const EdgeInsets.symmetric(vertical: 8),
-                                child: ListTile(
-                                  leading: const Icon(Icons.check_circle, color: Colors.green),
-                                  title: Row(
-                                    children: [
-                                      Text(
-                                        riwayat.tanggal,
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        riwayat.waktu,
-                                        style: const TextStyle(color: Colors.blue),
-                                      ),
-                                    ],
+        body:
+            isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : TabBarView(
+                  children: [
+                    // Riwayat Tab
+                    RefreshIndicator(
+                      onRefresh: _fetchBookingData,
+                      child:
+                          riwayats.isEmpty
+                              ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: const [
+                                  SizedBox(height: 200),
+                                  Center(
+                                    child: Text("Tidak ada riwayat pemesanan"),
                                   ),
-                                  subtitle: Text(riwayat.keterangan),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
+                                ],
+                              )
+                              : ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: riwayats.length,
+                                itemBuilder: (context, index) {
+                                  final riwayat = riwayats[index];
+                                  return Card(
+                                    elevation: 2,
+                                    margin: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    child: ListTile(
+                                      leading: const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                      ),
+                                      title: Row(
+                                        children: [
+                                          Text(
+                                            riwayat.tanggal,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            riwayat.waktu,
+                                            style: const TextStyle(
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      subtitle: Text(riwayat.keterangan),
+                                    ),
+                                  );
+                                },
+                              ),
+                    ),
 
-                  // Terjadwal Tab
-                  RefreshIndicator(
-                    onRefresh: _fetchBookingData,
-                    child: terjadwals.isEmpty
-                        ? ListView(
-                            physics: const AlwaysScrollableScrollPhysics(),
-                            children: const [
-                              SizedBox(height: 200),
-                              Center(
-                                child: Text("Tidak ada jadwal pemesanan mendatang"),
-                              ),
-                            ],
-                          )
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: terjadwals.length,
-                            itemBuilder: (context, index) {
-                              final booking = terjadwals[index];
-                              return Card(
-                                elevation: 2,
-                                margin: const EdgeInsets.symmetric(vertical: 8),
-                                child: ListTile(
-                                  leading: const Icon(Icons.schedule, color: Colors.blue),
-                                  title: Row(
-                                    children: [
-                                      Text(
-                                        booking.tanggal,
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Text(
-                                        booking.jam,
-                                        style: const TextStyle(color: Colors.blue),
-                                      ),
-                                    ],
+                    // Terjadwal Tab
+                    RefreshIndicator(
+                      onRefresh: _fetchBookingData,
+                      child:
+                          terjadwals.isEmpty
+                              ? ListView(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                children: const [
+                                  SizedBox(height: 200),
+                                  Center(
+                                    child: Text(
+                                      "Tidak ada jadwal pemesanan mendatang",
+                                    ),
                                   ),
-                                  subtitle: Text(booking.lapangan),
-                                ),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
+                                ],
+                              )
+                              : ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: terjadwals.length,
+                                itemBuilder: (context, index) {
+                                  final booking = terjadwals[index];
+                                  return Card(
+                                    elevation: 2,
+                                    margin: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    child: ListTile(
+                                      leading: const Icon(
+                                        Icons.schedule,
+                                        color: Colors.blue,
+                                      ),
+                                      title: Row(
+                                        children: [
+                                          Text(
+                                            booking.tanggal,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Text(
+                                            booking.jam,
+                                            style: const TextStyle(
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      subtitle: Text(booking.lapangan),
+                                    ),
+                                  );
+                                },
+                              ),
+                    ),
+                  ],
+                ),
       ),
     );
   }

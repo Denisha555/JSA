@@ -327,7 +327,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
         selectedDate,
       );
 
-      debugPrint('Time slots: $timeSlots');
+      if (!mounted) return;
 
       if (timeSlots.isNotEmpty) {
         final timeSlot = timeSlots.first;

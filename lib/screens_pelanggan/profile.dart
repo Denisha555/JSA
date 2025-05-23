@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/screens_pelanggan/halaman_utama_pelanggan.dart';
 
-
 class HalamanProfil extends StatefulWidget {
   const HalamanProfil({super.key});
 
@@ -38,6 +37,8 @@ class _HalamanProfilState extends State<HalamanProfil> {
       if (username != null && username!.isNotEmpty) {
         final result = await FirebaseService().memberOrNonmember(username!);
 
+        if (!mounted) return;
+
         setState(() {
           isMember = result;
         });
@@ -55,12 +56,20 @@ class _HalamanProfilState extends State<HalamanProfil> {
   }
 
   Future<void> _loadData() async {
-    List<UserData> temp = [];
-    temp = FirebaseService().getUserData(username!);
-
     SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? loadedUsername = prefs.getString('username');
+
+    if (loadedUsername == null || loadedUsername.isEmpty) {
+      debugPrint('Username belum tersedia');
+      return;
+    }
+
+    List<UserData> temp = await FirebaseService().getUserData(loadedUsername);
+
+    if (!mounted) return;
+
     setState(() {
-      username = prefs.getString('username');
+      username = loadedUsername;
       data = temp;
     });
   }
@@ -252,7 +261,8 @@ class _HalamanProfilState extends State<HalamanProfil> {
                 ElevatedButton(
                   onPressed: () async {
                     _updateUsername(usernameController.text);
-                    SharedPreferences prefs = await SharedPreferences.getInstance();
+                    SharedPreferences prefs =
+                        await SharedPreferences.getInstance();
                     await prefs.setString('username', usernameController.text);
                   },
                   style: ElevatedButton.styleFrom(
@@ -270,66 +280,97 @@ class _HalamanProfilState extends State<HalamanProfil> {
 
   Widget editPassword(BuildContext context) {
     TextEditingController passwordController = TextEditingController();
+    TextEditingController passwordController2 = TextEditingController();
     bool obscureText = true;
 
-    return StatefulBuilder(
-      builder: (context, setState) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20.0),
-          ),
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Ubah Password',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+      child: SingleChildScrollView(
+        // Scrollable content
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Ubah Password',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: passwordController,
+              obscureText: obscureText,
+              decoration: InputDecoration(
+                hintText: 'Input password baru',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: passwordController,
-                  obscureText: obscureText,
-                  decoration: InputDecoration(
-                    hintText: 'Input password baru',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        obscureText ? Icons.visibility : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          obscureText = !obscureText;
-                        });
-                      },
-                    ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    obscureText ? Icons.visibility : Icons.visibility_off,
                   ),
+                  onPressed: () {
+                    setState(() {
+                      obscureText = !obscureText;
+                    });
+                  },
                 ),
-                const SizedBox(height: 15),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Cancel'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () => _updatePassword(passwordController.text),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(120, 45),
-                      ),
-                      child: const Text('Update'),
-                    ),
-                  ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            TextField(
+              controller: passwordController2,
+              obscureText: obscureText,
+              decoration: InputDecoration(
+                hintText: 'Konfirmasi password baru',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    obscureText ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      obscureText = !obscureText;
+                    });
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 15),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (passwordController.text.isEmpty || passwordController2.text.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Password tidak boleh kosong')),
+                      ); 
+                      return;
+                    } else if (passwordController.text == passwordController2.text) {
+                      _updatePassword(passwordController.text);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Password tidak sama')),
+                      );
+                      return;
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(120, 45),
+                  ),
+                  child: const Text('Update'),
                 ),
               ],
             ),
-          ),
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 
@@ -487,7 +528,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             Column(
                               children: [
                                 Text(
-                                  '${data.isNotEmpty ? data[0].totalBooking.toStringAsFixed(1) : 0}',
+                                  '${data.isNotEmpty ? data[0].totalBooking.toString() : 0}',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
@@ -689,7 +730,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                     const Divider(),
                     ListTile(
                       leading: const Icon(Icons.edit, size: 20),
-                      title: const Text('Ubah Username'),
+                      title: const Text('Edit Profil'),
                       contentPadding: EdgeInsets.zero,
                       dense: true,
                       onTap: () {

@@ -221,11 +221,11 @@ class UserData {
 
   factory UserData.fromJson(Map<String, dynamic> json) {
     return UserData(
-      username: json['username'],
-      startTime: json['startTime'],
-      point: json['point'],
-      totalHour: json['totalHour'],
-      totalBooking: json['totalBooking'],
+      username: json['username'] ?? '',
+      startTime: json['startTime'] ?? '',
+      point: (json['point'] ?? 0).toDouble(),
+      totalHour: (json['totalHours'] ?? 0).toDouble(),
+      totalBooking: (json['totalBooking'] ?? 0).toInt(),
     );
   }
 }
@@ -377,14 +377,24 @@ class FirebaseService {
     }
   }
 
-  List<UserData> getUserData(String username) {
-    List<UserData> users = [];
-    firestore.collection('users').where('username', isEqualTo: username).get().then((snapshot) {
+  Future<List<UserData>> getUserData(String username) async {
+    try {
+      List<UserData> users = [];
+
+      QuerySnapshot snapshot =
+          await firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .get();
+
       for (DocumentSnapshot doc in snapshot.docs) {
         users.add(UserData.fromJson(doc.data() as Map<String, dynamic>));
       }
-    });
-    return users;
+
+      return users;
+    } catch (e) {
+      throw Exception('Error Checking User: $e');
+    }
   }
 
   // Fungsi untuk menyimpan gambar promo dan event ke Firestore

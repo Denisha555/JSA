@@ -196,6 +196,8 @@ class _HalamanMasukState extends State<HalamanMasuk>
             if (valid) {
               SharedPreferences prefs = await SharedPreferences.getInstance();
               prefs.setString('username', usernameController.text);
+
+              if (!mounted) return;
               
               Navigator.pop(context);
               Navigator.pushReplacement(
