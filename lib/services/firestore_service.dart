@@ -230,6 +230,29 @@ class UserData {
   }
 }
 
+class UserProfil {
+  final String username;
+  final String name;
+  final String club;
+  final String phoneNumber;
+
+  UserProfil({
+    required this.username,
+    required this.name,
+    required this.club,
+    required this.phoneNumber,
+  });
+
+  factory UserProfil.fromJson(Map<String, dynamic> json) {
+    return UserProfil(
+      username: json['username'],
+      name: json['name'],
+      club: json['club'] ?? '',
+      phoneNumber: json['phoneNumber'],
+    );
+  }
+}
+
 const _timeSlots = [
   '07:00',
   '07:30',
@@ -357,6 +380,60 @@ class FirebaseService {
     }
   }
 
+  Future<bool> checknama(String nama) async {
+    try {
+      CollectionReference users = firestore.collection('users');
+      QuerySnapshot querySnapshot =
+          await users
+              .where('nama', isEqualTo: nama)
+              .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      throw Exception('Error Checking User: $e');
+    }
+  }
+
+  Future<bool> checkphoneNumber(String phoneNumber) async {
+    try {
+      CollectionReference users = firestore.collection('users');
+      QuerySnapshot querySnapshot = 
+      await users
+              .where('phoneNumber', isEqualTo: phoneNumber)
+              .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      throw Exception('Error Checking User: $e');
+    }
+  }
+
+  Future<bool> checkclub(String club) async {
+    try {
+      CollectionReference users = firestore.collection('users');
+      QuerySnapshot querySnapshot =
+          await users
+              .where('club', isEqualTo: club)
+              .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (e) {
+      throw Exception('Error Checking User: $e');
+    }
+  }
+
   Future<void> editUsername(String username, String newUsername) async {
     try {
       await firestore
@@ -366,6 +443,22 @@ class FirebaseService {
           .then((snapshot) {
             for (DocumentSnapshot doc in snapshot.docs) {
               doc.reference.update({'username': newUsername});
+            }
+          });
+    } catch (e) {
+      throw Exception('Error Checking User: $e');
+    }
+  }
+  
+  Future<void> editProfil(String username, String name, String club, String phoneNumber) async {
+    try {
+      await firestore
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .get()
+          .then((snapshot) {
+            for (DocumentSnapshot doc in snapshot.docs) {
+              doc.reference.update({'name': name, 'club': club, 'phoneNumber': phoneNumber});
             }
           });
     } catch (e) {
@@ -404,6 +497,26 @@ class FirebaseService {
       }
 
       return users;
+    } catch (e) {
+      throw Exception('Error Checking User: $e');
+    }
+  }
+
+  Future<List<UserProfil>> getProfilData (String username) async {
+    try {
+      List<UserProfil> profil = [];
+
+      QuerySnapshot snapshot =
+          await firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .get();
+
+      for (DocumentSnapshot doc in snapshot.docs) {
+        profil.add(UserProfil.fromJson(doc.data() as Map<String, dynamic>));
+      }
+
+      return profil;
     } catch (e) {
       throw Exception('Error Checking User: $e');
     }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/main.dart';
+import 'package:flutter_application_1/screens_pelanggan/edit_profil.dart';
 import 'package:flutter_application_1/screens_pelanggan/member.dart';
 import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -251,9 +252,10 @@ class _HalamanProfilState extends State<HalamanProfil> {
     required String hoursRequired,
   }) {
     return GestureDetector(
-      onTap: isAvailable
-          ? () => _showRewardDialog(rewardText)
-          : () => _showRewardRequirementDialog(hoursRequired),
+      onTap:
+          isAvailable
+              ? () => _showRewardDialog(rewardText)
+              : () => _showRewardRequirementDialog(hoursRequired),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: 32,
@@ -262,15 +264,16 @@ class _HalamanProfilState extends State<HalamanProfil> {
           color: isAvailable ? Colors.amber : Colors.white.withOpacity(0.5),
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white, width: 2),
-          boxShadow: isAvailable
-              ? [
-                  BoxShadow(
-                    color: Colors.amber.withOpacity(0.5),
-                    blurRadius: 8,
-                    spreadRadius: 2,
-                  ),
-                ]
-              : null,
+          boxShadow:
+              isAvailable
+                  ? [
+                    BoxShadow(
+                      color: Colors.amber.withOpacity(0.5),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                  : null,
         ),
         child: Icon(
           isAvailable ? Icons.card_giftcard : Icons.lock,
@@ -284,98 +287,73 @@ class _HalamanProfilState extends State<HalamanProfil> {
   void _showRewardDialog(String rewardText) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.celebration, color: Colors.amber, size: 28),
-            SizedBox(width: 8),
-            Text('🎉 Selamat!'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Kamu mendapatkan $rewardText!'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Text(
-                'Catatan: Reward ini dapat digunakan pada booking selanjutnya dengan konfirmasi admin.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Tutup'),
+            title: const Row(
+              children: [
+                Icon(Icons.celebration, color: Colors.amber, size: 28),
+                SizedBox(width: 8),
+                Text('🎉 Selamat!'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Kamu mendapatkan $rewardText!'),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'Catatan: Reward ini dapat digunakan pada booking selanjutnya dengan konfirmasi admin.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Tutup'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   void _showRewardRequirementDialog(String hoursRequired) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            Icon(Icons.lock_outline, color: Colors.grey),
-            SizedBox(width: 8),
-            Text('Reward Terkunci'),
-          ],
-        ),
-        content: Text(
-          'Mainkan hingga $hoursRequired untuk membuka reward ini.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Tutup'),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.lock_outline, color: Colors.grey),
+                SizedBox(width: 8),
+                Text('Reward Terkunci'),
+              ],
+            ),
+            content: Text(
+              'Mainkan hingga $hoursRequired untuk membuka reward ini.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Tutup'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
-  }
-
-  Future<void> _updateUsername(String newUsername) async {
-    if (newUsername.trim().isEmpty) {
-      _showErrorSnackBar('Username tidak boleh kosong');
-      return;
-    }
-
-    if (newUsername.trim().length < 3) {
-      _showErrorSnackBar('Username minimal 3 karakter');
-      return;
-    }
-
-    try {
-      if (username != null) {
-        await FirebaseService().editUsername(username!, newUsername.trim());
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('username', newUsername.trim());
-
-        setState(() {
-          username = newUsername.trim();
-        });
-
-        if (!mounted) return;
-
-        _showSuccessSnackBar('Username berhasil diperbarui!');
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      _showErrorSnackBar('Error updating username: $e');
-    }
   }
 
   Future<void> _updatePassword(String newPassword) async {
@@ -402,71 +380,6 @@ class _HalamanProfilState extends State<HalamanProfil> {
     } catch (e) {
       _showErrorSnackBar('Error updating password: $e');
     }
-  }
-
-  Widget editUsername(BuildContext context) {
-    final TextEditingController usernameController = TextEditingController();
-    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                'Ubah Username',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: usernameController,
-                decoration: InputDecoration(
-                  hintText: 'Input username baru',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  prefixIcon: const Icon(Icons.person),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Username tidak boleh kosong';
-                  }
-                  if (value.trim().length < 3) {
-                    return 'Username minimal 3 karakter';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 15),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('Cancel'),
-                  ),
-                  ElevatedButton(
-                    onPressed: () {
-                      if (formKey.currentState!.validate()) {
-                        _updateUsername(usernameController.text);
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(120, 45),
-                    ),
-                    child: const Text('Update'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   Widget editPassword(BuildContext context) {
@@ -540,7 +453,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          obscureText2 ? Icons.visibility : Icons.visibility_off,
+                          obscureText2
+                              ? Icons.visibility
+                              : Icons.visibility_off,
                         ),
                         onPressed: () {
                           setState(() {
@@ -592,6 +507,95 @@ class _HalamanProfilState extends State<HalamanProfil> {
     );
   }
 
+  Widget editUsername(BuildContext context) {
+    final TextEditingController usernameController = TextEditingController();
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+      child: StatefulBuilder(
+        builder: (context, setState) {
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Ubah Username',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Password baru
+                  TextFormField(
+                    controller: usernameController,
+                    decoration: InputDecoration(
+                      hintText: 'Input Username Baru',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      prefixIcon: const Icon(Icons.person),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Username tidak boleh kosong';
+                      }
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 15),
+
+                  // Tombol aksi
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: const Text('Cancel'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () async {
+                          if (formKey.currentState!.validate()) {
+                            bool usernameUsed = await FirebaseService()
+                                .checkUser(usernameController.text);
+                            if (!usernameUsed) {
+                              _updatePassword(usernameController.text);
+                              SharedPreferences prefs =
+                                  await SharedPreferences.getInstance();
+                              prefs.setString(
+                                'username',
+                                usernameController.text,
+                              );
+                            } else {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Username sudah digunakan'),
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(120, 45),
+                        ),
+                        child: const Text('Update'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   Future<void> getLastActivity() async {
     try {
       if (username != null) {
@@ -610,27 +614,30 @@ class _HalamanProfilState extends State<HalamanProfil> {
   Future<void> _logout() async {
     final shouldLogout = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
-          children: [
-            SizedBox(width: 8),
-            Text('Konfirmasi Logout'),
-          ],
-        ),
-        content: const Text('Apakah kamu yakin ingin logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+      builder:
+          (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Row(
+              children: [SizedBox(width: 8), Text('Konfirmasi Logout')],
+            ),
+            content: const Text('Apakah kamu yakin ingin logout?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text(
+                  'Logout',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('Logout', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
     );
 
     if (shouldLogout == true) {
@@ -651,9 +658,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
 
   Widget _buildStatsCard() {
     return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       color: Colors.grey[100],
       elevation: 4,
       child: Padding(
@@ -663,13 +668,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
           children: [
             _buildStatItem(
               '${data.isNotEmpty ? data[0].totalBooking.toString() : 0}',
-              'Booking'
+              'Booking',
             ),
-            Container(
-              height: 40,
-              width: 1,
-              color: Colors.grey[300],
-            ),
+            Container(height: 40, width: 1, color: Colors.grey[300]),
             _buildStatItem(
               '${data.isNotEmpty ? data[0].totalHour.toStringAsFixed(1) : 0}',
               'Poin',
@@ -685,18 +686,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
       children: [
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Colors.grey[600],
-          ),
-        ),
+        Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
       ],
     );
   }
@@ -767,7 +759,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
                           child: CircleAvatar(
                             radius: 40,
                             backgroundColor:
-                                isMember ? Colors.blueAccent : Colors.grey[400]!,
+                                isMember
+                                    ? Colors.blueAccent
+                                    : Colors.grey[400]!,
                             child: Text(
                               username![0].toUpperCase(),
                               style: const TextStyle(
@@ -855,28 +849,37 @@ class _HalamanProfilState extends State<HalamanProfil> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    subtitle: isMember
-                        ? const Text(
-                            'Berakhir dalam 30 hari',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          )
-                        : const Text(
-                            'Upgrade untuk mendapatkan benefit lebih',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
-                          ),
-                    trailing: isMember
-                        ? null
-                        : const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap: isMember
-                        ? null
-                        : () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const HalamanMember(),
+                    subtitle:
+                        isMember
+                            ? const Text(
+                              'Berakhir dalam 30 hari',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
                               ),
-                            ).then((_) => _init());
-                          },
+                            )
+                            : const Text(
+                              'Upgrade untuk mendapatkan benefit lebih',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                    trailing:
+                        isMember
+                            ? null
+                            : const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap:
+                        isMember
+                            ? null
+                            : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const HalamanMember(),
+                                ),
+                              ).then((_) => _init());
+                            },
                   ),
                 ),
               ),
@@ -907,18 +910,23 @@ class _HalamanProfilState extends State<HalamanProfil> {
                           activity.isEmpty
                               ? 'Belum Ada Aktivitas'
                               : 'Booked Court - Lapangan ${activity[0].courtId}',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
                         ),
-                        subtitle: activity.isEmpty
-                            ? const Text('Mulai booking lapangan sekarang!')
-                            : Text(activity[0].date),
+                        subtitle:
+                            activity.isEmpty
+                                ? const Text('Mulai booking lapangan sekarang!')
+                                : Text(activity[0].date),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () {
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  PilihHalamanPelanggan(selectedIndex: 1),
+                              builder:
+                                  (context) =>
+                                      PilihHalamanPelanggan(selectedIndex: 1),
                             ),
                           );
                         },
@@ -973,10 +981,41 @@ class _HalamanProfilState extends State<HalamanProfil> {
                       child: Column(
                         children: [
                           ListTile(
-                            leading: Icon(Icons.edit, size: 20, color: primaryColor),
+                            leading: Icon(
+                              Icons.edit,
+                              size: 20,
+                              color: primaryColor,
+                            ),
                             title: const Text('Edit Profil'),
                             subtitle: const Text('Ubah data diri Anda'),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                            trailing: const Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => HalamanEditProfil(),
+                                ),
+                              );
+                            },
+                          ),
+
+                          const Divider(height: 1),
+
+                          ListTile(
+                            leading: Icon(
+                              Icons.person_rounded,
+                              size: 20,
+                              color: primaryColor,
+                            ),
+                            title: const Text('Ubah Username'),
+                            subtitle: const Text('Ubah username Anda'),
+                            trailing: const Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                            ),
                             onTap: () {
                               showDialog(
                                 context: context,
@@ -984,12 +1023,21 @@ class _HalamanProfilState extends State<HalamanProfil> {
                               );
                             },
                           ),
+
                           const Divider(height: 1),
+
                           ListTile(
-                            leading: Icon(Icons.lock, size: 20, color: primaryColor),
+                            leading: Icon(
+                              Icons.lock,
+                              size: 20,
+                              color: primaryColor,
+                            ),
                             title: const Text('Ubah Password'),
                             subtitle: const Text('Perbarui kata sandi Anda'),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                            trailing: const Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                            ),
                             onTap: () {
                               showDialog(
                                 context: context,
@@ -999,10 +1047,21 @@ class _HalamanProfilState extends State<HalamanProfil> {
                           ),
                           const Divider(height: 1),
                           ListTile(
-                            leading: const Icon(Icons.logout_sharp, size: 20, color: Colors.red),
-                            title: const Text('Log Out', style: TextStyle(color: Colors.red)),
+                            leading: const Icon(
+                              Icons.logout_sharp,
+                              size: 20,
+                              color: Colors.red,
+                            ),
+                            title: const Text(
+                              'Log Out',
+                              style: TextStyle(color: Colors.red),
+                            ),
                             subtitle: const Text('Keluar dari akun Anda'),
-                            trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.red),
+                            trailing: const Icon(
+                              Icons.arrow_forward_ios,
+                              size: 16,
+                              color: Colors.red,
+                            ),
                             onTap: _logout,
                           ),
                         ],

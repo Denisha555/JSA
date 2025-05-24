@@ -3,8 +3,8 @@ import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/screens_pelanggan/Kalender.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
-import 'price_list.dart';
-import 'tentang_kami.dart';
+import 'package:flutter_application_1/screens_pelanggan/price_list.dart';
+import 'package:flutter_application_1/screens_pelanggan/tentang_kami.dart';
 
 // Event Promo data model
 class EventPromo {
@@ -79,7 +79,7 @@ class Reward {
   const Reward({required this.currentHours, this.requiredHours = 20});
 }
 
-const Reward currentReward = Reward(currentHours: 20);
+const Reward currentReward = Reward(currentHours: 10);
 
 class HalamanUtamaPelanggan extends StatefulWidget {
   const HalamanUtamaPelanggan({super.key});
@@ -425,7 +425,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
                   ),
                   const SizedBox(width: 8),
                   const Text(
-                    "Booking Aktif Anda",
+                    "Telah Dibooking",
                     style: TextStyle(
                       color: Colors.green,
                       fontWeight: FontWeight.bold,
@@ -479,7 +479,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
                         // TODO: Implement reschedule functionality
                         _showFeatureComingSoon('Ubah Jadwal');
                       },
-                      label: const Text("Ubah Jadwal"),
+                      label: Text("Ubah Jadwal", style: TextStyle(fontSize: 13),),
                       style: OutlinedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: primaryColor,
@@ -493,7 +493,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
                         // TODO: Implement cancel functionality
                         _showCancelConfirmation();
                       },
-                      label: const Text("Batalkan"),
+                      label: Text("Batalkan", style: TextStyle(fontSize: 13)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,

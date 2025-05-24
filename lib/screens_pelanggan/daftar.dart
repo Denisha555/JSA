@@ -143,78 +143,87 @@ class _HalamanDaftarState extends State<HalamanDaftar>
       _isLoading = true;
     });
 
-    // Check if username is already registered
-    FirebaseService()
-        .checkUser(usernameController.text)
-        .then((registed) {
-          if (registed) {
-            if (mounted) {
-              // Username already exists
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text(
-                    'Username sudah terdaftar, silahkan gunakan username lain',
-                  ),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          } else {
-            // Username is available, proceed with registration
-            FirebaseService()
-                .addUser(
-                  usernameController.text,
-                  passwordController.text,
-                  namaController.text,
-                  clubController.text,
-                  noTelpController.text,
-                )
-                .then((_) async {
-                  if (mounted) {
-                    // User successfully added
-                    Navigator.pop(context);
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const HalamanMasuk(),
-                      ),
-                    );
-                    SharedPreferences prefs =
-                        await SharedPreferences.getInstance();
-                    prefs.setString('username', usernameController.text);
-                  }
-                })
-                .catchError((e) {
-                  // Handle error during user addition
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Gagal menambahkan user: $e'),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                });
-          }
-        })
-        .catchError((e) {
-          // Handle error during username check
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Terjadi kesalahan: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        })
-        .whenComplete(() {
-          if (mounted) {
-            setState(() {
-              _isLoading = false;
-            });
-          }
-        });
+    try {
+      final username = usernameController.text;
+      final password = passwordController.text;
+      final nama = namaController.text;
+      final club = clubController.text;
+      final noTelp = noTelpController.text;
+
+      final registed = await FirebaseService().checkUser(username);
+      if (registed) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Username sudah terdaftar, silahkan gunakan username lain',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final namaUsed = await FirebaseService().checknama(nama);
+      if (namaUsed) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nama sudah digunakan'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final clubUsed = await FirebaseService().checkclub(club);
+      if (clubUsed) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Club sudah digunakan'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      final telpUsed = await FirebaseService().checkphoneNumber(noTelp);
+      if (telpUsed) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Nomor telepon sudah digunakan'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      // Check if username is already registered
+      await FirebaseService().addUser(username, password, nama, club, noTelp);
+      if (!mounted) return;
+
+      Navigator.pop(context);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HalamanMasuk()),
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      prefs.setString('username', username);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Terjadi kesalahan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override

@@ -334,6 +334,7 @@ class _HalamanMemberState extends State<HalamanMember> {
     final now = DateTime.now();
 
     return Scaffold(
+      appBar: AppBar(title: const Text('Ayo Jadi Member'),),
       body: Stack(
         children: [
           Padding(
