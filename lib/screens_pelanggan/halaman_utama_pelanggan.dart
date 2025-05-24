@@ -8,85 +8,89 @@ import 'tentang_kami.dart';
 
 // Event Promo data model
 class EventPromo {
-  final Image imageUrl;
+  final String imageAssetPath;
+  final String title;
+  final String description;
 
-  EventPromo({required this.imageUrl});
+  const EventPromo({
+    required this.imageAssetPath,
+    this.title = '',
+    this.description = '',
+  });
 }
 
-// Sample event data
-final List<EventPromo> events = [
-  EventPromo(imageUrl: Image.asset("assets/image/PromoEvent.jpeg")),
-  EventPromo(imageUrl: Image.asset("assets/image/PromoEvent.jpeg")),
-  EventPromo(imageUrl: Image.asset("assets/image/PromoEvent.jpeg")),
+// Sample event data - Made const for better performance
+const List<EventPromo> events = [
+  EventPromo(
+    imageAssetPath: "assets/image/PromoEvent.jpeg",
+    title: "Special Promo",
+    description: "Dapatkan diskon 20%",
+  ),
+  EventPromo(
+    imageAssetPath: "assets/image/PromoEvent.jpeg",
+    title: "Weekend Deal",
+    description: "Harga spesial weekend",
+  ),
+  EventPromo(
+    imageAssetPath: "assets/image/PromoEvent.jpeg",
+    title: "Member Exclusive",
+    description: "Promo khusus member",
+  ),
 ];
 
 // Court data model
 class Court {
-  final Image imageUrl;
+  final String imageAssetPath;
   final String name;
   final bool isAvailable;
   final double pricePerHour;
 
-  Court({
-    required this.imageUrl,
+  const Court({
+    required this.imageAssetPath,
     required this.name,
     this.isAvailable = true,
-    this.pricePerHour = 0,
+    required this.pricePerHour,
   });
 }
 
-// Sample courts data
-final List<Court> courts = [
+// Sample courts data - Made const for better performance
+const List<Court> courts = [
   Court(
-    imageUrl: Image.asset("assets/image/Lapangan.jpg"),
+    imageAssetPath: "assets/image/Lapangan.jpg",
     name: "Lapangan 1",
     pricePerHour: 50000,
   ),
   Court(
-    imageUrl: Image.asset("assets/image/Lapangan.jpg"),
+    imageAssetPath: "assets/image/Lapangan.jpg",
     name: "Lapangan 3",
     pricePerHour: 45000,
   ),
   Court(
-    imageUrl: Image.asset("assets/image/Lapangan.jpg"),
+    imageAssetPath: "assets/image/Lapangan.jpg",
     name: "Lapangan 4",
     pricePerHour: 60000,
   ),
 ];
 
-// Booking data model
-class Booking {
-  final String courtName;
-  final String date;
-  final String timeSlot;
-  final String status;
-
-  Booking({
-    required this.courtName,
-    required this.date,
-    required this.timeSlot,
-    required this.status,
-  });
-}
-
 class Reward {
   final double currentHours;
-  final double requiredHours = 20;
+  final double requiredHours;
 
-  Reward({required this.currentHours});
+  const Reward({required this.currentHours, this.requiredHours = 20});
 }
 
-final Reward currentReward = Reward(currentHours: 6);
+const Reward currentReward = Reward(currentHours: 20);
 
 class HalamanUtamaPelanggan extends StatefulWidget {
   const HalamanUtamaPelanggan({super.key});
 
   @override
-  State<HalamanUtamaPelanggan> createState() => _HalamanUtamaPelanggan();
+  State<HalamanUtamaPelanggan> createState() => _HalamanUtamaPelangganState();
 }
 
-class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
+class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
   Widget? currentBookingCard;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -94,50 +98,66 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
     _init();
   }
 
-  // Add a didChangeDependencies to refresh when returning to the screen
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _checkbooked();
+    _checkBooked();
   }
 
   Future<void> _init() async {
-    await _checkbooked();
+    setState(() => _isLoading = true);
+    await _checkBooked();
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("Dashboard")),
+      appBar: AppBar(
+        title: const Text("Dashboard"),
+        elevation: 0,
+        backgroundColor: primaryColor,
+        foregroundColor: Colors.white,
+      ),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
-            await _checkbooked();
+            await _checkBooked();
           },
           child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Current booking card
-                  if (currentBookingCard != null) currentBookingCard!,
+                  // Loading indicator
+                  if (_isLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(20.0),
+                        child: CircularProgressIndicator(),
+                      ),
+                    ),
 
-                  SizedBox(height: 10),
+                  // Current booking card
+                  if (currentBookingCard != null) ...[
+                    currentBookingCard!,
+                    const SizedBox(height: 16),
+                  ],
 
                   // Quick access buttons
                   _buildQuickAccessMenu(),
-
                   const SizedBox(height: 16),
 
                   // Reward section
                   _buildRewardSection(context),
-
                   const SizedBox(height: 24),
 
                   // Promotions Events
                   _buildPromotionsEvents(),
-
                   const SizedBox(height: 24),
 
                   // Available courts section
@@ -152,22 +172,27 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
   }
 
   Widget _buildRewardSection(BuildContext context) {
-    double progress = (currentReward.currentHours / currentReward.requiredHours)
+    final progress = (currentReward.currentHours / currentReward.requiredHours)
         .clamp(0.0, 1.0);
 
-    // Hitung reward berikutnya (tiap kelipatan 10 jam)
-    double nextStageHours =
-        ((currentReward.currentHours / 10).floor() + 1) * 10;
+    final isRewardAvailable1 = currentReward.currentHours >= 10;
+    final isRewardAvailable2 = currentReward.currentHours >= 20;
 
-    if (nextStageHours > currentReward.requiredHours) {
-      nextStageHours = currentReward.requiredHours;
-    }
+    final nextStageHours = ((currentReward.currentHours / 10).floor() + 1) * 10;
+    final hoursToNext = (nextStageHours - currentReward.currentHours).clamp(
+      0,
+      double.infinity,
+    );
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: primaryColor,
+        gradient: LinearGradient(
+          colors: [primaryColor, primaryColor.withValues(alpha: 0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -178,68 +203,29 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: 18,
             ),
           ),
           const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              double barWidth = constraints.maxWidth;
-              double nextMarkerPos =
-                  nextStageHours / currentReward.requiredHours * barWidth;
 
-              return Stack(
-                alignment: Alignment.centerLeft,
-                children: [
-                  // Background bar
-                  Container(
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: Colors.blue[300],
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  // Foreground progress
-                  FractionallySizedBox(
-                    widthFactor: progress,
-                    child: Container(
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                  // Marker for next reward stage
-                  Positioned(
-                    left: nextMarkerPos - 5,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black26, width: 1),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 12),
+          // Progress bar with markers
+          _buildProgressBar(progress, isRewardAvailable1, isRewardAvailable2),
+          const SizedBox(height: 16),
 
-          // Teks keterangan
+          // Progress text
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${currentReward.currentHours.toInt()}h played',
-                style: const TextStyle(color: Colors.white),
+                '${currentReward.currentHours.toInt()}h dimainkan',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               Text(
-                '${(nextStageHours - currentReward.currentHours).clamp(0, double.infinity).toInt()}h to next reward',
-                style: const TextStyle(color: Colors.white),
+                '${hoursToNext.toInt()}h lagi untuk reward',
+                style: const TextStyle(color: Colors.white70),
               ),
             ],
           ),
@@ -248,80 +234,323 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
     );
   }
 
-  // Current booking card widget
-  Widget _buildCurrentBookingCard(
-    String courtName,
-    String timeSlot,
-    String date,
+  Widget _buildProgressBar(
+    double progress,
+    bool isRewardAvailable1,
+    bool isRewardAvailable2,
   ) {
-    Color statusColor = Colors.green;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const markerSize = 32.0;
+        final barWidth = constraints.maxWidth;
+        final firstMarkerPos = (barWidth * 0.5) - (markerSize / 2);
+        final secondMarkerPos = barWidth - markerSize;
 
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.circle, color: statusColor, size: 14),
-                const SizedBox(width: 8),
+        return SizedBox(
+          height: 40,
+          child: Stack(
+            children: [
+              // Background bar
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 16,
+                child: Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
 
-                Text(
-                  "Your Current Booking",
-                  style: TextStyle(
-                    color: statusColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+              // Progress bar
+              Positioned(
+                left: 0,
+                top: 16,
+                child: Container(
+                  width: barWidth * progress,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(4),
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Lapangan $courtName • $date • $timeSlot",
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () {
-                    // TODO: Implement reschedule functionality
-                  },
-                  label: const Text("Ubah Jadwal"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: Colors.white,
-                  ),
+              ),
+
+              // First reward marker (10 hours)
+              Positioned(
+                left: firstMarkerPos,
+                top: 4,
+                child: _buildRewardMarker(
+                  isAvailable: isRewardAvailable1,
+                  rewardText: '1 jam gratis',
+                  hoursRequired: '10 jam',
                 ),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    // TODO: Implement cancel functionality
-                  },
-                  label: const Text("Batal"),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                  ),
+              ),
+
+              // Second reward marker (20 hours)
+              Positioned(
+                left: secondMarkerPos,
+                top: 4,
+                child: _buildRewardMarker(
+                  isAvailable: isRewardAvailable2,
+                  rewardText: '2 jam gratis',
+                  hoursRequired: '20 jam',
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildRewardMarker({
+    required bool isAvailable,
+    required String rewardText,
+    required String hoursRequired,
+  }) {
+    return GestureDetector(
+      onTap:
+          isAvailable
+              ? () => _showRewardDialog(rewardText)
+              : () => _showRewardRequirementDialog(hoursRequired),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: isAvailable ? Colors.amber : Colors.white.withOpacity(0.5),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white, width: 2),
+          boxShadow:
+              isAvailable
+                  ? [
+                    BoxShadow(
+                      color: Colors.amber.withOpacity(0.5),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                  : null,
+        ),
+        child: Icon(
+          isAvailable ? Icons.card_giftcard : Icons.lock,
+          color: isAvailable ? Colors.white : Colors.grey[600],
+          size: 18,
         ),
       ),
     );
   }
 
-  Future<void> _checkbooked() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String username = prefs.getString('username') ?? '';
-    DateTime selectedDate = DateTime.now();
+  void _showRewardDialog(String rewardText) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('🎉 Selamat!'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Kamu mendapatkan $rewardText!'),
+                const SizedBox(height: 12),
+                const Text(
+                  'Catatan: Reward ini dapat digunakan pada booking selanjutnya dengan konfirmasi admin.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Tutup'),
+              ),
+            ],
+          ),
+    );
+  }
 
+  void _showRewardRequirementDialog(String hoursRequired) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Reward Terkunci'),
+            content: Text(
+              'Mainkan hingga $hoursRequired untuk membuka reward ini.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Tutup'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Widget _buildCurrentBookingCard(
+    String courtName,
+    String timeSlot,
+    String date,
+  ) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [Colors.green.shade50, Colors.green.shade100],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: const BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    "Booking Aktif Anda",
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.sports_tennis, color: Colors.green),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Lapangan $courtName",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "$date • $timeSlot",
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        // TODO: Implement reschedule functionality
+                        _showFeatureComingSoon('Ubah Jadwal');
+                      },
+                      label: const Text("Ubah Jadwal"),
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: primaryColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        // TODO: Implement cancel functionality
+                        _showCancelConfirmation();
+                      },
+                      label: const Text("Batalkan"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showFeatureComingSoon(String feature) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Fitur $feature akan segera hadir!'),
+        backgroundColor: primaryColor,
+      ),
+    );
+  }
+
+  void _showCancelConfirmation() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Konfirmasi Pembatalan'),
+            content: const Text(
+              'Apakah Anda yakin ingin membatalkan booking ini?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Tidak'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _showFeatureComingSoon('Pembatalan booking');
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Ya, Batalkan'),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Future<void> _checkBooked() async {
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final username = prefs.getString('username') ?? '';
+      final selectedDate = DateTime.now();
+
       final timeSlots = await FirebaseService().getTimeSlotByUsername(
         username,
         selectedDate,
@@ -331,16 +560,11 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
 
       if (timeSlots.isNotEmpty) {
         final timeSlot = timeSlots.first;
-        String courtName = timeSlot.courtId;
-        String startTime = timeSlot.startTime;
-        String date = timeSlot.date.toString();
-
-        // Simpan widget ke state
         setState(() {
           currentBookingCard = _buildCurrentBookingCard(
-            courtName,
-            startTime,
-            date,
+            timeSlot.courtId,
+            timeSlot.startTime,
+            timeSlot.date.toString(),
           );
         });
       } else {
@@ -350,81 +574,93 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
       }
     } catch (e) {
       debugPrint('Failed to load booking: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal memuat data booking'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  // Quick access menu buttons
   Widget _buildQuickAccessMenu() {
     return Container(
-      height: 80,
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.1),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildQuickAccessButton(
-              icon: 'priceList',
-              label: "Daftar Harga",
-              onTap: () => _navigateToScreen(HalamanPriceList()),
-            ),
-            _buildQuickAccessButton(
-              icon: 'calender',
-              label: "Booking",
-              onTap: () => _navigateToScreen(HalamanKalender()),
-            ),
-            _buildQuickAccessButton(
-              icon: 'aboutUs',
-              label: "Tentang Kami",
-              onTap: () => _navigateToScreen(HalamanTentangKami()),
-            ),
-          ],
-        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildQuickAccessButton(
+            icon: Icons.attach_money_outlined,
+            label: "Daftar Harga",
+            color: Colors.green,
+            onTap: () => _navigateToScreen(const HalamanPriceList()),
+          ),
+          _buildQuickAccessButton(
+            icon: Icons.calendar_month_outlined,
+            label: "Booking",
+            color: primaryColor,
+            onTap: () => _navigateToScreen(const HalamanKalender()),
+          ),
+          _buildQuickAccessButton(
+            icon: Icons.info_outline,
+            label: "Tentang Kami",
+            color: Colors.orange,
+            onTap: () => _navigateToScreen(const HalamanTentangKami()),
+          ),
+        ],
       ),
     );
   }
 
-  // Navigate to screen and refresh when returning
   Future<void> _navigateToScreen(Widget screen) async {
-    final result = await Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => screen),
     );
-    
-    // Refresh after returning
-    _checkbooked();
+    _checkBooked();
   }
 
-  // Individual quick access button
   Widget _buildQuickAccessButton({
-    required String icon,
+    required IconData icon,
     required String label,
+    required Color color,
     required VoidCallback onTap,
   }) {
-    final iconMap = {
-      'priceList': Icons.attach_money_outlined,
-      'calender': Icons.calendar_month_outlined,
-      'aboutUs': Icons.info_outline,
-    };
-
-    final IconData iconData = iconMap[icon] ?? Icons.help_outline;
-
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.all(8.0),
+      child: Container(
+        padding: const EdgeInsets.all(12),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(iconData, size: 32, color: Colors.black),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 28, color: color),
+            ),
             const SizedBox(height: 8),
             Text(
               label,
               style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -432,26 +668,25 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
     );
   }
 
-  // Promotions Events
   Widget _buildPromotionsEvents() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.only(bottom: 12),
-          child: Text(
-            "Promotions & Events",
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+        const Text(
+          "Promosi & Event",
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
+        const SizedBox(height: 16),
         SizedBox(
-          height: 220,
+          height: 200,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: events.length,
             itemBuilder: (context, index) {
               return Padding(
-                padding: const EdgeInsets.only(right: 12),
+                padding: EdgeInsets.only(
+                  right: index < events.length - 1 ? 16 : 0,
+                ),
                 child: _buildPromoCard(events[index]),
               );
             },
@@ -461,33 +696,107 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
     );
   }
 
-  // Individual promo card
   Widget _buildPromoCard(EventPromo promo) {
     return Container(
-      width: 200,
+      width: 160,
       decoration: BoxDecoration(
-        color: Colors.grey,
         borderRadius: BorderRadius.circular(16),
-      ),
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(height: 350, width: 200, child: promo.imageUrl),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withValues(alpha: 0.2),
+            spreadRadius: 1,
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Stack(
+          children: [
+            Image.asset(
+              promo.imageAssetPath,
+              height: 200,
+              width: 160,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  height: 200,
+                  width: 160,
+                  color: Colors.grey[300],
+                  child: const Icon(
+                    Icons.image_not_supported,
+                    size: 50,
+                    color: Colors.grey,
+                  ),
+                );
+              },
+            ),
+            if (promo.title.isNotEmpty)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.8),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        promo.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (promo.description.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          promo.description,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
 
-  // Available courts section
   Widget _buildAvailableCourtsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Available Courts",
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Lapangan Tersedia",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            TextButton(
+              onPressed: () => _navigateToScreen(const HalamanKalender()),
+              child: const Text("Lihat Semua"),
+            ),
+          ],
         ),
         const SizedBox(height: 12),
         ListView.builder(
@@ -496,7 +805,7 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
           itemCount: courts.length,
           itemBuilder: (context, index) {
             return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.only(bottom: 16),
               child: _buildCourtCard(courts[index]),
             );
           },
@@ -505,42 +814,110 @@ class _HalamanUtamaPelanggan extends State<HalamanUtamaPelanggan> {
     );
   }
 
-  // Individual court card
   Widget _buildCourtCard(Court court) {
     return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: InkWell(
-        onTap: () {
-          _navigateToScreen(HalamanKalender());
-        },
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(15.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                court.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+        onTap: () => _navigateToScreen(const HalamanKalender()),
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(16),
               ),
-              const SizedBox(height: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.all(Radius.circular(8)),
+              child: Stack(
+                children: [
+                  Image.asset(
+                    court.imageAssetPath,
+                    width: double.infinity,
+                    height: 160,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        width: double.infinity,
+                        height: 160,
+                        color: Colors.grey[300],
+                        child: const Icon(
+                          Icons.image_not_supported,
+                          size: 50,
+                          color: Colors.grey,
+                        ),
+                      );
+                    },
                   ),
-                  width: 300,
-                  height: 160,
-                  child: court.imageUrl,
-                ),
+                  if (court.isAvailable)
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.green,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'Tersedia',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
-            ],
-          ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        court.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      Text(
+                        'Rp ${court.pricePerHour.toInt()}/jam',
+                        style: TextStyle(
+                          color: primaryColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_outlined,
+                        size: 16,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Indoor Court',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

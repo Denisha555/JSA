@@ -809,29 +809,6 @@ class FirebaseService {
     };
   }
 
-  Future<bool> _checkExistingSlots(String court, String date) async {
-    final snapshot =
-        await firestore
-            .collection('time_slots')
-            .where('courtId', isEqualTo: court)
-            .where('date', isEqualTo: date)
-            .limit(1)
-            .get();
-    return snapshot.docs.isNotEmpty;
-  }
-
-  Future<void> _commitWithRetry(WriteBatch batch, {int retries = 3}) async {
-    try {
-      await batch.commit();
-    } catch (e) {
-      if (retries > 0) {
-        await Future.delayed(Duration(seconds: 2));
-        return _commitWithRetry(batch, retries: retries - 1);
-      }
-      rethrow;
-    }
-  }
-
   // Fungsi untuk mengambil data slot dari Firestore
   Future<List<TimeSlot>> getTimeSlotsByDate(String dateStr) async {
     try {
@@ -1237,18 +1214,32 @@ class FirebaseService {
                   ? (data['point'] as num).toDouble()
                   : 0.0;
 
-          String date =
-              data.containsKey('startTime')
-                  ? (data['startTime'] as String)
-                  : '';
+          String startTimeStr =
+              data.containsKey('startTime') ? data['startTime'] as String : '';
 
-          if (date == '') {
+          // Konversi startTime string ke DateTime
+          DateTime? startTime;
+          if (startTimeStr.isNotEmpty) {
+            try {
+              startTime = DateTime.parse(
+                startTimeStr,
+              ); // pastikan formatnya ISO (yyyy-MM-dd)
+            } catch (_) {
+              startTime = null; // Format salah
+            }
+          }
+
+          DateTime now = DateTime.now();
+
+          if (startTime == null || now.difference(startTime).inDays >= 30) {
+            // Sudah 1 bulan sejak startTime, reset poin dan set startTime baru
             batch.update(userRef, {
               'totalHours': currentHours + totalHours,
-              'point': point + totalHours,
-              'startTime': dateStr,
+              'point': totalHours,
+              'startTime': dateStr, // mulai ulang
             });
           } else {
+            // Belum sebulan, tambah poin seperti biasa
             batch.update(userRef, {
               'totalHours': currentHours + totalHours,
               'point': point + totalHours,
