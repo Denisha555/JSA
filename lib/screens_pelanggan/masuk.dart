@@ -104,7 +104,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
             }
             // jika akun belum ada tambah data ke database
           } else {
-            await FirebaseService().addUser(
+            await FirebaseService().addAdminOwner(
               usernameController.text,
               passwordController.text,
             );
@@ -151,7 +151,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
             }
             // jika belum ada akun tambah data ke database
           } else {
-            await FirebaseService().addUser(
+            await FirebaseService().addAdminOwner(
               usernameController.text,
               passwordController.text,
             );

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
+import 'package:flutter_application_1/screens_pelanggan/masuk.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,13 +14,24 @@ class HalamanDaftar extends StatefulWidget {
 class _HalamanDaftarState extends State<HalamanDaftar>
     with SingleTickerProviderStateMixin {
   bool _obscureText = true;
+  bool _obscureText2 = true;
   bool _isLoading = false;
   TextEditingController usernameController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
+  TextEditingController konfirmasiPasswordController = TextEditingController();
+  TextEditingController namaController = TextEditingController();
+  TextEditingController noTelpController = TextEditingController();
+  TextEditingController clubController = TextEditingController();
+
+  // Individual error texts for each field
   String? errorTextUsername;
   String? errorTextPassword;
+  String? errorTextKonfirmasiPassword;
+  String? errorTextNama;
+  String? errorTextNoTelp;
+  String? errorTextClub;
 
-  // Menambahkan animasi
+  // Animation controllers
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
@@ -52,44 +63,95 @@ class _HalamanDaftarState extends State<HalamanDaftar>
   void dispose() {
     usernameController.dispose();
     passwordController.dispose();
+    konfirmasiPasswordController.dispose();
+    namaController.dispose();
+    noTelpController.dispose();
+    clubController.dispose();
     _animationController.dispose();
     super.dispose();
   }
 
   void _daftar() async {
-    // Validasi input
+    // Clear all previous errors
+    setState(() {
+      errorTextUsername = null;
+      errorTextPassword = null;
+      errorTextKonfirmasiPassword = null;
+      errorTextNama = null;
+      errorTextNoTelp = null;
+      errorTextClub = null;
+    });
+
+    bool hasError = false;
+
+    // Validate all fields
     if (usernameController.text.isEmpty) {
       setState(() {
         errorTextUsername = "Username tidak boleh kosong";
       });
-      return;
-    } else if (passwordController.text.isEmpty) {
+      hasError = true;
+    }
+
+    if (namaController.text.isEmpty) {
+      setState(() {
+        errorTextNama = "Nama lengkap tidak boleh kosong";
+      });
+      hasError = true;
+    }
+
+    if (noTelpController.text.isEmpty) {
+      setState(() {
+        errorTextNoTelp = "Nomor telepon tidak boleh kosong";
+      });
+      hasError = true;
+    } else if (!RegExp(r'^[0-9]+$').hasMatch(noTelpController.text)) {
+      setState(() {
+        errorTextNoTelp = "Nomor telepon hanya diisi dengan angka";
+      });
+      hasError = true;
+    }
+
+    if (passwordController.text.isEmpty) {
       setState(() {
         errorTextPassword = "Password tidak boleh kosong";
       });
-      return;
+      hasError = true;
     } else if (passwordController.text.length < 6) {
       setState(() {
         errorTextPassword = "Password minimal 6 karakter";
       });
-      return;
-    } else {
-      setState(() {
-        errorTextUsername = null;
-        errorTextPassword = null;
-        _isLoading = true;
-      });
+      hasError = true;
     }
 
-    // Mengecek apakah username sudah terdaftar
+    if (konfirmasiPasswordController.text.isEmpty) {
+      setState(() {
+        errorTextKonfirmasiPassword = "Konfirmasi password tidak boleh kosong";
+      });
+      hasError = true;
+    } else if (passwordController.text != konfirmasiPasswordController.text) {
+      setState(() {
+        errorTextKonfirmasiPassword = "Password tidak sama";
+      });
+      hasError = true;
+    }
+
+    if (hasError) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Check if username is already registered
     FirebaseService()
         .checkUser(usernameController.text)
         .then((registed) {
           if (registed) {
             if (mounted) {
-              // Jika username sudah terdaftar
+              // Username already exists
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
+                const SnackBar(
                   content: Text(
                     'Username sudah terdaftar, silahkan gunakan username lain',
                   ),
@@ -98,25 +160,32 @@ class _HalamanDaftarState extends State<HalamanDaftar>
               );
             }
           } else {
-            // Jika username belum terdaftar
+            // Username is available, proceed with registration
             FirebaseService()
-                .addUser(usernameController.text, passwordController.text)
+                .addUser(
+                  usernameController.text,
+                  passwordController.text,
+                  namaController.text,
+                  clubController.text,
+                  noTelpController.text,
+                )
                 .then((_) async {
                   if (mounted) {
-                    // Setelah user berhasil ditambahkan, arahkan ke halaman utama
+                    // User successfully added
                     Navigator.pop(context);
                     Navigator.pushReplacement(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const PilihHalamanPelanggan(),
+                        builder: (context) => const HalamanMasuk(),
                       ),
                     );
-                    SharedPreferences prefs = await SharedPreferences.getInstance();
+                    SharedPreferences prefs =
+                        await SharedPreferences.getInstance();
                     prefs.setString('username', usernameController.text);
                   }
                 })
                 .catchError((e) {
-                  // Menangani error saat penambahan user
+                  // Handle error during user addition
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -129,7 +198,7 @@ class _HalamanDaftarState extends State<HalamanDaftar>
           }
         })
         .catchError((e) {
-          // Menangani error saat pengecekan username
+          // Handle error during username check
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -150,9 +219,6 @@ class _HalamanDaftarState extends State<HalamanDaftar>
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final screenWidth = MediaQuery.of(context).size.width;
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -172,19 +238,8 @@ class _HalamanDaftarState extends State<HalamanDaftar>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // Logo
-                      Padding(
-                        padding: EdgeInsets.only(
-                          top: screenHeight * 0.01,
-                          bottom: screenHeight * 0.03,
-                        ),
-                        child: Image.asset(
-                          'assets/image/LogoJSA.jpg',
-                          width: 150, height: 150
-                        ),
-                      ),
-
-                      // Judul login
+                      const SizedBox(height: 20),
+                      // Title
                       const Padding(
                         padding: EdgeInsets.only(bottom: 30.0),
                         child: Text(
@@ -239,6 +294,151 @@ class _HalamanDaftarState extends State<HalamanDaftar>
                         onChanged: (value) {
                           setState(() {
                             errorTextUsername = null;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      // Full Name field
+                      TextField(
+                        controller: namaController,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: primaryColor,
+                              width: 2.0,
+                            ),
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.person_outline,
+                            color: primaryColor,
+                          ),
+                          labelText: "Nama Lengkap",
+                          labelStyle: const TextStyle(color: Colors.grey),
+                          errorText: errorTextNama,
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 15.0,
+                            horizontal: 20.0,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            errorTextNama = null;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      // Club Name field
+                      TextField(
+                        controller: clubController,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: primaryColor,
+                              width: 2.0,
+                            ),
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.groups,
+                            color: primaryColor,
+                          ),
+                          labelText: "Nama Club (tidak wajib)",
+                          labelStyle: const TextStyle(color: Colors.grey),
+                          errorText: errorTextClub,
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 15.0,
+                            horizontal: 20.0,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            errorTextClub = null;
+                          });
+                        },
+                      ),
+
+                      const SizedBox(height: 15),
+
+                      // Phone Number field
+                      TextField(
+                        controller: noTelpController,
+                        keyboardType: TextInputType.phone,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: primaryColor,
+                              width: 2.0,
+                            ),
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.phone,
+                            color: primaryColor,
+                          ),
+                          labelText: "Nomor Telepon",
+                          labelStyle: const TextStyle(color: Colors.grey),
+                          errorText: errorTextNoTelp,
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 15.0,
+                            horizontal: 20.0,
+                          ),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            errorTextNoTelp = null;
                           });
                         },
                       ),
@@ -306,9 +506,72 @@ class _HalamanDaftarState extends State<HalamanDaftar>
                         onSubmitted: (_) => _daftar(),
                       ),
 
+                      const SizedBox(height: 15),
+
+                      // Confirm Password field
+                      TextField(
+                        controller: konfirmasiPasswordController,
+                        obscureText: _obscureText2,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: primaryColor,
+                              width: 2.0,
+                            ),
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.lock_outline,
+                            color: primaryColor,
+                          ),
+                          labelText: "Konfirmasi Password",
+                          labelStyle: const TextStyle(color: Colors.grey),
+                          errorText: errorTextKonfirmasiPassword,
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 15.0,
+                            horizontal: 20.0,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscureText2
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscureText2 = !_obscureText2;
+                              });
+                            },
+                          ),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            errorTextKonfirmasiPassword = null;
+                          });
+                        },
+                        onSubmitted: (_) => _daftar(),
+                      ),
+
                       const SizedBox(height: 30),
 
-                      // Login button
+                      // Register button
                       SizedBox(
                         width: double.infinity,
                         height: 50,

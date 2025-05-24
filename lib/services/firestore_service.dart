@@ -283,7 +283,16 @@ class FirebaseService {
   }
 
   // Fungsi untuk menambahkan user ke Firestore
-  Future<void> addUser(String userName, String password) async {
+  Future<void> addUser(String userName, String password, String name, String club, String phoneNumber) async {
+    try {
+      CollectionReference users = firestore.collection('users');
+      await users.add({'username': userName, 'password': password, 'name': name, 'club': club, 'phoneNumber': phoneNumber});
+    } catch (e) {
+      throw Exception('Error Adding User: $e');
+    }
+  }
+
+  Future<void> addAdminOwner(String userName, String password) async {
     try {
       CollectionReference users = firestore.collection('users');
       await users.add({'username': userName, 'password': password});
@@ -291,6 +300,9 @@ class FirebaseService {
       throw Exception('Error Adding User: $e');
     }
   }
+
+
+  // Fungsi untuk menambahkan user ke Firestore oleh admin
 
   Future<void> addUserByAdmin(String username) async {
     try {

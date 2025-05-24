@@ -614,7 +614,6 @@ class _HalamanProfilState extends State<HalamanProfil> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
-            Icon(Icons.logout, color: Colors.red),
             SizedBox(width: 8),
             Text('Konfirmasi Logout'),
           ],
@@ -826,7 +825,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                     ),
                   ),
                   Positioned(
-                    bottom: -40,
+                    bottom: -45,
                     left: 20,
                     right: 20,
                     child: _buildStatsCard(),
@@ -834,7 +833,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                 ],
               ),
 
-              const SizedBox(height: 45),
+              const SizedBox(height: 55),
 
               // Membership status
               Padding(
@@ -976,7 +975,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                           ListTile(
                             leading: Icon(Icons.edit, size: 20, color: primaryColor),
                             title: const Text('Edit Profil'),
-                            subtitle: const Text('Ubah username Anda'),
+                            subtitle: const Text('Ubah data diri Anda'),
                             trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                             onTap: () {
                               showDialog(
