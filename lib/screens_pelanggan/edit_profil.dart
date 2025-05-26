@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,15 +16,15 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
   final TextEditingController namaController = TextEditingController();
   final TextEditingController noTelpController = TextEditingController();
   final TextEditingController clubController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  
   List<UserProfil> profil = [];
-
-  // Individual error texts for each field
-  String? errorTextUsername;
-  String? errorTextPassword;
-  String? errorTextKonfirmasiPassword;
+  
+  // Error texts for form validation
   String? errorTextNama;
   String? errorTextNoTelp;
   String? errorTextClub;
+  
   String? username;
   bool isMember = false;
 
@@ -35,22 +36,39 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    await _checkStatus();
+    await _getAllData();
+  }
+
   Future<void> _checkStatus() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? username = prefs.getString('username');
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? storedUsername = prefs.getString('username');
 
-    if (username == null) return;
+      if (storedUsername == null || !mounted) return;
 
-    bool check = await FirebaseService().memberOrNonmember(username);
+      bool check = await FirebaseService().memberOrNonmember(storedUsername);
 
-    if (!mounted) return;
-
-    setState(() {
-      isMember = check;
-    });
+      if (mounted) {
+        setState(() {
+          isMember = check;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking member status: $e');
+    }
   }
 
   Future<void> _getAllData() async {
+    if (!mounted) return;
+    
     setState(() {
       _isLoading = true;
     });
@@ -60,11 +78,7 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
       String? storedUsername = prefs.getString('username');
 
       if (storedUsername == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Username tidak ditemukan')),
-          );
-        }
+        _showErrorSnackBar('Username tidak ditemukan');
         return;
       }
 
@@ -79,13 +93,13 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
           noTelpController.text = profil[0].phoneNumber;
           clubController.text = profil[0].club;
         });
+      } else {
+        setState(() {
+          username = storedUsername;
+        });
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal memuat data: $e')));
-      }
+      _showErrorSnackBar('Gagal memuat data: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -95,38 +109,77 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
     }
   }
 
+  // Enhanced validation with better rules
   bool _validateForm() {
     bool isValid = true;
 
     setState(() {
-      errorTextUsername = null;
       errorTextNama = null;
       errorTextNoTelp = null;
       errorTextClub = null;
     });
 
     // Validate full name
-    if (namaController.text.trim().isEmpty) {
+    String fullName = namaController.text.trim();
+    if (fullName.isEmpty) {
       setState(() {
         errorTextNama = 'Nama lengkap tidak boleh kosong';
+      });
+      isValid = false;
+    } else if (fullName.length < 2) {
+      setState(() {
+        errorTextNama = 'Nama minimal 2 karakter';
+      });
+      isValid = false;
+    } else if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(fullName)) {
+      setState(() {
+        errorTextNama = 'Nama hanya boleh berisi huruf dan spasi';
       });
       isValid = false;
     }
 
     // Validate phone number
-    if (noTelpController.text.trim().isEmpty) {
+    String phoneNumber = noTelpController.text.trim();
+    if (phoneNumber.isEmpty) {
       setState(() {
         errorTextNoTelp = 'Nomor telepon tidak boleh kosong';
       });
       isValid = false;
-    } else if (!RegExp(r'^\d{10,15}$').hasMatch(noTelpController.text.trim())) {
+    } else if (!_isValidPhoneNumber(phoneNumber)) {
       setState(() {
         errorTextNoTelp = 'Format nomor telepon tidak valid';
       });
       isValid = false;
     }
 
+    // Validate club name (optional but if filled, must be valid)
+    String clubName = clubController.text.trim();
+    if (clubName.isNotEmpty && clubName.length < 2) {
+      setState(() {
+        errorTextClub = 'Nama club minimal 2 karakter';
+      });
+      isValid = false;
+    }
+
     return isValid;
+  }
+
+  // Phone number validation helper
+  bool _isValidPhoneNumber(String phoneNumber) {
+    // Remove all non-digit characters for validation
+    String cleanNumber = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
+    
+    // Indonesian phone number patterns
+    // Mobile: 08xxxxxxxx (11-13 digits total)
+    // Alternative mobile: +628xxxxxxxx or 628xxxxxxxx
+    if (cleanNumber.startsWith('08') && cleanNumber.length >= 10 && cleanNumber.length <= 13) {
+      return true;
+    }
+    if (cleanNumber.startsWith('628') && cleanNumber.length >= 11 && cleanNumber.length <= 14) {
+      return true;
+    }
+    
+    return false;
   }
 
   Future<void> _saveProfile() async {
@@ -140,28 +193,16 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
       await FirebaseService().editProfil(
         username!,
         namaController.text.trim(),
-        noTelpController.text.trim(),
         clubController.text.trim(),
+        noTelpController.text.trim(),
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profil berhasil disimpan'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        Navigator.pop(context);
+        _showSuccessSnackBar('Profil berhasil disimpan');
+        Navigator.pop(context, true);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menyimpan profil: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showErrorSnackBar('Gagal menyimpan profil: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -171,11 +212,159 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _checkStatus();
-    _getAllData();
+  void _showSuccessSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.green,
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message)),
+          ],
+        ),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required IconData icon,
+    String? errorText,
+    TextInputType? keyboardType,
+    required VoidCallback onChanged,
+    List<TextInputFormatter>? inputFormatters,
+    String? hintText,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
+              borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
+              borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
+              borderSide: const BorderSide(color: primaryColor, width: 2.0),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
+              borderSide: const BorderSide(color: Colors.red, width: 1.0),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
+              borderSide: const BorderSide(color: Colors.red, width: 2.0),
+            ),
+            prefixIcon: Icon(icon, color: primaryColor),
+            labelText: labelText,
+            hintText: hintText,
+            labelStyle: const TextStyle(color: Colors.grey),
+            contentPadding: const EdgeInsets.symmetric(
+              vertical: 15.0,
+              horizontal: 20.0,
+            ),
+          ),
+          onChanged: (_) => onChanged(),
+        ),
+        if (errorText != null) ...[
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 12),
+            child: Text(
+              errorText,
+              style: const TextStyle(
+                color: Colors.red,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildProfileAvatar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Column(
+        children: [
+          CircleAvatar(
+            radius: 50,
+            backgroundColor: isMember ? Colors.blueAccent : Colors.grey[400]!,
+            child: Text(
+              username != null && username!.isNotEmpty
+                  ? username![0].toUpperCase()
+                  : '?',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 35,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            username ?? 'Loading...',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 4,
+            ),
+            decoration: BoxDecoration(
+              color: isMember ? Colors.green.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              isMember ? 'Member' : 'Non-Member',
+              style: TextStyle(
+                color: isMember ? Colors.green[700] : Colors.grey[700],
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -185,250 +374,106 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
         title: const Text('Edit Profil'),
         backgroundColor: primaryColor,
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
-      body:
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : SingleChildScrollView(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Form(
+                key: _formKey,
                 child: Column(
                   children: [
                     // Profile Avatar Section
-                    Container(
-                      padding: const EdgeInsets.only(top: 20, bottom: 10),
-                      child: CircleAvatar(
-                        radius: 50,
-                        backgroundColor:
-                            isMember ? Colors.blueAccent : Colors.grey[400]!,
-                        child: Text(
-                          username != null && username!.isNotEmpty
-                              ? username![0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 35,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
+                    _buildProfileAvatar(),
 
-                    Text(username!, style: TextStyle(fontSize: 20)),
-
-                    SizedBox(height: 10),
+                    const SizedBox(height: 20),
 
                     // Form Section
-                    Padding(
-                      padding: const EdgeInsets.all(20.0),
-                      child: Column(
-                        children: [
-                          // Full Name field
-                          TextField(
-                            controller: namaController,
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                  borderRadius,
-                                ),
-                                borderSide: const BorderSide(
-                                  color: Colors.grey,
-                                  width: 1.0,
-                                ),
+                    Column(
+                      children: [
+                        // Full Name field
+                        _buildTextField(
+                          controller: namaController,
+                          labelText: "Nama Lengkap",
+                          hintText: "Masukkan nama lengkap Anda",
+                          icon: Icons.person,
+                          errorText: errorTextNama,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+                          ],
+                          onChanged: () => setState(() => errorTextNama = null),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Club Name field
+                        _buildTextField(
+                          controller: clubController,
+                          labelText: "Nama Club",
+                          hintText: "Opsional - nama club/tim Anda",
+                          icon: Icons.groups,
+                          errorText: errorTextClub,
+                          onChanged: () => setState(() => errorTextClub = null),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Phone Number field
+                        _buildTextField(
+                          controller: noTelpController,
+                          labelText: "Nomor Telepon",
+                          hintText: "Contoh: 08123456789",
+                          icon: Icons.phone,
+                          keyboardType: TextInputType.phone,
+                          errorText: errorTextNoTelp,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'[0-9+\-\s]')),
+                          ],
+                          onChanged: () => setState(() => errorTextNoTelp = null),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Save Button
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _saveProfile,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(borderRadius),
                               ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                  borderRadius,
-                                ),
-                                borderSide: const BorderSide(
-                                  color: Colors.grey,
-                                  width: 1.0,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                  borderRadius,
-                                ),
-                                borderSide: const BorderSide(
-                                  color: primaryColor,
-                                  width: 2.0,
-                                ),
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.person,
-                                color: primaryColor,
-                              ),
-                              labelText: "Nama Lengkap",
-                              labelStyle: const TextStyle(color: Colors.grey),
-                              errorText: errorTextNama,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 15.0,
-                                horizontal: 20.0,
-                              ),
+                              elevation: 2,
+                              disabledBackgroundColor: Colors.grey[300],
                             ),
-                            onChanged: (value) {
-                              setState(() {
-                                errorTextNama = null;
-                              });
-                            },
-                          ),
-
-                          const SizedBox(height: 15),
-
-                          // Club Name field
-                          TextField(
-                            controller: clubController,
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                  borderRadius,
-                                ),
-                                borderSide: const BorderSide(
-                                  color: Colors.grey,
-                                  width: 1.0,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                  borderRadius,
-                                ),
-                                borderSide: const BorderSide(
-                                  color: Colors.grey,
-                                  width: 1.0,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                  borderRadius,
-                                ),
-                                borderSide: const BorderSide(
-                                  color: primaryColor,
-                                  width: 2.0,
-                                ),
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.groups,
-                                color: primaryColor,
-                              ),
-                              labelText: "Nama Club (tidak wajib)",
-                              labelStyle: const TextStyle(color: Colors.grey),
-                              errorText: errorTextClub,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 15.0,
-                                horizontal: 20.0,
-                              ),
-                            ),
-                            onChanged: (value) {
-                              setState(() {
-                                errorTextClub = null;
-                              });
-                            },
-                          ),
-
-                          const SizedBox(height: 15),
-
-                          // Phone Number field
-                          TextField(
-                            controller: noTelpController,
-                            keyboardType: TextInputType.phone,
-                            decoration: InputDecoration(
-                              filled: true,
-                              fillColor: Colors.white,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                  borderRadius,
-                                ),
-                                borderSide: const BorderSide(
-                                  color: Colors.grey,
-                                  width: 1.0,
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                  borderRadius,
-                                ),
-                                borderSide: const BorderSide(
-                                  color: Colors.grey,
-                                  width: 1.0,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                  borderRadius,
-                                ),
-                                borderSide: const BorderSide(
-                                  color: primaryColor,
-                                  width: 2.0,
-                                ),
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.phone,
-                                color: primaryColor,
-                              ),
-                              labelText: "Nomor Telepon",
-                              labelStyle: const TextStyle(color: Colors.grey),
-                              errorText: errorTextNoTelp,
-                              contentPadding: const EdgeInsets.symmetric(
-                                vertical: 15.0,
-                                horizontal: 20.0,
-                              ),
-                            ),
-                            onChanged: (value) {
-                              setState(() {
-                                errorTextNoTelp = null;
-                              });
-                            },
-                          ),
-
-                          const SizedBox(height: 30),
-
-                          // Save Button
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _saveProfile,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryColor,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 15,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(
-                                    borderRadius,
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  )
+                                : const Text(
+                                    "Simpan Perubahan",
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                              ),
-                              child:
-                                  _isLoading
-                                      ? const SizedBox(
-                                        height: 20,
-                                        width: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                        ),
-                                      )
-                                      : const Text(
-                                        "Simpan",
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
+            ),
     );
   }
 }

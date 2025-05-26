@@ -699,29 +699,6 @@ class FirebaseService {
     }
   }
 
-  // Fungsi untuk menambahkan promo dan event ke Firestore
-  Future<void> tambahPromoEvent({required String imageurl}) async {
-    try {
-      CollectionReference promoEventCollection = firestore.collection(
-        'promo_event',
-      );
-      await promoEventCollection.add({'gambar': imageurl});
-    } catch (e) {
-      throw Exception('Failed to create promo event: $e');
-    }
-  }
-
-  Future<void> deletePromoEvent(String id) async {
-    try {
-      CollectionReference promoEventCollection = firestore.collection(
-        'promo_event',
-      );
-      await promoEventCollection.doc(id).delete();
-    } catch (e) {
-      throw Exception('Failed to delete promo event: $e');
-    }
-  }
-
   // Fungsi untuk mengenerate slot 7 hari
   // OPTIMIZATION 1: Use batch writes for generating time slots
   Future<void> generateSlots7day() async {
@@ -1359,8 +1336,8 @@ class FirebaseService {
           if (startTime == null || now.difference(startTime).inDays >= 30) {
             // Sudah 1 bulan sejak startTime, reset poin dan set startTime baru
             batch.update(userRef, {
-              'totalHours': currentHours + totalHours,
-              'point': totalHours,
+              'totalHours': totalHours,
+              'point': point + totalHours,
               'startTime': dateStr, // mulai ulang
             });
           } else {
@@ -1408,6 +1385,27 @@ class FirebaseService {
       await batch.commit();
     } catch (e) {
       throw Exception('Failed to book slot: $e');
+    }
+  }
+
+  Future<void> cancelBooking (String slotId, String username) async {
+    try {
+      await firestore.collection('time_slots').doc(slotId).update({
+        'isAvailable': true,
+        'username': '',
+      });
+
+      await firestore.collection('users').where('username', isEqualTo: username).get().then((querySnapshot) {
+        if (querySnapshot.docs.isNotEmpty) {
+          final userRef = querySnapshot.docs.first.reference;
+          userRef.update({
+            'totalHours': FieldValue.increment(-0.5),
+            'point': FieldValue.increment(-0.5),
+          });
+        }
+      });
+    } catch (e) {
+      throw Exception('Failed to cancel booking: $e');
     }
   }
 

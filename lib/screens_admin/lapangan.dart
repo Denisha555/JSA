@@ -3,10 +3,9 @@ import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:path/path.dart' as path;
-import 'package:cached_network_image/cached_network_image.dart';
 
 class HalamanLapangan extends StatefulWidget {
   const HalamanLapangan({super.key});
@@ -19,6 +18,7 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
   final TextEditingController _deskripsiController = TextEditingController();
   final TextEditingController _nomorController = TextEditingController();
   File? _imageFile;
+  String? _imageBase64;
   bool _isLoading = false;
   String? _currentLapanganId;
   bool _isEditing = false;
@@ -43,6 +43,7 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
     _nomorController.clear();
     setState(() {
       _imageFile = null;
+      _imageBase64 = null;
       _currentLapanganId = null;
       _isEditing = false;
     });
@@ -81,38 +82,23 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
     );
 
     if (source != null) {
-      final picked = await ImagePicker().pickImage(source: source);
+      final picked = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 800,  // Batasi ukuran untuk mengurangi ukuran base64
+        maxHeight: 600,
+        imageQuality: 70,  // Kompres gambar
+      );
+      
       if (picked != null) {
+        final file = File(picked.path);
+        final bytes = await file.readAsBytes();
+        final base64String = base64Encode(bytes);
+        
         setState(() {
-          _imageFile = File(picked.path);
+          _imageFile = file;
+          _imageBase64 = base64String;
         });
       }
-    }
-  }
-
-  Future<String?> _uploadImage() async {
-    if (_imageFile == null) return null;
-
-    try {
-      // Buat nama file unik berdasarkan timestamp
-      final fileName = 'lapangan_${DateTime.now().millisecondsSinceEpoch}${path.extension(_imageFile!.path)}';
-      
-      // Referensi ke Firebase Storage
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('lapangan_images')
-          .child(fileName);
-          
-      // Upload file
-      final uploadTask = ref.putFile(_imageFile!);
-      final snapshot = await uploadTask.whenComplete(() => null);
-      
-      // Dapatkan URL download
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      return downloadUrl;
-    } catch (e) {
-      print('Error uploading image: $e');
-      return null;
     }
   }
 
@@ -126,30 +112,19 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
       return;
     }
 
-    // Cek lapangan yang sudah dibuat
-    bool isLapanganExist = await FirebaseService().checkLapangan(nomor);
-    if (isLapanganExist) {
-      _showSnackBar('Nomor lapangan sudah ada');
-      return;
+    // Cek lapangan yang sudah dibuat (kecuali saat editing)
+    if (!_isEditing) {
+      bool isLapanganExist = await FirebaseService().checkLapangan(nomor);
+      if (isLapanganExist) {
+        _showSnackBar('Nomor lapangan sudah ada');
+        return;
+      }
     }
 
     try {
       setState(() {
         _isLoading = true;
       });
-
-      // Upload gambar jika ada dan mengupdate
-      String? imageUrl;
-      if (_imageFile != null) {
-        imageUrl = await _uploadImage();
-        if (imageUrl == null) {
-          _showSnackBar('Gagal mengunggah gambar');
-          setState(() {
-            _isLoading = false;
-          });
-          return;
-        }
-      }
 
       // Buat data lapangan
       final lapanganData = {
@@ -158,9 +133,9 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      // Tambahkan imageUrl jika ada
-      if (imageUrl != null) {
-        lapanganData['gambarUrl'] = imageUrl;
+      // Tambahkan imageBase64 jika ada
+      if (_imageBase64 != null) {
+        lapanganData['image'] = _imageBase64!;
       }
 
       // Jika editing, update dokumen yang ada
@@ -214,13 +189,15 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
       _isEditing = true;
       _nomorController.text = data['nomor'] ?? '';
       _deskripsiController.text = data['deskripsi'] ?? '';
+      _imageBase64 = data['image']; // Set base64 string dari database
+      _imageFile = null; // Reset file image karena kita pakai base64
     });
     
     // Pindah ke tab input form
     _tabController.animateTo(0);
   }
 
-  Future<void> _hapusLapangan(String docId, String? imageUrl) async {
+  Future<void> _hapusLapangan(String docId) async {
     try {
       // Konfirmasi hapus
       bool? confirm = await showDialog<bool>(
@@ -250,15 +227,6 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
       // Hapus dokumen
       await FirebaseService().hapusLapangan(docId);
       
-      // Hapus gambar jika ada
-      if (imageUrl != null && imageUrl.isNotEmpty) {
-        try {
-          await FirebaseStorage.instance.refFromURL(imageUrl).delete();
-        } catch (e) {
-          debugPrint('Error deleting image: $e');
-        }
-      }
-      
       setState(() {
         _isLoading = false;
       });
@@ -269,6 +237,40 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
         _isLoading = false;
       });
       _showSnackBar('Error: ${e.toString()}');
+    }
+  }
+
+  Widget _buildImageWidget() {
+    if (_imageFile != null) {
+      // Tampilkan gambar dari file yang baru dipilih
+      return Image.file(_imageFile!, fit: BoxFit.cover);
+    } else if (_imageBase64 != null && _imageBase64!.isNotEmpty) {
+      // Tampilkan gambar dari base64 string (untuk edit mode)
+      try {
+        Uint8List bytes = base64Decode(_imageBase64!);
+        return Image.memory(bytes, fit: BoxFit.cover);
+      } catch (e) {
+        return Container(
+          color: Colors.grey[300],
+          child: const Icon(Icons.error, size: 50),
+        );
+      }
+    } else {
+      // Tampilkan placeholder
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: const [
+          Icon(Icons.add_photo_alternate, size: 64, color: primaryColor),
+          SizedBox(height: 10),
+          Text(
+            'Tap untuk pilih gambar lapangan',
+            style: TextStyle(
+              color: Colors.grey,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      );
     }
   }
 
@@ -307,7 +309,7 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
+                            color: Colors.black.withOpacity(0.1),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -315,22 +317,7 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: _imageFile != null
-                            ? Image.file(_imageFile!, fit: BoxFit.cover)
-                            : Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
-                                  Icon(Icons.add_photo_alternate, size: 64, color: primaryColor),
-                                  SizedBox(height: 10),
-                                  Text(
-                                    'Tap untuk pilih gambar lapangan',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                        child: _buildImageWidget(),
                       ),
                     ),
                   ),
@@ -339,6 +326,7 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
                     controller: _nomorController,
                     decoration: InputDecoration(
                       labelText: 'Nomor Lapangan',
+                      helperText: 'Contoh format: 01, 02, 03, ...',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -370,9 +358,9 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
                   Row(
                     children: [
                       Expanded(
-                        child: ElevatedButton.icon(
+                        child: ElevatedButton(
                           onPressed: _isLoading ? null : _simpanLapangan,
-                          label: Text(
+                          child: Text(
                             _isEditing ? 'Update' : 'Simpan',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
@@ -388,11 +376,11 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
                       ),
                       if (_isEditing) ...[
                         const SizedBox(width: 12),
-                        ElevatedButton.icon(
+                        ElevatedButton(
                           onPressed: _isLoading ? null : () => _resetForm(),
-                          label: Text('Batal', style: TextStyle(
+                          child: const Text('Batal', style: TextStyle(
                             fontWeight: FontWeight.bold,
-                          ),),
+                          )),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: primaryColor,
@@ -454,7 +442,7 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
             final String id = doc.id;
             final String nomor = data['nomor'] ?? '';
             final String deskripsi = data['deskripsi'] ?? '';
-            final String? imageUrl = data['gambarUrl'];
+            final String? imageBase64 = data['image'];
 
             return Card(
               margin: const EdgeInsets.only(bottom: 16),
@@ -468,24 +456,19 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
                   // Image section
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
-                    child: imageUrl != null && imageUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: imageUrl,
+                    child: imageBase64 != null && imageBase64.isNotEmpty
+                        ? Image.memory(
+                            base64Decode(imageBase64),
                             height: 180,
                             width: double.infinity,
                             fit: BoxFit.cover,
-                            placeholder: (context, url) => Container(
-                              height: 180,
-                              color: Colors.grey[300],
-                              child: const Center(
-                                child: CircularProgressIndicator(color: primaryColor),
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => Container(
-                              height: 180,
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.error),
-                            ),
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 180,
+                                color: Colors.grey[300],
+                                child: const Icon(Icons.error, size: 50),
+                              );
+                            },
                           )
                         : Container(
                             height: 180,
@@ -523,7 +506,7 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
                             ),
                             IconButton(
                               icon: const Icon(Icons.delete, color: Colors.red),
-                              onPressed: () => _hapusLapangan(id, imageUrl),
+                              onPressed: () => _hapusLapangan(id),
                               tooltip: 'Hapus',
                             ),
                           ],

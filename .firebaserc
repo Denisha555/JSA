@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "jump-smash-arena"
-  }
+    "default": "jump-smash-arena",
+    "jump-smash-arena": "jump-smash-arena"
+  },
+  "targets": {},
+  "etags": {}
 }

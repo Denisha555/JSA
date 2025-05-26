@@ -7,6 +7,8 @@ import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/screens_pelanggan/halaman_utama_pelanggan.dart';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 
 class HalamanProfil extends StatefulWidget {
   const HalamanProfil({super.key});
@@ -21,6 +23,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
   bool isMember = false;
   List<LastActivity> activity = [];
   List<UserData> data = [];
+  Reward currentReward = const Reward(currentHours: 0);
 
   @override
   void initState() {
@@ -60,6 +63,12 @@ class _HalamanProfilState extends State<HalamanProfil> {
     }
   }
 
+  String hashPassword(String password) {
+    final bytes = utf8.encode(password);
+    final digest = sha256.convert(bytes);
+    return digest.toString(); // ini hasil hash-nya
+  }
+
   Future<void> _loadData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? loadedUsername = prefs.getString('username');
@@ -76,6 +85,13 @@ class _HalamanProfilState extends State<HalamanProfil> {
     setState(() {
       username = loadedUsername;
       data = temp;
+
+      // Update currentReward with actual user data
+      final hours =
+          (data.isNotEmpty && data[0].totalHour != null)
+              ? data[0].totalHour.toDouble()
+              : 0.0;
+      currentReward = Reward(currentHours: hours);
     });
   }
 
@@ -289,32 +305,16 @@ class _HalamanProfilState extends State<HalamanProfil> {
       context: context,
       builder:
           (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Row(
-              children: [
-                Icon(Icons.celebration, color: Colors.amber, size: 28),
-                SizedBox(width: 8),
-                Text('🎉 Selamat!'),
-              ],
-            ),
+            title: const Text('🎉 Selamat!'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Kamu mendapatkan $rewardText!'),
                 const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'Catatan: Reward ini dapat digunakan pada booking selanjutnya dengan konfirmasi admin.',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
+                const Text(
+                  'Catatan: Reward ini dapat digunakan pada booking selanjutnya dengan konfirmasi admin.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
             ),
@@ -382,17 +382,38 @@ class _HalamanProfilState extends State<HalamanProfil> {
     }
   }
 
+  Future<void> _updateUsername(String newUsername) async {
+    if (newUsername.trim().isEmpty) {
+      _showErrorSnackBar('Username tidak boleh kosong');
+      return;
+    }
+
+    try {
+      if (username != null) {
+        await FirebaseService().editUsername(username!, newUsername.trim());
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.setString('username', newUsername.trim());
+        if (!mounted) return;
+        _showSuccessSnackBar('Username berhasil diperbarui!');
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      _showErrorSnackBar('Error updating username: $e');
+    }
+  }
+
   Widget editPassword(BuildContext context) {
     final TextEditingController passwordController = TextEditingController();
     final TextEditingController passwordController2 = TextEditingController();
     final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
+    bool obscureText = true;
+    bool obscureText2 = true;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
       child: StatefulBuilder(
         builder: (context, setState) {
-          bool obscureText = true;
-          bool obscureText2 = true;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -562,7 +583,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             bool usernameUsed = await FirebaseService()
                                 .checkUser(usernameController.text);
                             if (!usernameUsed) {
-                              _updatePassword(usernameController.text);
+                              _updateUsername(usernameController.text);
                               SharedPreferences prefs =
                                   await SharedPreferences.getInstance();
                               prefs.setString(

@@ -1,11 +1,11 @@
 import 'dart:io';
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as path;
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 
 class HalamanPromoEvent extends StatefulWidget {
@@ -20,9 +20,6 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
   late TabController _tabController;
   File? _imageFile;
   bool _isLoading = false;
-  DateTime? _startDate;
-  DateTime? _endDate;
-  final DateFormat _dateFormat = DateFormat('dd MMM yyyy');
 
   @override
   void initState() {
@@ -83,7 +80,12 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
     );
 
     if (source != null) {
-      final picked = await ImagePicker().pickImage(source: source);
+      final picked = await ImagePicker().pickImage(
+        source: source,
+        maxWidth: 1024, // Batasi ukuran untuk mengurangi ukuran base64
+        maxHeight: 1024,
+        imageQuality: 85, // Kompres gambar
+      );
       if (picked != null) {
         setState(() {
           _imageFile = File(picked.path);
@@ -92,52 +94,21 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
     }
   }
 
-  Future<void> _selectDate(bool isStart) async {
-    final DateTime now = DateTime.now();
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate:
-          isStart
-              ? (_startDate ?? now)
-              : (_endDate ?? now.add(const Duration(days: 7))),
-      firstDate: isStart ? now : (_startDate ?? now),
-      lastDate: DateTime(now.year + 1),
-      builder: (BuildContext context, Widget? child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: primaryColor,
-              onPrimary: Colors.white,
-              surface: Colors.white,
-            ),
-            dialogTheme: DialogThemeData(backgroundColor: Colors.white),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      setState(() {
-        if (isStart) {
-          _startDate = picked;
-          // If end date is before start date, update end date too
-          if (_endDate != null && _endDate!.isBefore(_startDate!)) {
-            _endDate = _startDate!.add(const Duration(days: 7));
-          }
-        } else {
-          _endDate = picked;
-        }
-      });
-    }
-  }
-
   void _resetForm() {
     setState(() {
       _imageFile = null;
-      _startDate = null;
-      _endDate = null;
     });
+  }
+
+  // Fungsi untuk mengkonversi gambar ke base64
+  Future<String> _convertImageToBase64(File imageFile) async {
+    try {
+      Uint8List imageBytes = await imageFile.readAsBytes();
+      String base64String = base64Encode(imageBytes);
+      return base64String;
+    } catch (e) {
+      throw Exception('Failed to convert image to base64: $e');
+    }
   }
 
   Future<void> _simpanPromo() async {
@@ -146,43 +117,18 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
       return;
     }
 
-    if (_startDate == null) {
-      _showSnackBar('Silakan pilih tanggal mulai');
-      return;
-    }
-
-    if (_endDate == null) {
-      _showSnackBar('Silakan pilih tanggal selesai');
-      return;
-    }
-
     setState(() {
       _isLoading = true;
     });
 
-    final promoEventData = {
-      'gambarUrl': _imageFile!.path,
-      'startDate': _startDate,
-      'endDate': _endDate,
-    };
-
     try {
-      final fileName =
-          'promo_${DateTime.now().millisecondsSinceEpoch}${path.extension(_imageFile!.path)}';
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('promo_images')
-          .child(fileName);
-      final uploadTask = ref.putFile(_imageFile!);
-      final snapshot = await uploadTask.whenComplete(() => null);
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      await FirebaseFirestore.instance.collection('promo').add({
-        'gambarUrl': downloadUrl,
-        'startDate': Timestamp.fromDate(_startDate!),
-        'endDate': Timestamp.fromDate(_endDate!),
+      // Konversi gambar ke base64
+      String base64Image = await _convertImageToBase64(_imageFile!);
+      
+      // Simpan ke Firestore dengan base64
+      await FirebaseFirestore.instance.collection('promo_event').add({
+        'gambar': base64Image,
         'createdAt': FieldValue.serverTimestamp(),
-        'isActive': true,
       });
 
       _showSnackBar('Promo berhasil diunggah');
@@ -196,7 +142,7 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
       });
     }
   }
-
+  
   Widget _buildPromoForm() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -222,6 +168,8 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
                     ),
                   ),
                   const SizedBox(height: 20),
+                  
+                  // Image picker
                   GestureDetector(
                     onTap: _pickImage,
                     child: Container(
@@ -240,105 +188,55 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child:
-                            _imageFile != null
-                                ? Image.file(_imageFile!, fit: BoxFit.cover)
-                                : Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: const [
-                                    Icon(
-                                      Icons.add_photo_alternate,
-                                      size: 64,
-                                      color: primaryColor,
+                        child: _imageFile != null
+                            ? Image.file(_imageFile!, fit: BoxFit.cover)
+                            : const Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.add_photo_alternate,
+                                    size: 64,
+                                    color: primaryColor,
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'Tap untuk pilih gambar promo',
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                    SizedBox(height: 10),
-                                    Text(
-                                      'Tap untuk pilih gambar promo',
-                                      style: TextStyle(
-                                        color: Colors.grey,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                ],
+                              ),
                       ),
                     ),
                   ),
+                  
                   const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => _selectDate(true),
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Mulai',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.calendar_today,
-                                color: primaryColor,
-                              ),
-                            ),
-                            child: Text(
-                              _startDate != null
-                                  ? _dateFormat.format(_startDate!)
-                                  : 'Pilih Tanggal',
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => _selectDate(false),
-                          child: InputDecorator(
-                            decoration: InputDecoration(
-                              labelText: 'Selesai',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.calendar_today,
-                                color: primaryColor,
-                              ),
-                            ),
-                            child: Text(
-                              _endDate != null
-                                  ? _dateFormat.format(_endDate!)
-                                  : 'Pilih Tanggal',
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
+                  
+                  // Upload button
                   SizedBox(
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton.icon(
                       onPressed: _isLoading ? null : _simpanPromo,
                       icon: const Icon(Icons.upload),
-                      label:
-                          _isLoading
-                              ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                              : const Text(
-                                'Upload Promo',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
+                      label: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
                               ),
+                            )
+                          : const Text(
+                              'Upload Promo',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
                         foregroundColor: Colors.white,
@@ -359,11 +257,10 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
 
   Widget _buildPromoList() {
     return StreamBuilder<QuerySnapshot>(
-      stream:
-          FirebaseFirestore.instance
-              .collection('promo')
-              .orderBy('createdAt', descending: true)
-              .snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('promo_event')
+          .orderBy('createdAt', descending: true)
+          .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -390,15 +287,12 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
           itemBuilder: (context, index) {
             final doc = snapshot.data!.docs[index];
             final data = doc.data() as Map<String, dynamic>;
-            final String imageUrl = data['gambarUrl'] ?? '';
-            final Timestamp? startTimestamp = data['startDate'];
-            final Timestamp? endTimestamp = data['endDate'];
+            final String base64Image = data['gambar'] ?? '';
+            final Timestamp? createdAt = data['createdAt'];
 
-            String dateRange = '';
-            if (startTimestamp != null && endTimestamp != null) {
-              final startDate = _dateFormat.format(startTimestamp.toDate());
-              final endDate = _dateFormat.format(endTimestamp.toDate());
-              dateRange = '$startDate - $endDate';
+            String dateInfo = '';
+            if (createdAt != null) {
+              dateInfo = 'Dibuat: ${DateFormat('dd MMM yyyy, HH:mm').format(createdAt.toDate())}';
             }
 
             return Card(
@@ -410,62 +304,62 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Image
+                  // Image from base64
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(15),
                     ),
-                    child: CachedNetworkImage(
-                      imageUrl: imageUrl,
-                      height: 180,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder:
-                          (context, url) => Container(
+                    child: base64Image.isNotEmpty
+                        ? Image.memory(
+                            base64Decode(base64Image),
+                            height: 180,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                height: 180,
+                                color: Colors.grey[300],
+                                child: const Icon(Icons.error),
+                              );
+                            },
+                          )
+                        : Container(
                             height: 180,
                             color: Colors.grey[300],
-                            child: const Center(
-                              child: CircularProgressIndicator(
-                                color: primaryColor,
-                              ),
-                            ),
+                            child: const Icon(Icons.image_not_supported),
                           ),
-                      errorWidget:
-                          (context, url, error) => Container(
-                            height: 180,
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.error),
-                          ),
-                    ),
                   ),
-                  // Date info
-                  if (dateRange.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
+                  // Date info and delete button
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Row(
+                      children: [
+                        if (dateInfo.isNotEmpty) ...[
                           const Icon(
-                            Icons.date_range,
+                            Icons.schedule,
                             color: primaryColor,
                             size: 18,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            dateRange,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: primaryColor,
+                          Expanded(
+                            child: Text(
+                              dateInfo,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                color: primaryColor,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
-                          const Spacer(),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deletePromo(doc.id, imageUrl),
-                            tooltip: 'Hapus',
-                          ),
                         ],
-                      ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deletePromo(doc.id),
+                          tooltip: 'Hapus',
+                        ),
+                      ],
                     ),
+                  ),
                 ],
               ),
             );
@@ -475,31 +369,30 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
     );
   }
 
-  Future<void> _deletePromo(String docId, String imageUrl) async {
+  Future<void> _deletePromo(String docId) async {
     // Konfirmasi hapus
     bool? confirm = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Konfirmasi Hapus'),
-            content: const Text('Apakah Anda yakin ingin menghapus promo ini?'),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(15),
+      builder: (context) => AlertDialog(
+        title: const Text('Konfirmasi Hapus'),
+        content: const Text('Apakah Anda yakin ingin menghapus promo ini?'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text(
+              'Batal',
+              style: TextStyle(color: Colors.grey),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text(
-                  'Batal',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: const Text('Hapus', style: TextStyle(color: Colors.red)),
-              ),
-            ],
           ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
 
     if (confirm != true) return;
@@ -510,16 +403,10 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
 
     try {
       // Hapus dokumen dari Firestore
-      await FirebaseFirestore.instance.collection('promo').doc(docId).delete();
-
-      // Hapus gambar dari Storage
-      if (imageUrl.isNotEmpty) {
-        try {
-          await FirebaseStorage.instance.refFromURL(imageUrl).delete();
-        } catch (e) {
-          debugPrint('Error deleting image: $e');
-        }
-      }
+      await FirebaseFirestore.instance
+          .collection('promo_event')
+          .doc(docId)
+          .delete();
 
       _showSnackBar('Promo berhasil dihapus');
     } catch (e) {
@@ -551,15 +438,14 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
           ],
         ),
       ),
-      body:
-          _isLoading && _tabController.index != 1
-              ? const Center(
-                child: CircularProgressIndicator(color: primaryColor),
-              )
-              : TabBarView(
-                controller: _tabController,
-                children: [_buildPromoForm(), _buildPromoList()],
-              ),
+      body: _isLoading && _tabController.index != 1
+          ? const Center(
+              child: CircularProgressIndicator(color: primaryColor),
+            )
+          : TabBarView(
+              controller: _tabController,
+              children: [_buildPromoForm(), _buildPromoList()],
+            ),
     );
   }
 }

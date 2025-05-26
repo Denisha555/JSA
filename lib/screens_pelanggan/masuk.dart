@@ -5,6 +5,8 @@ import 'package:flutter_application_1/screens_admin/halaman_utama_admin.dart';
 import 'package:flutter_application_1/screen_owner/halaman_utama_owner.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 
 class HalamanMasuk extends StatefulWidget {
   const HalamanMasuk({super.key});
@@ -56,6 +58,12 @@ class _HalamanMasukState extends State<HalamanMasuk>
     passwordController.dispose();
     _animationController.dispose();
     super.dispose();
+  }
+
+  String hashPassword(String password) {
+    final bytes = utf8.encode(password);
+    final digest = sha256.convert(bytes);
+    return digest.toString(); 
   }
 
   void _login() async {
@@ -188,7 +196,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
         if (registered) {
           bool valid = await FirebaseService().checkPassword(
             usernameController.text,
-            passwordController.text,
+            hashPassword(passwordController.text),
           );
 
           // jika username dan password benar

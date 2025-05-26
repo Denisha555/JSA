@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/screens_admin/daftar_member.dart';
+import 'package:flutter_application_1/screens_admin/daftar_non_member.dart';
+import 'package:flutter_application_1/screens_pelanggan/member.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/constants_file.dart';
+import 'package:crypto/crypto.dart';
+import 'dart:convert';
 
 class HalamanCustomers extends StatefulWidget {
   const HalamanCustomers({super.key});
@@ -19,7 +24,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
     _init();
   }
 
-  void _init () {
+  void _init() {
     _fetchUsers();
   }
 
@@ -97,9 +102,16 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                     _buildUserList('nonMember'),
                   ],
                 ),
-                floatingActionButton: FloatingActionButton(onPressed: () {
-                 
-                }, backgroundColor: primaryColor, child: Icon(Icons.add, color: Colors.white, )),
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (context) => _choseseAction(),
+            );
+          },
+          backgroundColor: primaryColor,
+          child: Icon(Icons.add, color: Colors.white),
+        ),
       ),
     );
   }
@@ -111,8 +123,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
             .map((entry) => _buildUserCard(entry.key, status))
             .toList();
 
-    return 
-    RefreshIndicator(
+    return RefreshIndicator(
       onRefresh: () async {
         await _fetchUsers();
       },
@@ -134,7 +145,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                 padding: const EdgeInsets.all(16),
                 itemCount: filteredUsers.length,
                 itemBuilder: (context, index) => filteredUsers[index],
-              )
+              ),
     );
   }
 
@@ -181,6 +192,50 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _choseseAction() {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Pilih Jenis Akun yang ingin ditambahkan',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              ListTile(
+                title: const Text('Member'),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => HalamanMemberAdmin(),
+                    ),
+                  );
+                  Navigator.of(context).pop();
+                },
+              ),
+              ListTile(
+                title: const Text('Non Member'),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => HalamanNonMemberAdmin(),
+                    ),
+                  );
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

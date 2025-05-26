@@ -79,8 +79,6 @@ class Reward {
   const Reward({required this.currentHours, this.requiredHours = 20});
 }
 
-const Reward currentReward = Reward(currentHours: 10);
-
 class HalamanUtamaPelanggan extends StatefulWidget {
   const HalamanUtamaPelanggan({super.key});
 
@@ -91,6 +89,10 @@ class HalamanUtamaPelanggan extends StatefulWidget {
 class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
   Widget? currentBookingCard;
   bool _isLoading = false;
+  List<UserData> user = [];
+
+  // Initialize with default values
+  Reward currentReward = const Reward(currentHours: 0);
 
   @override
   void initState() {
@@ -106,9 +108,44 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
 
   Future<void> _init() async {
     setState(() => _isLoading = true);
-    await _checkBooked();
+    await Future.wait([
+      getUserData(), // Load user data first
+      _checkBooked(),
+    ]);
     if (mounted) {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> getUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getString('username');
+      if (userId != null) {
+        final userData = await FirebaseService().getUserData(userId);
+        if (mounted) {
+          setState(() {
+            user = userData;
+            // Update currentReward with actual user data
+            final hours =
+                (user.isNotEmpty && user[0].totalHour != null)
+                    ? user[0].totalHour.toDouble()
+                    : 0.0;
+            currentReward = Reward(currentHours: hours);
+          });
+        }
+      }
+      debugPrint(user[0].totalHour.toDouble().toString());
+    } catch (e) {
+      debugPrint('Failed to load user data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal memuat data pengguna'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -124,7 +161,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
-            await _checkBooked();
+            await Future.wait([getUserData(), _checkBooked()]);
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -425,7 +462,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
                   ),
                   const SizedBox(width: 8),
                   const Text(
-                    "Telah Dibooking",
+                    "Jadwal",
                     style: TextStyle(
                       color: Colors.green,
                       fontWeight: FontWeight.bold,
@@ -471,80 +508,13 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
                 ),
               ),
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: Implement reschedule functionality
-                        _showFeatureComingSoon('Ubah Jadwal');
-                      },
-                      label: Text("Ubah Jadwal", style: TextStyle(fontSize: 13),),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: primaryColor,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        // TODO: Implement cancel functionality
-                        _showCancelConfirmation();
-                      },
-                      label: Text("Batalkan", style: TextStyle(fontSize: 13)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
       ),
     );
   }
-
-  void _showFeatureComingSoon(String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Fitur $feature akan segera hadir!'),
-        backgroundColor: primaryColor,
-      ),
-    );
-  }
-
-  void _showCancelConfirmation() {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Konfirmasi Pembatalan'),
-            content: const Text(
-              'Apakah Anda yakin ingin membatalkan booking ini?',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Tidak'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _showFeatureComingSoon('Pembatalan booking');
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text('Ya, Batalkan'),
-              ),
-            ],
-          ),
-    );
-  }
-
+  
   Future<void> _checkBooked() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -631,7 +601,8 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
       context,
       MaterialPageRoute(builder: (context) => screen),
     );
-    _checkBooked();
+    // Refresh data when returning from other screens
+    await Future.wait([getUserData(), _checkBooked()]);
   }
 
   Widget _buildQuickAccessButton({

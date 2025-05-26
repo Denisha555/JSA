@@ -218,34 +218,39 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
                                 itemCount: terjadwals.length,
                                 itemBuilder: (context, index) {
                                   final booking = terjadwals[index];
-                                  return Card(
-                                    elevation: 2,
-                                    margin: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
-                                    child: ListTile(
-                                      leading: const Icon(
-                                        Icons.schedule,
-                                        color: Colors.blue,
+                                  return Dismissible(
+                                    key: ValueKey(index),
+                                    direction: DismissDirection.endToStart,
+                                    background: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.red)),
+                                    child: Card(
+                                      elevation: 2,
+                                      margin: const EdgeInsets.symmetric(
+                                        vertical: 8,
                                       ),
-                                      title: Row(
-                                        children: [
-                                          Text(
-                                            booking.tanggal,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
+                                      child: ListTile(
+                                        leading: const Icon(
+                                          Icons.schedule,
+                                          color: Colors.blue,
+                                        ),
+                                        title: Row(
+                                          children: [
+                                            Text(
+                                              booking.tanggal,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Text(
-                                            booking.jam,
-                                            style: const TextStyle(
-                                              color: Colors.blue,
+                                            const SizedBox(width: 10),
+                                            Text(
+                                              booking.jam,
+                                              style: const TextStyle(
+                                                color: Colors.blue,
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
+                                        subtitle: Text(booking.lapangan),
                                       ),
-                                      subtitle: Text(booking.lapangan),
                                     ),
                                   );
                                 },

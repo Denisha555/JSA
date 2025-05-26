@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screens_pelanggan/masuk.dart';
+import 'package:flutter_application_1/screens_admin/customers.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/constants_file.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 
-class HalamanDaftar extends StatefulWidget {
-  const HalamanDaftar({super.key});
+class HalamanNonMemberAdmin extends StatefulWidget {
+  const HalamanNonMemberAdmin({super.key});
 
   @override
-  State<HalamanDaftar> createState() => _HalamanDaftarState();
+  State<HalamanNonMemberAdmin> createState() => _HalamanNonMemberAdminState();
 }
 
-class _HalamanDaftarState extends State<HalamanDaftar>
+class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
     with SingleTickerProviderStateMixin {
   bool _obscureText = true;
   bool _obscureText2 = true;
@@ -210,16 +209,11 @@ class _HalamanDaftarState extends State<HalamanDaftar>
 
       // Check if username is already registered
       await FirebaseService().addUser(username, hashPassword(password), nama, club, noTelp);
+
       if (!mounted) return;
-
-      Navigator.pop(context);
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const HalamanMasuk()),
-      );
-
-      final prefs = await SharedPreferences.getInstance();
-      prefs.setString('username', username);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Akun berhasil didaftarkan')));
+      
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HalamanCustomers()));
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -256,19 +250,6 @@ class _HalamanDaftarState extends State<HalamanDaftar>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const SizedBox(height: 20),
-                      // Title
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 30.0),
-                        child: Text(
-                          "Daftar Akun",
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
-                          ),
-                        ),
-                      ),
-
                       // Username field
                       TextField(
                         controller: usernameController,
