@@ -432,6 +432,7 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
+          indicatorSize: TabBarIndicatorSize.tab,
           tabs: const [
             Tab(icon: Icon(Icons.add_box_outlined), text: 'Tambah Promo'),
             Tab(icon: Icon(Icons.campaign_outlined), text: 'Promo Berjalan'),

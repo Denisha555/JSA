@@ -676,44 +676,6 @@ class FirebaseService {
     }
   }
 
-  // Fungsi untuk menambahkan lapangan ke Firestore
-  Future<void> tambahLapangan({
-    required String nomor,
-    required String deskripsi,
-    String? imageUrl,
-  }) async {
-    try {
-      CollectionReference lapanganCollection = firestore.collection('lapangan');
-      await lapanganCollection.add({
-        'nomor': nomor,
-        'deskripsi': deskripsi,
-        'image': imageUrl,
-      });
-    } catch (e) {
-      throw Exception('Error menambahkan lapangan: $e');
-    }
-  }
-
-  // Fungsi untuk update lapangan di Firestore
-  Future<void> updateLapangan({
-    required String documentId,
-    required String nomor,
-    Timestamp? createdAt,
-    String? deskripsi,
-    String? imageUrl,
-  }) async {
-    try {
-      CollectionReference lapanganCollection = firestore.collection('lapangan');
-      await lapanganCollection.doc(documentId).update({
-        'nomor': nomor,
-        'deskripsi': deskripsi,
-        'image': imageUrl,
-      });
-    } catch (e) {
-      throw Exception('Error mengupdate lapangan: $e');
-    }
-  }
-
   // Fungsi untuk mengecek apakah lapangan sudah ada di Firestore
   Future<bool> checkLapangan(String nomor) async {
     try {
@@ -1457,30 +1419,50 @@ class FirebaseService {
     }
   }
 
-  Future<void> cancelBooking(String slotId, String username) async {
-    try {
-      await firestore.collection('time_slots').doc(slotId).update({
-        'isAvailable': true,
-        'username': '',
-      });
+  Future<void> cancelBooking(String username, String date, String courtId, String startTime, String endTime) async {
+  final batch = firestore.batch();
+  final slotId = '${courtId}_${date}_${startTime.replaceAll(':', '')}';
 
-      await firestore
-          .collection('users')
-          .where('username', isEqualTo: username)
-          .get()
-          .then((querySnapshot) {
-            if (querySnapshot.docs.isNotEmpty) {
-              final userRef = querySnapshot.docs.first.reference;
-              userRef.update({
-                'totalHours': FieldValue.increment(-0.5),
-                'point': FieldValue.increment(-0.5),
-              });
-            }
-          });
-    } catch (e) {
-      throw Exception('Failed to cancel booking: $e');
+  final slotRef = firestore.collection('time_slots').doc(slotId);
+  
+  try {
+    final userQuery = await firestore
+        .collection('users')
+        .where('username', isEqualTo: username)
+        .limit(1)
+        .get();
+
+    if (userQuery.docs.isEmpty) {
+      throw Exception('user not found');
     }
+
+    final userRef = userQuery.docs.first.reference;
+    final userData = userQuery.docs.first.data();
+
+    final lastResetDate = userData['lastResetDate']?.toDate() ?? DateTime(2000);
+    final isSameMonth = DateTime.now().month == lastResetDate.month;
+    final pointDeduction = isSameMonth ? -0.5 : 0;
+
+    batch.update(slotRef, {
+      'isAvailable': true,
+      'username': FieldValue.delete(), 
+    });
+
+    batch.update(userRef, {
+      'totalHours': FieldValue.increment(-0.5),
+      'point': FieldValue.increment(pointDeduction),
+      ...(isSameMonth ? {} : {'lastResetDate': DateTime.now()}),
+    });
+
+
+    await batch.commit();
+
+  } on FirebaseException catch (e) {
+    throw '取消预订失败: ${e.code}';
+  } catch (e) {
+    throw '系统错误: $e';
   }
+}
 
   Future<void> bookMultipleSlots(List<String> slotIds, String username) async {
     try {

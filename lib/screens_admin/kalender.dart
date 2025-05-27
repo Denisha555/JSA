@@ -17,6 +17,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   bool hasError = false;
   String errorMessage = '';
   Set<String> processingCells = {};
+  Set<String> loadingCells = {}; // Track which cells are loading
+  bool isBookingInProgress = false; // Global booking state
 
   Map<String, Map<String, Map<String, dynamic>>> bookingData = {};
   List<String> courtIds = [];
@@ -55,12 +57,72 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     _loadOrCreateSlots(date);
   }
 
+  String _formatDateString(DateTime date) {
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  }
+
+  int _timeToMinutes(String time) {
+    final parts = time.split(':');
+    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+  }
+
+  String _minutesToFormattedTime(int minutes) {
+    final hour = minutes ~/ 60;
+    final minute = minutes % 60;
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
+
+  String _calculateEndTime(String startTime, int durationSlots) {
+    final startTotalMinutes = _timeToMinutes(startTime);
+    final endTotalMinutes = startTotalMinutes + (durationSlots * 30);
+    return _minutesToFormattedTime(endTotalMinutes);
+  }
+
+  void _safeNavigatorPop(BuildContext context) {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  void _showLoadingDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (BuildContext dialogContext) => PopScope(
+            canPop: false,
+            child: AlertDialog(
+              content: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(width: 20),
+                  Expanded(child: Text(message)),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+
   // Show dialog to add a new booking
   void _showAddBookingDialog(String time, String court) async {
+    // Cek jika sudah ada proses booking yang berjalan
+    if (isBookingInProgress) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Sedang memproses booking lain, mohon tunggu...'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     final TextEditingController usernameController = TextEditingController();
     String startTime = time.split(' - ')[0];
     int maxConsecutiveSlots = 1;
 
+    // [Existing code untuk calculate maxConsecutiveSlots...]
     bool isWithinOperatingHours(int hour, int minute) {
       int totalMinutes = hour * 60 + minute;
       return totalMinutes >= 7 * 60 && totalMinutes < 23 * 60;
@@ -68,7 +130,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
     int currentHour = int.parse(time.split(':')[0]);
     int currentMinute = int.parse(time.split(':')[1].split(' ')[0]);
-
     int startTotalMinutes = currentHour * 60 + currentMinute;
     int remainingMinutes = (23 * 60) - startTotalMinutes;
     int maxPossibleSlots = remainingMinutes ~/ 30;
@@ -85,29 +146,38 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       String nextTimeSlot =
           '${nextSlotHour.toString().padLeft(2, '0')}:${nextSlotMinute.toString().padLeft(2, '0')}';
 
-      bool isNextSlotAvailable = await FirebaseService().isSlotAvailable(
-        nextTimeSlot,
-        court,
-        selectedDate,
-      );
+      try {
+        bool isNextSlotAvailable = await FirebaseService().isSlotAvailable(
+          nextTimeSlot,
+          court,
+          selectedDate,
+        );
 
-      bool isNextSlotClosed = await FirebaseService().isSlotClosed(
-        nextTimeSlot,
-        court,
-        selectedDate,
-      );
+        bool isNextSlotClosed = await FirebaseService().isSlotClosed(
+          nextTimeSlot,
+          court,
+          selectedDate,
+        );
 
-      if (isNextSlotAvailable && !isNextSlotClosed) {
-        maxConsecutiveSlots = i + 1;
-      } else {
+        if (isNextSlotAvailable && !isNextSlotClosed) {
+          maxConsecutiveSlots = i + 1;
+        } else {
+          break;
+        }
+      } catch (e) {
+        debugPrint('Error checking slot availability: $e');
         break;
       }
     }
 
+    // Show dialog dengan context yang proper
+    if (!mounted) return;
+
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (BuildContext dialogContext) {
         int selectedDuration = 1;
+        String endTime = _calculateEndTime(startTime, selectedDuration);
 
         void updateEndTime() {
           int startHour = int.parse(startTime.split(':')[0]);
@@ -116,15 +186,13 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               startHour * 60 + startMinute + (selectedDuration * 30);
           int endHour = totalMinutes ~/ 60;
           int endMinute = totalMinutes % 60;
-          String endTime =
+          endTime =
               '${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}';
         }
 
-        updateEndTime();
-
         return StatefulBuilder(
           builder:
-              (context, setState) => AlertDialog(
+              (BuildContext context, StateSetter setDialogState) => AlertDialog(
                 title: Text('Add New Booking'),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -132,13 +200,18 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   children: [
                     Text('Court $court'),
                     Text('Start Time: $startTime'),
-                    Text('End Time: '),
+                    Text('End Time: $endTime'),
+                    SizedBox(height: 10),
+                    Text(
+                      'Duration:',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     DropdownButton<int>(
                       value: selectedDuration,
                       isExpanded: true,
                       underline: Container(),
                       onChanged: (value) {
-                        setState(() {
+                        setDialogState(() {
                           selectedDuration = value!;
                           updateEndTime();
                         });
@@ -160,11 +233,13 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
                             return DropdownMenuItem(
                               value: e,
-                              child: Text(formattedEndTime),
+                              child: Text(
+                                formattedEndTime,
+                              ),
                             );
                           }).toList(),
                     ),
-
+                    SizedBox(height: 15),
                     TextField(
                       controller: usernameController,
                       decoration: InputDecoration(
@@ -207,44 +282,19 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 ),
                 actions: [
                   TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => _safeNavigatorPop(dialogContext),
                     child: Text('Cancel'),
                   ),
                   TextButton(
-                    onPressed: () async {
-                      if (usernameController.text.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Silahkan inputkan nama customer'),
-                          ),
-                        );
-                        return;
-                      }
-
-                      setState(() {
-                        bookingData[time]![court]!['isAvailable'] = false;
-                        bookingData[time]![court]!['username'] =
-                            usernameController.text;
-                      });
-
-                      bool user = await FirebaseService().checkUser(
-                        usernameController.text,
-                      );
-
-                      if (user) {
-                        // await FirebaseService().bookSlotForNonMember(slotId, usernameController.text, totalHours)
-                        // TODO : book slot for non member
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Username tidak ditemukan, silahkan lakukan pendaftaran terlebih dahulu'),
-                          ),
-                        );
-                        return;
-                      }
-
-                      Navigator.pop(context);
-                    },
+                    onPressed:
+                        () => _processBooking(
+                          dialogContext,
+                          usernameController.text.trim(),
+                          startTime,
+                          endTime,
+                          court,
+                          selectedDuration,
+                        ),
                     child: Text('Save'),
                   ),
                 ],
@@ -252,6 +302,121 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         );
       },
     );
+  }
+
+  Future<void> _processBooking(
+    BuildContext dialogContext,
+    String username,
+    String startTime,
+    String endTime,
+    String court,
+    int duration,
+  ) async {
+    if (username.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Silahkan inputkan nama customer'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Set booking in progress
+    setState(() {
+      isBookingInProgress = true;
+    });
+
+    // Close dialog first
+    _safeNavigatorPop(dialogContext);
+
+    // Show loading dengan context yang benar
+    if (!mounted) return;
+    _showLoadingDialog(context, 'Processing booking...');
+
+    try {
+      // Check user exists
+      bool userExists = await FirebaseService().checkUser(username);
+
+      if (!userExists) {
+        _safeNavigatorPop(context); // Close loading dialog
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Username tidak ditemukan, silahkan lakukan pendaftaran terlebih dahulu',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      // Process booking
+      final dateStr = _formatDateString(selectedDate);
+      final startTotalMinutes = _timeToMinutes(startTime);
+      final endTotalMinutes = _timeToMinutes(endTime);
+      double totalHours = (endTotalMinutes - startTotalMinutes) / 60.0;
+
+      List<String> bookedSlots = [];
+
+      // Book all required slots
+      for (
+        int minutes = startTotalMinutes;
+        minutes < endTotalMinutes;
+        minutes += 30
+      ) {
+        final formattedTime = _minutesToFormattedTime(minutes);
+        final formatStartTime = formattedTime.replaceAll(':', '');
+        final slotId = '${court}_${dateStr}_$formatStartTime';
+
+        await FirebaseService().bookSlotForNonMember(
+          slotId,
+          username,
+          minutes == startTotalMinutes ? totalHours : 0,
+        );
+
+        bookedSlots.add(formattedTime);
+      }
+
+      // Update total booking count
+      await FirebaseService().addTotalBooking(username);
+
+      // Close loading dialog
+      _safeNavigatorPop(context);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Berhasil booking untuk $username'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Refresh data
+        await _loadOrCreateSlots(selectedDate);
+      }
+    } catch (e) {
+      _safeNavigatorPop(context); // Close loading dialog
+      debugPrint('Error creating booking: $e');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saat membuat booking: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      // Reset booking state
+      if (mounted) {
+        setState(() {
+          isBookingInProgress = false;
+        });
+      }
+    }
   }
 
   Future<void> _loadOrCreateSlots(DateTime selectedDate) async {
@@ -356,98 +521,108 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
   // Show booking details
   void _showBookingDetails(String time, String court, String username) async {
+    if (!mounted) return;
+    
     await showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Booking Details'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Time: $time'),
-                Text('Court: $court'),
-                Text('Customer: $username'),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Close'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _editBooking(time, court, username);
-                },
-                child: Text('Edit'),
-              ),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    bookingData[time]![court]!['isAvailable'] = true;
-                    bookingData[time]![court]!['username'] = '';
-                  });
-                  Navigator.pop(context);
-                },
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: Text('Cancel Booking'),
-              ),
-            ],
+      builder: (BuildContext dialogContext) => AlertDialog(
+        title: Text('Booking Details'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Time: $time'),
+            Text('Court: $court'),
+            Text('Customer: $username'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => _safeNavigatorPop(dialogContext),
+            child: Text('Close'),
           ),
+          TextButton(
+            onPressed: () => _handleCancelBooking(dialogContext, time, court),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text('Cancel Booking'),
+          ),
+        ],
+      ),
     );
   }
 
-  // Edit booking
-  void _editBooking(String time, String court, String currentUsername) {
-    final TextEditingController nameController = TextEditingController(
-      text: currentUsername,
-    );
-
-    showDialog(
+  Future<void> _handleCancelBooking(BuildContext dialogContext, String time, String court) async {
+    _safeNavigatorPop(dialogContext);
+    
+    // Show confirmation
+    bool? confirm = await showDialog<bool>(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Edit Booking'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Time: $time'),
-                Text('Court: $court'),
-                TextField(
-                  controller: nameController,
-                  decoration: InputDecoration(labelText: 'Customer Name'),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () {
-                  if (nameController.text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Silahkan inputkan nama customers'),
-                      ),
-                    );
-                    return;
-                  }
-
-                  setState(() {
-                    bookingData[time]![court]!['username'] =
-                        nameController.text;
-                  });
-
-                  Navigator.pop(context);
-                },
-                child: Text('Save'),
-              ),
-            ],
+      builder: (BuildContext confirmContext) => AlertDialog(
+        title: Text('Konfirmasi'),
+        content: Text('Apakah Anda yakin ingin membatalkan booking ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(confirmContext).pop(false),
+            child: Text('Tidak'),
           ),
+          TextButton(
+            onPressed: () => Navigator.of(confirmContext).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text('Ya, Batalkan'),
+          ),
+        ],
+      ),
     );
+
+    if (confirm == true && mounted) {
+      setState(() {
+        isBookingInProgress = true;
+      });
+
+      _showLoadingDialog(context, 'Membatalkan booking...');
+
+      try {
+        final dateStr = _formatDateString(selectedDate);
+        final startTime = time.split(' - ')[0];
+        final formatStartTime = startTime.replaceAll(':', '');
+        final slotId = '${court}_${dateStr}_$formatStartTime';
+        
+        // await FirebaseService().cancelBooking(slotId);
+        
+        _safeNavigatorPop(context); // Close loading dialog
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Booking berhasil dibatalkan'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Refresh data
+          await _loadOrCreateSlots(selectedDate);
+        }
+        
+      } catch (e) {
+        _safeNavigatorPop(context); // Close loading dialog
+        debugPrint('Error canceling booking: $e');
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error saat membatalkan booking: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() {
+            isBookingInProgress = false;
+          });
+        }
+      }
+    }
   }
 
   // Widget for header cell
@@ -488,9 +663,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     try {
       debugPrint("Cek timeSlot: $timeSlot"); // debug
       final now = DateTime.now();
-      final startTime = timeSlot.split(' - ')[0];
-      final hour = int.parse(startTime.split(':')[0]);
-      final minute = int.parse(startTime.split(':')[1]);
+      final endTime = timeSlot.split(' - ')[1];
+      final hour = int.parse(endTime.split(':')[0]);
+      final minute = int.parse(endTime.split(':')[1]);
 
       final slotDateTime = DateTime(
         date.year,
@@ -522,15 +697,15 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     String username,
     bool isClosed,
   ) {
-    // Cek apakah waktu ini sudah lewat
     bool isPast = _isTimePast(time, selectedDate);
-
-    // Key unik untuk cell
     String cellKey = _getCellKey(time, court);
-    bool isProcessing = processingCells.contains(cellKey);
+    bool isCellLoading = loadingCells.contains(cellKey);
 
     void handleTap() async {
-      if (isProcessing) return;
+      // Cek jika cell sedang loading atau ada booking global yang berjalan
+      if (isCellLoading || isBookingInProgress) {
+        return;
+      }
 
       if (isPast) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -554,22 +729,29 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         return;
       }
 
-      // Tandai cell sedang diproses
+      // Set cell loading state
       setState(() {
-        processingCells.add(cellKey);
+        loadingCells.add(cellKey);
       });
 
       try {
+        // Add small delay to show loading indicator
+        await Future.delayed(Duration(milliseconds: 300));
+
+        if (!mounted) return;
+
         if (!isAvailable) {
           _showBookingDetails(time, court, username);
         } else {
           _showAddBookingDialog(time, court);
         }
       } finally {
-        // Hapus dari daftar proses
-        setState(() {
-          processingCells.remove(cellKey);
-        });
+        // Remove loading state
+        if (mounted) {
+          setState(() {
+            loadingCells.remove(cellKey);
+          });
+        }
       }
     }
 
@@ -587,13 +769,13 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           border: Border.all(color: Colors.grey.shade300),
         ),
         child:
-            isProcessing
+            isCellLoading
                 ? SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                   ),
                 )
                 : Column(
@@ -832,5 +1014,12 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    // Clear any loading states
+    loadingCells.clear();
+    super.dispose();
   }
 }

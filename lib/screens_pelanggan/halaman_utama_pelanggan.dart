@@ -34,17 +34,17 @@ class Court {
 const List<Court> courts = [
   Court(
     imageAssetPath: "assets/image/Lapangan.jpg",
-    name: "Lapangan 1",
+    name: "Lapangan 01",
     pricePerHour: 50000,
   ),
   Court(
     imageAssetPath: "assets/image/Lapangan.jpg",
-    name: "Lapangan 3",
+    name: "Lapangan 03",
     pricePerHour: 45000,
   ),
   Court(
     imageAssetPath: "assets/image/Lapangan.jpg",
-    name: "Lapangan 4",
+    name: "Lapangan 04",
     pricePerHour: 60000,
   ),
 ];
@@ -809,31 +809,23 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
                           fontSize: 18,
                         ),
                       ),
-                      Text(
-                        'Rp ${court.pricePerHour.toInt()}/jam',
-                        style: TextStyle(
-                          color: primaryColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Indoor Court',
+                            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on_outlined,
-                        size: 16,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Indoor Court',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                      ),
-                    ],
-                  ),
                 ],
               ),
             ),

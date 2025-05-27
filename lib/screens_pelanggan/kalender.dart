@@ -290,6 +290,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           final courtData =
               courts[id] ??
               const CourtSlotData(isAvailable: true, isClosed: false);
+          debugPrint('time : $time');
           return _buildCourtCell(
             time,
             id,
@@ -433,7 +434,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
       final startTotalMinutes = _timeToMinutes(startTime);
       final endTotalMinutes = _timeToMinutes(endTime);
-      final totalHours = (endTotalMinutes - startTotalMinutes) / 60.0;
+      double totalHours = (endTotalMinutes - startTotalMinutes) / 60.0;
 
       // Book each 30-minute slot
       for (
@@ -450,6 +451,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           username,
           totalHours,
         );
+
+        totalHours = 0;
       }
 
       await FirebaseService().addTotalBooking(username);
@@ -546,7 +549,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                       );
 
                       Navigator.pop(context);
-                      Navigator.pop(context);
+                
                     } catch (e) {
                       setState(() => isLoading = false);
                       _showErrorSnackBar('Gagal melakukan booking: $e');
@@ -581,8 +584,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   bool _isTimePast(String timeSlot, DateTime date) {
     try {
       final now = DateTime.now();
-      final startTime = timeSlot.split(' - ')[0];
-      final timeParts = startTime.split(':');
+      final endTime = timeSlot.split(' - ')[1];
+      final timeParts = endTime.split(':');
       final hour = int.parse(timeParts[0]);
       final minute = int.parse(timeParts[1]);
 
@@ -855,7 +858,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.orange,
+        backgroundColor: Colors.red,
         duration: const Duration(seconds: 2),
       ),
     );

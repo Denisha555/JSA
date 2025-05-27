@@ -150,6 +150,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
+          indicatorSize: TabBarIndicatorSize.tab,
           tabs: [
             Tab(icon: Icon(Icons.edit_calendar), text: 'Input Jadwal'),
             Tab(icon: Icon(Icons.calendar_view_week), text: 'Daftar Jadwal'),
@@ -519,7 +520,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                 ? 'Jadwal berhasil diperbarui'
                 : 'Jadwal berhasil disimpan',
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: Colors.blue,
         ),
       );
 

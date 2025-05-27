@@ -148,6 +148,12 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
       } else {
         // Jika baru, tambahkan timestamp pembuatan
         lapanganData['createdAt'] = FieldValue.serverTimestamp();
+
+        bool check = await FirebaseService().checkLapangan(nomor);
+        if (check) {
+          _showSnackBar('Nomor lapangan sudah ada');
+          return;
+        }
         
         // Tambahkan dokumen baru
         await FirebaseFirestore.instance
@@ -545,6 +551,7 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
+          indicatorSize: TabBarIndicatorSize.tab,
           tabs: const [
             Tab(
               icon: Icon(Icons.add_box_outlined),
