@@ -138,6 +138,17 @@ class AllCourts {
   }
 }
 
+class AllCourtsToday {
+  final String courtId;
+  final String image;
+
+  AllCourtsToday({required this.courtId, required this.image});
+
+  factory AllCourtsToday.fromJson(Map<String, dynamic> json) {
+    return AllCourtsToday(courtId: json['courtId'], image: json['image']);
+  }
+}
+
 class AllCloseDay {
   final String date;
   final String isClose;
@@ -253,6 +264,16 @@ class UserProfil {
   }
 }
 
+class EventPromo {
+  final String image;
+
+  const EventPromo({required this.image});
+
+  factory EventPromo.fromJson(Map<String, dynamic> json) {
+    return EventPromo(image: json['gambar']);
+  }
+}
+
 const _timeSlots = [
   '07:00',
   '07:30',
@@ -306,10 +327,22 @@ class FirebaseService {
   }
 
   // Fungsi untuk menambahkan user ke Firestore
-  Future<void> addUser(String userName, String password, String name, String club, String phoneNumber) async {
+  Future<void> addUser(
+    String userName,
+    String password,
+    String name,
+    String club,
+    String phoneNumber,
+  ) async {
     try {
       CollectionReference users = firestore.collection('users');
-      await users.add({'username': userName, 'password': password, 'name': name, 'club': club, 'phoneNumber': phoneNumber});
+      await users.add({
+        'username': userName,
+        'password': password,
+        'name': name,
+        'club': club,
+        'phoneNumber': phoneNumber,
+      });
     } catch (e) {
       throw Exception('Error Adding User: $e');
     }
@@ -323,7 +356,6 @@ class FirebaseService {
       throw Exception('Error Adding User: $e');
     }
   }
-
 
   // Fungsi untuk menambahkan user ke Firestore oleh admin
 
@@ -384,9 +416,7 @@ class FirebaseService {
     try {
       CollectionReference users = firestore.collection('users');
       QuerySnapshot querySnapshot =
-          await users
-              .where('nama', isEqualTo: nama)
-              .get();
+          await users.where('nama', isEqualTo: nama).get();
 
       if (querySnapshot.docs.isNotEmpty) {
         return true;
@@ -401,10 +431,8 @@ class FirebaseService {
   Future<bool> checkphoneNumber(String phoneNumber) async {
     try {
       CollectionReference users = firestore.collection('users');
-      QuerySnapshot querySnapshot = 
-      await users
-              .where('phoneNumber', isEqualTo: phoneNumber)
-              .get();
+      QuerySnapshot querySnapshot =
+          await users.where('phoneNumber', isEqualTo: phoneNumber).get();
 
       if (querySnapshot.docs.isNotEmpty) {
         return true;
@@ -420,9 +448,7 @@ class FirebaseService {
     try {
       CollectionReference users = firestore.collection('users');
       QuerySnapshot querySnapshot =
-          await users
-              .where('club', isEqualTo: club)
-              .get();
+          await users.where('club', isEqualTo: club).get();
 
       if (querySnapshot.docs.isNotEmpty) {
         return true;
@@ -449,8 +475,29 @@ class FirebaseService {
       throw Exception('Error Checking User: $e');
     }
   }
-  
-  Future<void> editProfil(String username, String name, String club, String phoneNumber) async {
+
+  Future<List<EventPromo>> getPromo() async {
+    try {
+      List<EventPromo> promo = [];
+
+      QuerySnapshot snapshot = await firestore.collection('promo_event').get();
+
+      for (DocumentSnapshot doc in snapshot.docs) {
+        promo.add(EventPromo.fromJson(doc.data() as Map<String, dynamic>));
+      }
+
+      return promo;
+    } catch (e) {
+      throw Exception('Error to get the promo: $e');
+    }
+  }
+
+  Future<void> editProfil(
+    String username,
+    String name,
+    String club,
+    String phoneNumber,
+  ) async {
     try {
       await firestore
           .collection('users')
@@ -458,7 +505,11 @@ class FirebaseService {
           .get()
           .then((snapshot) {
             for (DocumentSnapshot doc in snapshot.docs) {
-              doc.reference.update({'name': name, 'club': club, 'phoneNumber': phoneNumber});
+              doc.reference.update({
+                'name': name,
+                'club': club,
+                'phoneNumber': phoneNumber,
+              });
             }
           });
     } catch (e) {
@@ -502,7 +553,7 @@ class FirebaseService {
     }
   }
 
-  Future<List<UserProfil>> getProfilData (String username) async {
+  Future<List<UserProfil>> getProfilData(String username) async {
     try {
       List<UserProfil> profil = [];
 
@@ -683,6 +734,24 @@ class FirebaseService {
           await firestore.collection('lapangan').get();
       return querySnapshot.docs.map((doc) {
         return AllCourts.fromJson(doc.data() as Map<String, dynamic>);
+      }).toList();
+    } catch (e) {
+      throw Exception('Error Checking Lapangan: $e');
+    }
+  }
+
+  Future<List<AllCourtsToday>> getAllLapanganToday() async {
+    try {
+      DateTime now = DateTime.now();
+      String formattedDate =
+          "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+
+      // TODO : check available courts
+
+      QuerySnapshot querySnapshot =
+          await firestore.collection('lapangan').get();
+      return querySnapshot.docs.map((doc) {
+        return AllCourtsToday.fromJson(doc.data() as Map<String, dynamic>);
       }).toList();
     } catch (e) {
       throw Exception('Error Checking Lapangan: $e');
@@ -1388,22 +1457,26 @@ class FirebaseService {
     }
   }
 
-  Future<void> cancelBooking (String slotId, String username) async {
+  Future<void> cancelBooking(String slotId, String username) async {
     try {
       await firestore.collection('time_slots').doc(slotId).update({
         'isAvailable': true,
         'username': '',
       });
 
-      await firestore.collection('users').where('username', isEqualTo: username).get().then((querySnapshot) {
-        if (querySnapshot.docs.isNotEmpty) {
-          final userRef = querySnapshot.docs.first.reference;
-          userRef.update({
-            'totalHours': FieldValue.increment(-0.5),
-            'point': FieldValue.increment(-0.5),
+      await firestore
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .get()
+          .then((querySnapshot) {
+            if (querySnapshot.docs.isNotEmpty) {
+              final userRef = querySnapshot.docs.first.reference;
+              userRef.update({
+                'totalHours': FieldValue.increment(-0.5),
+                'point': FieldValue.increment(-0.5),
+              });
+            }
           });
-        }
-      });
     } catch (e) {
       throw Exception('Failed to cancel booking: $e');
     }

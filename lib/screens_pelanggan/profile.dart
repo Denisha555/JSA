@@ -24,6 +24,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
   List<LastActivity> activity = [];
   List<UserData> data = [];
   Reward currentReward = const Reward(currentHours: 0);
+  int? endTime;
 
   @override
   void initState() {
@@ -92,6 +93,23 @@ class _HalamanProfilState extends State<HalamanProfil> {
               ? data[0].totalHour.toDouble()
               : 0.0;
       currentReward = Reward(currentHours: hours);
+
+      // Ubah startTime (String) jadi DateTime
+      final startDate = DateTime.parse(data[0].startTime);
+
+      // Tambahkan 1 bulan ke startTime
+      final finishDate = DateTime(
+        startDate.year,
+        startDate.month + 1,
+        startDate.day,
+      );
+
+      // Hitung selisih hari dari sekarang
+      final now = DateTime.now();
+      final daysLeft = finishDate.difference(now).inDays;
+
+      // Simpan ke variabel endTime
+      endTime = daysLeft;
     });
   }
 
@@ -414,7 +432,6 @@ class _HalamanProfilState extends State<HalamanProfil> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
       child: StatefulBuilder(
         builder: (context, setState) {
-
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Form(
@@ -807,16 +824,18 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                   color: Colors.white,
                                 ),
                               ),
-                              Text(
-                                '${data.isNotEmpty ? data[0].totalHour.toStringAsFixed(1) : 0} Poin',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              if (isMember)
+                              Row(
+                                children: [
+                                  Text(
+                                    '${data.isNotEmpty ? data[0].totalHour.toStringAsFixed(1) : 0} Poin',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  if (isMember)
                                 Container(
-                                  margin: const EdgeInsets.only(top: 4),
+                                  margin: const EdgeInsets.only(left : 8),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
                                     vertical: 2,
@@ -833,6 +852,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                     ),
                                   ),
                                 ),
+                                ],
+                              ),
+                              
                             ],
                           ),
                         ),
@@ -872,8 +894,8 @@ class _HalamanProfilState extends State<HalamanProfil> {
                     ),
                     subtitle:
                         isMember
-                            ? const Text(
-                              'Berakhir dalam 30 hari',
+                            ? Text(
+                              'Berakhir dalam ${endTime.toString()} hari',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey,

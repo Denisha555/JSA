@@ -57,7 +57,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
   // Show dialog to add a new booking
   void _showAddBookingDialog(String time, String court) async {
-    final TextEditingController nameController = TextEditingController();
+    final TextEditingController usernameController = TextEditingController();
     String startTime = time.split(' - ')[0];
     int maxConsecutiveSlots = 1;
 
@@ -166,8 +166,42 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     ),
 
                     TextField(
-                      controller: nameController,
-                      decoration: InputDecoration(labelText: 'Customer Name'),
+                      controller: usernameController,
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(borderRadius),
+                          borderSide: const BorderSide(
+                            color: Colors.grey,
+                            width: 1.0,
+                          ),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(borderRadius),
+                          borderSide: const BorderSide(
+                            color: Colors.grey,
+                            width: 1.0,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(borderRadius),
+                          borderSide: const BorderSide(
+                            color: primaryColor,
+                            width: 2.0,
+                          ),
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.person,
+                          color: primaryColor,
+                        ),
+                        labelText: "Username",
+                        labelStyle: const TextStyle(color: Colors.grey),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 15.0,
+                          horizontal: 20.0,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -178,7 +212,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   ),
                   TextButton(
                     onPressed: () async {
-                      if (nameController.text.isEmpty) {
+                      if (usernameController.text.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text('Silahkan inputkan nama customer'),
@@ -190,25 +224,23 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                       setState(() {
                         bookingData[time]![court]!['isAvailable'] = false;
                         bookingData[time]![court]!['username'] =
-                            nameController.text;
+                            usernameController.text;
                       });
 
-                      bool used = await FirebaseService().checkUser(
-                        nameController.text,
+                      bool user = await FirebaseService().checkUser(
+                        usernameController.text,
                       );
 
-                      if (used) {
+                      if (user) {
+                        // await FirebaseService().bookSlotForNonMember(slotId, usernameController.text, totalHours)
+                        // TODO : book slot for non member
+                      } else {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Nama customer sudah digunakan'),
+                            content: Text('Username tidak ditemukan, silahkan lakukan pendaftaran terlebih dahulu'),
                           ),
                         );
                         return;
-                      } else {
-                        await FirebaseService().addUserByAdmin(
-                          nameController.text,
-                        );
-                        // await FirebaseService().
                       }
 
                       Navigator.pop(context);
@@ -397,7 +429,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 onPressed: () {
                   if (nameController.text.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Silahkan inputkan nama customers')),
+                      SnackBar(
+                        content: Text('Silahkan inputkan nama customers'),
+                      ),
                     );
                     return;
                   }
@@ -482,113 +516,115 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
   // Widget for court cell
   Widget _buildCourtCell(
-  String time,
-  String court,
-  bool isAvailable,
-  String username,
-  bool isClosed,
-) {
-  // Cek apakah waktu ini sudah lewat
-  bool isPast = _isTimePast(time, selectedDate);
+    String time,
+    String court,
+    bool isAvailable,
+    String username,
+    bool isClosed,
+  ) {
+    // Cek apakah waktu ini sudah lewat
+    bool isPast = _isTimePast(time, selectedDate);
 
-  // Key unik untuk cell
-  String cellKey = _getCellKey(time, court);
-  bool isProcessing = processingCells.contains(cellKey);
+    // Key unik untuk cell
+    String cellKey = _getCellKey(time, court);
+    bool isProcessing = processingCells.contains(cellKey);
 
-  void handleTap() async {
-    if (isProcessing) return;
+    void handleTap() async {
+      if (isProcessing) return;
 
-    if (isPast) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Waktu ini sudah lewat, tidak bisa dibooking'),
-          backgroundColor: Colors.grey,
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
-    if (isClosed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Lapangan ditutup pada waktu ini'),
-          backgroundColor: Colors.grey,
-          duration: Duration(seconds: 2),
-        ),
-      );
-      return;
-    }
-
-    // Tandai cell sedang diproses
-    setState(() {
-      processingCells.add(cellKey);
-    });
-
-    try {
-      if (!isAvailable) {
-        _showBookingDetails(time, court, username);
-      } else {
-        _showAddBookingDialog(time, court);
+      if (isPast) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Waktu ini sudah lewat, tidak bisa dibooking'),
+            backgroundColor: Colors.grey,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
       }
-    } finally {
-      // Hapus dari daftar proses
+
+      if (isClosed) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Lapangan ditutup pada waktu ini'),
+            backgroundColor: Colors.grey,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+
+      // Tandai cell sedang diproses
       setState(() {
-        processingCells.remove(cellKey);
+        processingCells.add(cellKey);
       });
+
+      try {
+        if (!isAvailable) {
+          _showBookingDetails(time, court, username);
+        } else {
+          _showAddBookingDialog(time, court);
+        }
+      } finally {
+        // Hapus dari daftar proses
+        setState(() {
+          processingCells.remove(cellKey);
+        });
+      }
     }
-  }
 
-  return GestureDetector(
-    onTap: handleTap,
-    child: Container(
-      width: 120,
-      height: 50,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: isClosed
-            ? Colors.grey
-            : (isAvailable ? availableColor : bookedColor),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: isProcessing
-          ? SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white,
-              ),
-            )
-          : Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  isClosed
-                      ? 'Tutup'
-                      : (isAvailable ? 'Tersedia' : 'Telah Dibooking'),
-                  style: TextStyle(
-                    color: isClosed
-                        ? Colors.white
-                        : (isAvailable
-                            ? Colors.green.shade700
-                            : Colors.red.shade700),
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
+    return GestureDetector(
+      onTap: handleTap,
+      child: Container(
+        width: 120,
+        height: 50,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color:
+              isClosed
+                  ? Colors.grey
+                  : (isAvailable ? availableColor : bookedColor),
+          border: Border.all(color: Colors.grey.shade300),
+        ),
+        child:
+            isProcessing
+                ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
                   ),
+                )
+                : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      isClosed
+                          ? 'Tutup'
+                          : (isAvailable ? 'Tersedia' : 'Telah Dibooking'),
+                      style: TextStyle(
+                        color:
+                            isClosed
+                                ? Colors.white
+                                : (isAvailable
+                                    ? Colors.green.shade700
+                                    : Colors.red.shade700),
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                      ),
+                    ),
+                    if (!isAvailable && !isClosed)
+                      Text(
+                        username,
+                        style: TextStyle(fontSize: 11),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
                 ),
-                if (!isAvailable && !isClosed)
-                  Text(
-                    username,
-                    style: TextStyle(fontSize: 11),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-              ],
-            ),
-    ),
-  );
-}
-
+      ),
+    );
+  }
 
   @override
   void initState() {

@@ -64,8 +64,8 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
         username,
       );
 
-      if (!mounted) return; 
-      
+      if (!mounted) return;
+
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
 
@@ -82,7 +82,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
           pastBookings.add(
             Riwayat(
               tanggal: formattedDate,
-              keterangan: "Lapangan ${booking.courtId} Berhasil Terbooking",
+              keterangan: "Lapangan ${booking.courtId}",
               waktu: '${booking.startTime} - ${booking.endTime}',
             ),
           );
@@ -214,42 +214,79 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
                                 ],
                               )
                               : ListView.builder(
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(10),
                                 itemCount: terjadwals.length,
                                 itemBuilder: (context, index) {
                                   final booking = terjadwals[index];
-                                  return Dismissible(
-                                    key: ValueKey(index),
-                                    direction: DismissDirection.endToStart,
-                                    background: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.red)),
-                                    child: Card(
-                                      elevation: 2,
-                                      margin: const EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      child: ListTile(
-                                        leading: const Icon(
-                                          Icons.schedule,
-                                          color: Colors.blue,
+                                  return Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                    ),
+                                    child: Dismissible(
+                                      key: ValueKey(index),
+                                      direction: DismissDirection.endToStart,
+                                      background: Container(
+                                        alignment: Alignment.centerRight,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 20,
                                         ),
-                                        title: Row(
-                                          children: [
-                                            Text(
-                                              booking.tanggal,
-                                              style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                              ),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          color: Colors.red,
+                                        ),
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.end,
+                                          children: const [
+                                            Icon(
+                                              Icons.cancel,
+                                              color: Colors.white,
                                             ),
-                                            const SizedBox(width: 10),
+                                            SizedBox(width: 8),
                                             Text(
-                                              booking.jam,
-                                              style: const TextStyle(
-                                                color: Colors.blue,
+                                              'Batal',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
                                               ),
                                             ),
                                           ],
                                         ),
-                                        subtitle: Text(booking.lapangan),
+                                      ),
+                                      child: Card(
+                                        elevation: 2,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ), 
+                                        ),
+                                       
+                                        child: ListTile(
+                                          leading: const Icon(
+                                            Icons.schedule,
+                                            color: Colors.blue,
+                                          ),
+                                          title: Row(
+                                            children: [
+                                              Text(
+                                                booking.tanggal,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              Text(
+                                                booking.jam,
+                                                style: const TextStyle(
+                                                  color: Colors.blue,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          subtitle: Text(booking.lapangan),
+                                        ),
                                       ),
                                     ),
                                   );

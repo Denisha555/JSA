@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/screens_pelanggan/Kalender.dart';
@@ -6,36 +8,11 @@ import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/screens_pelanggan/price_list.dart';
 import 'package:flutter_application_1/screens_pelanggan/tentang_kami.dart';
 
-// Event Promo data model
-class EventPromo {
-  final String imageAssetPath;
-  final String title;
-  final String description;
-
-  const EventPromo({
-    required this.imageAssetPath,
-    this.title = '',
-    this.description = '',
-  });
-}
-
 // Sample event data - Made const for better performance
 const List<EventPromo> events = [
-  EventPromo(
-    imageAssetPath: "assets/image/PromoEvent.jpeg",
-    title: "Special Promo",
-    description: "Dapatkan diskon 20%",
-  ),
-  EventPromo(
-    imageAssetPath: "assets/image/PromoEvent.jpeg",
-    title: "Weekend Deal",
-    description: "Harga spesial weekend",
-  ),
-  EventPromo(
-    imageAssetPath: "assets/image/PromoEvent.jpeg",
-    title: "Member Exclusive",
-    description: "Promo khusus member",
-  ),
+  EventPromo(image: "assets/image/PromoEvent.jpeg"),
+  EventPromo(image: "assets/image/PromoEvent.jpeg"),
+  EventPromo(image: "assets/image/PromoEvent.jpeg"),
 ];
 
 // Court data model
@@ -90,6 +67,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
   Widget? currentBookingCard;
   bool _isLoading = false;
   List<UserData> user = [];
+  List<EventPromo> events = [];
 
   // Initialize with default values
   Reward currentReward = const Reward(currentHours: 0);
@@ -111,6 +89,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
     await Future.wait([
       getUserData(), // Load user data first
       _checkBooked(),
+      _getPromoData(),
     ]);
     if (mounted) {
       setState(() => _isLoading = false);
@@ -146,6 +125,17 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> _getPromoData() async {
+    try {
+      List<EventPromo> temp = await FirebaseService().getPromo();
+      setState(() {
+        events = temp;
+      });
+    } catch (e) {
+      throw Exception('Failed to get promo data: $e');
     }
   }
 
@@ -514,7 +504,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
       ),
     );
   }
-  
+
   Future<void> _checkBooked() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -648,21 +638,23 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 16),
-        SizedBox(
-          height: 200,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: events.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: EdgeInsets.only(
-                  right: index < events.length - 1 ? 16 : 0,
-                ),
-                child: _buildPromoCard(events[index]),
-              );
-            },
-          ),
-        ),
+        events.isNotEmpty
+            ? SizedBox(
+              height: 200,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: events.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      right: index < events.length - 1 ? 16 : 0,
+                    ),
+                    child: _buildPromoCard(events[index]),
+                  );
+                },
+              ),
+            )
+            : const Center(child: Text("Tidak ada promo atau event saat ini")),
       ],
     );
   }
@@ -685,8 +677,8 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
         borderRadius: BorderRadius.circular(16),
         child: Stack(
           children: [
-            Image.asset(
-              promo.imageAssetPath,
+            Image.memory(
+              base64Decode(promo.image),
               height: 200,
               width: 160,
               fit: BoxFit.cover,
@@ -703,49 +695,6 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
                 );
               },
             ),
-            if (promo.title.isNotEmpty)
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.8),
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        promo.title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      if (promo.description.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          promo.description,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
           ],
         ),
       ),
