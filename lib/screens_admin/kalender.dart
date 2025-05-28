@@ -202,7 +202,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     children: [
                       Text('Lapangan $court'),
                       Text('Jam Mulai: $startTime'),
-                      Text('Jam Sekesai: $endTime'),
+                      Text('Jam Selesai: $endTime'),
                       SizedBox(height: 10),
                       Text(
                         'Durasi:',
@@ -287,7 +287,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 actions: [
                   TextButton(
                     onPressed: () => _safeNavigatorPop(dialogContext),
-                    child: Text('Cancel'),
+                    child: Text('Batal'),
                   ),
                   TextButton(
                     onPressed:
@@ -577,7 +577,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 child: Text('Tutup'),
               ),
               TextButton(
-                onPressed: () => _handleCancelBooking(dialogContext, time, court),
+                onPressed:
+                    () => _handleCancelBooking(dialogContext, time, court),
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
                 child: Text(
                   consecutiveSlots.length > 1

@@ -456,7 +456,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                     controller: passwordController,
                     obscureText: obscureText,
                     decoration: InputDecoration(
-                      hintText: 'Input password baru',
+                      hintText: 'Masukkan password baru',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -576,7 +576,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                   TextFormField(
                     controller: usernameController,
                     decoration: InputDecoration(
-                      hintText: 'Input Username Baru',
+                      hintText: 'Masukkan Username Baru',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
