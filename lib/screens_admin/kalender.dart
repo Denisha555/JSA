@@ -194,91 +194,93 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           builder:
               (BuildContext context, StateSetter setDialogState) => AlertDialog(
                 title: Text('Tambah Data Booking'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Lapangan $court'),
-                    Text('Jam Mulai: $startTime'),
-                    Text('Jam Sekesai: $endTime'),
-                    SizedBox(height: 10),
-                    Text(
-                      'Durasi:',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    DropdownButton<int>(
-                      value: selectedDuration,
-                      isExpanded: true,
-                      underline: Container(),
-                      onChanged: (value) {
-                        setDialogState(() {
-                          selectedDuration = value!;
-                          updateEndTime();
-                        });
-                      },
-                      items:
-                          List.generate(maxConsecutiveSlots, (i) => i + 1).map((
-                            e,
-                          ) {
-                            int startHour = int.parse(startTime.split(':')[0]);
-                            int startMinute = int.parse(
-                              startTime.split(':')[1],
-                            );
-                            int totalMinutes =
-                                startHour * 60 + startMinute + (e * 30);
-                            int endHour = totalMinutes ~/ 60;
-                            int endMinute = totalMinutes % 60;
-                            String formattedEndTime =
-                                '${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}';
-
-                            return DropdownMenuItem(
-                              value: e,
-                              child: Text(
-                                formattedEndTime,
-                              ),
-                            );
-                          }).toList(),
-                    ),
-                    SizedBox(height: 15),
-                    TextField(
-                      controller: usernameController,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(borderRadius),
-                          borderSide: const BorderSide(
-                            color: Colors.grey,
-                            width: 1.0,
+                content: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Lapangan $court'),
+                      Text('Jam Mulai: $startTime'),
+                      Text('Jam Sekesai: $endTime'),
+                      SizedBox(height: 10),
+                      Text(
+                        'Durasi:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      DropdownButton<int>(
+                        value: selectedDuration,
+                        isExpanded: true,
+                        underline: Container(),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            selectedDuration = value!;
+                            updateEndTime();
+                          });
+                        },
+                        items:
+                            List.generate(maxConsecutiveSlots, (i) => i + 1).map((
+                              e,
+                            ) {
+                              int startHour = int.parse(startTime.split(':')[0]);
+                              int startMinute = int.parse(
+                                startTime.split(':')[1],
+                              );
+                              int totalMinutes =
+                                  startHour * 60 + startMinute + (e * 30);
+                              int endHour = totalMinutes ~/ 60;
+                              int endMinute = totalMinutes % 60;
+                              String formattedEndTime =
+                                  '${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}';
+                  
+                              return DropdownMenuItem(
+                                value: e,
+                                child: Text(
+                                  formattedEndTime,
+                                ),
+                              );
+                            }).toList(),
+                      ),
+                      SizedBox(height: 15),
+                      TextField(
+                        controller: usernameController,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
                           ),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(borderRadius),
-                          borderSide: const BorderSide(
-                            color: Colors.grey,
-                            width: 1.0,
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: Colors.grey,
+                              width: 1.0,
+                            ),
                           ),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(borderRadius),
-                          borderSide: const BorderSide(
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                            borderSide: const BorderSide(
+                              color: primaryColor,
+                              width: 2.0,
+                            ),
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.person,
                             color: primaryColor,
-                            width: 2.0,
                           ),
-                        ),
-                        prefixIcon: const Icon(
-                          Icons.person,
-                          color: primaryColor,
-                        ),
-                        labelText: "Username",
-                        labelStyle: const TextStyle(color: Colors.grey),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 15.0,
-                          horizontal: 20.0,
+                          labelText: "Username",
+                          labelStyle: const TextStyle(color: Colors.grey),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 15.0,
+                            horizontal: 20.0,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 actions: [
                   TextButton(

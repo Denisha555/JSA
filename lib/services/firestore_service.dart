@@ -221,6 +221,7 @@ class UserData {
   final double point;
   final double totalHour;
   final int totalBooking;
+  final String noTelp;
 
   UserData({
     required this.username,
@@ -228,6 +229,7 @@ class UserData {
     required this.point,
     required this.totalHour,
     required this.totalBooking,
+    required this.noTelp,
   });
 
   factory UserData.fromJson(Map<String, dynamic> json) {
@@ -237,6 +239,7 @@ class UserData {
       point: (json['point'] ?? 0).toDouble(),
       totalHour: (json['totalHours'] ?? 0).toDouble(),
       totalBooking: (json['totalBooking'] ?? 0).toInt(),
+      noTelp: json['phoneNumber'] ?? '',
     );
   }
 }
@@ -259,7 +262,7 @@ class UserProfil {
       username: json['username'],
       name: json['name'],
       club: json['club'] ?? '',
-      phoneNumber: json['phoneNumber'],
+      phoneNumber: json['phoneNumber'] ?? '',
     );
   }
 }

@@ -322,7 +322,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
               fontSize: 12,
             ),
           ),
-          if (!isAvailable)
+          if (!isAvailable && !isClosed)
             Text(
               username,
               style: const TextStyle(fontSize: 11),
