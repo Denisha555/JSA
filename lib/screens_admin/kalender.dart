@@ -193,17 +193,17 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         return StatefulBuilder(
           builder:
               (BuildContext context, StateSetter setDialogState) => AlertDialog(
-                title: Text('Add New Booking'),
+                title: Text('Tambah Data Booking'),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Court $court'),
-                    Text('Start Time: $startTime'),
-                    Text('End Time: $endTime'),
+                    Text('Lapangan $court'),
+                    Text('Jam Mulai: $startTime'),
+                    Text('Jam Sekesai: $endTime'),
                     SizedBox(height: 10),
                     Text(
-                      'Duration:',
+                      'Durasi:',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     DropdownButton<int>(
@@ -295,7 +295,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                           court,
                           selectedDuration,
                         ),
-                    child: Text('Save'),
+                    child: Text('Simpan'),
                   ),
                 ],
               ),

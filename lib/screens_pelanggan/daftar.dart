@@ -184,17 +184,20 @@ class _HalamanDaftarState extends State<HalamanDaftar>
         return;
       }
 
-      final clubUsed = await FirebaseService().checkclub(club);
-      if (clubUsed) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Club sudah digunakan'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
+      if (clubController.text.isNotEmpty) {
+        final clubUsed = await FirebaseService().checkclub(club);
+        if (clubUsed) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Club sudah digunakan'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
       }
+      
 
       final telpUsed = await FirebaseService().checkphoneNumber(noTelp);
       if (telpUsed) {
