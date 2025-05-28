@@ -42,8 +42,6 @@ class _HalamanProfilState extends State<HalamanProfil> {
       if (username != null && username!.isNotEmpty) {
         final result = await FirebaseService().memberOrNonmember(username!);
 
-        if (!mounted) return;
-
         setState(() {
           isMember = result;
         });
@@ -71,46 +69,54 @@ class _HalamanProfilState extends State<HalamanProfil> {
   }
 
   Future<void> _loadData() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? loadedUsername = prefs.getString('username');
+    try {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? loadedUsername = prefs.getString('username');
 
-    if (loadedUsername == null || loadedUsername.isEmpty) {
-      debugPrint('Username belum tersedia');
-      return;
+      if (loadedUsername == null || loadedUsername.isEmpty) {
+        debugPrint('Username belum tersedia');
+        return;
+      }
+
+      List<UserData> temp = await FirebaseService().getUserData(loadedUsername);
+
+      if (!mounted) return;
+
+      setState(() {
+        username = loadedUsername;
+        data = temp;
+
+        // Update currentReward with actual user data
+        final hours =
+            (data.isNotEmpty && data[0].totalHour != null)
+                ? data[0].totalHour.toDouble()
+                : 0.0;
+        currentReward = Reward(currentHours: hours);
+
+        if (data[0].startTime.isEmpty) {
+          return;
+        }
+
+        // Ubah startTime (String) jadi DateTime
+        final startDate = DateTime.parse(data[0].startTime);
+
+        // Tambahkan 1 bulan ke startTime
+        final finishDate = DateTime(
+          startDate.year,
+          startDate.month + 1,
+          startDate.day,
+        );
+
+        // Hitung selisih hari dari sekarang
+        final now = DateTime.now();
+        final daysLeft = finishDate.difference(now).inDays;
+
+        // Simpan ke variabel endTime
+        endTime = daysLeft;
+      });
+    } catch (e) {
+      throw Exception('Error loading user data : $e');
     }
-
-    List<UserData> temp = await FirebaseService().getUserData(loadedUsername);
-
-    if (!mounted) return;
-
-    setState(() {
-      username = loadedUsername;
-      data = temp;
-
-      // Update currentReward with actual user data
-      final hours =
-          (data.isNotEmpty && data[0].totalHour != null)
-              ? data[0].totalHour.toDouble()
-              : 0.0;
-      currentReward = Reward(currentHours: hours);
-
-      // Ubah startTime (String) jadi DateTime
-      final startDate = DateTime.parse(data[0].startTime);
-
-      // Tambahkan 1 bulan ke startTime
-      final finishDate = DateTime(
-        startDate.year,
-        startDate.month + 1,
-        startDate.day,
-      );
-
-      // Hitung selisih hari dari sekarang
-      final now = DateTime.now();
-      final daysLeft = finishDate.difference(now).inDays;
-
-      // Simpan ke variabel endTime
-      endTime = daysLeft;
-    });
   }
 
   void _showErrorSnackBar(String message) {
@@ -834,27 +840,26 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                     ),
                                   ),
                                   if (isMember)
-                                Container(
-                                  margin: const EdgeInsets.only(left : 8),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 2,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.2),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Text(
-                                    '💎 Member',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
+                                    Container(
+                                      margin: const EdgeInsets.only(left: 8),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.2),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Text(
+                                        '💎 Member',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ),
                                 ],
                               ),
-                              
                             ],
                           ),
                         ),
