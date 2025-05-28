@@ -367,7 +367,7 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _simpanLapangan,
                           child: Text(
-                            _isEditing ? 'Update' : 'Simpan',
+                            _isEditing ? 'Perbarui' : 'Simpan',
                             style: const TextStyle(fontWeight: FontWeight.bold),
                           ),
                           style: ElevatedButton.styleFrom(

@@ -124,7 +124,7 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
     try {
       // Konversi gambar ke base64
       String base64Image = await _convertImageToBase64(_imageFile!);
-      
+
       // Simpan ke Firestore dengan base64
       await FirebaseFirestore.instance.collection('promo_event').add({
         'gambar': base64Image,
@@ -142,7 +142,7 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
       });
     }
   }
-  
+
   Widget _buildPromoForm() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -168,7 +168,7 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
                     ),
                   ),
                   const SizedBox(height: 20),
-                  
+
                   // Image picker
                   GestureDetector(
                     onTap: _pickImage,
@@ -188,32 +188,33 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
-                        child: _imageFile != null
-                            ? Image.file(_imageFile!, fit: BoxFit.cover)
-                            : const Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.add_photo_alternate,
-                                    size: 64,
-                                    color: primaryColor,
-                                  ),
-                                  SizedBox(height: 10),
-                                  Text(
-                                    'Tap untuk pilih gambar promo',
-                                    style: TextStyle(
-                                      color: Colors.grey,
-                                      fontWeight: FontWeight.w500,
+                        child:
+                            _imageFile != null
+                                ? Image.file(_imageFile!, fit: BoxFit.cover)
+                                : const Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.add_photo_alternate,
+                                      size: 64,
+                                      color: primaryColor,
                                     ),
-                                  ),
-                                ],
-                              ),
+                                    SizedBox(height: 10),
+                                    Text(
+                                      'Tap untuk pilih gambar promo',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                       ),
                     ),
                   ),
-                  
+
                   const SizedBox(height: 24),
-                  
+
                   // Upload button
                   SizedBox(
                     width: double.infinity,
@@ -221,22 +222,23 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
                     child: ElevatedButton.icon(
                       onPressed: _isLoading ? null : _simpanPromo,
                       icon: const Icon(Icons.upload),
-                      label: _isLoading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
+                      label:
+                          _isLoading
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : const Text(
+                                'Unggah Promo',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
-                            )
-                          : const Text(
-                              'Upload Promo',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
                         foregroundColor: Colors.white,
@@ -257,10 +259,11 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
 
   Widget _buildPromoList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('promo_event')
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
+      stream:
+          FirebaseFirestore.instance
+              .collection('promo_event')
+              .orderBy('createdAt', descending: true)
+              .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -292,7 +295,8 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
 
             String dateInfo = '';
             if (createdAt != null) {
-              dateInfo = 'Dibuat: ${DateFormat('dd MMM yyyy, HH:mm').format(createdAt.toDate())}';
+              dateInfo =
+                  'Dibuat: ${DateFormat('dd MMM yyyy, HH:mm').format(createdAt.toDate())}';
             }
 
             return Card(
@@ -309,25 +313,26 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(15),
                     ),
-                    child: base64Image.isNotEmpty
-                        ? Image.memory(
-                            base64Decode(base64Image),
-                            height: 180,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                height: 180,
-                                color: Colors.grey[300],
-                                child: const Icon(Icons.error),
-                              );
-                            },
-                          )
-                        : Container(
-                            height: 180,
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.image_not_supported),
-                          ),
+                    child:
+                        base64Image.isNotEmpty
+                            ? Image.memory(
+                              base64Decode(base64Image),
+                              height: 180,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 180,
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.error),
+                                );
+                              },
+                            )
+                            : Container(
+                              height: 180,
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.image_not_supported),
+                            ),
                   ),
                   // Date info and delete button
                   Padding(
@@ -373,26 +378,27 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
     // Konfirmasi hapus
     bool? confirm = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Konfirmasi Hapus'),
-        content: const Text('Apakah Anda yakin ingin menghapus promo ini?'),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text(
-              'Batal',
-              style: TextStyle(color: Colors.grey),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Konfirmasi Hapus'),
+            content: const Text('Apakah Anda yakin ingin menghapus promo ini?'),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
             ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text(
+                  'Batal',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
     );
 
     if (confirm != true) return;
@@ -439,14 +445,15 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
           ],
         ),
       ),
-      body: _isLoading && _tabController.index != 1
-          ? const Center(
-              child: CircularProgressIndicator(color: primaryColor),
-            )
-          : TabBarView(
-              controller: _tabController,
-              children: [_buildPromoForm(), _buildPromoList()],
-            ),
+      body:
+          _isLoading && _tabController.index != 1
+              ? const Center(
+                child: CircularProgressIndicator(color: primaryColor),
+              )
+              : TabBarView(
+                controller: _tabController,
+                children: [_buildPromoForm(), _buildPromoList()],
+              ),
     );
   }
 }

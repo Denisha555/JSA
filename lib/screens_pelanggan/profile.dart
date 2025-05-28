@@ -49,9 +49,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
         await getLastActivity();
       }
     } catch (e) {
-      debugPrint('Error initializing profile: $e');
+      debugPrint('Error initializing profil: $e');
       if (mounted) {
-        _showErrorSnackBar('Failed to load profile data');
+        _showErrorSnackBar('Failed to load profil data');
       }
     } finally {
       if (mounted) {
@@ -527,7 +527,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                     children: [
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
+                        child: const Text('Batal'),
                       ),
                       ElevatedButton(
                         onPressed: () {
@@ -538,7 +538,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(120, 45),
                         ),
-                        child: const Text('Update'),
+                        child: const Text('Perbarui'),
                       ),
                     ],
                   ),
@@ -598,7 +598,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                     children: [
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Cancel'),
+                        child: const Text('Batal'),
                       ),
                       ElevatedButton(
                         onPressed: () async {
@@ -627,7 +627,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                         style: ElevatedButton.styleFrom(
                           minimumSize: const Size(120, 45),
                         ),
-                        child: const Text('Update'),
+                        child: const Text('Perbarui'),
                       ),
                     ],
                   ),
@@ -664,9 +664,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
               borderRadius: BorderRadius.circular(16),
             ),
             title: const Row(
-              children: [SizedBox(width: 8), Text('Konfirmasi Logout')],
+              children: [SizedBox(width: 8), Text('Konfirmasi Keluar')],
             ),
-            content: const Text('Apakah kamu yakin ingin logout?'),
+            content: const Text('Apakah kamu yakin ingin keluar?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -676,7 +676,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                 onPressed: () => Navigator.pop(context, true),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 child: const Text(
-                  'Logout',
+                  'Keluar',
                   style: TextStyle(color: Colors.white),
                 ),
               ),
@@ -1014,7 +1014,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Pengaturan Profile',
+                      'Pengaturan Profil',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -1101,7 +1101,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                               color: Colors.red,
                             ),
                             title: const Text(
-                              'Log Out',
+                              'Keluar',
                               style: TextStyle(color: Colors.red),
                             ),
                             subtitle: const Text('Keluar dari akun Anda'),
