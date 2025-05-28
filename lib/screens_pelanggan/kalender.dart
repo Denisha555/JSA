@@ -830,6 +830,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   String _calculateEndTime(String startTime, int durationSlots) {
     final startTotalMinutes = _timeToMinutes(startTime);
     final endTotalMinutes = startTotalMinutes + (durationSlots * 30);
+    debugPrint('startTotalMinutes: $startTotalMinutes, endTotalMinutes: $endTotalMinutes');
     return _minutesToFormattedTime(endTotalMinutes);
   }
 

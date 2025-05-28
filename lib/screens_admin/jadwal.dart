@@ -24,7 +24,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
   late TabController _tabController;
   final _formKey = GlobalKey<FormState>();
   List<AllCloseDay> jadwalKhusus = [];
-  DateTime tanggalKhusus = DateTime.now();
+  DateTime tanggalKhusus = DateTime.now().add(Duration(days: 1)); // Default tomorrow
   TimeOfDay jamMulaiKhusus = TimeOfDay(hour: 9, minute: 0);
   TimeOfDay jamSelesaiKhusus = TimeOfDay(hour: 18, minute: 0);
   bool isClose = false;
@@ -53,9 +53,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
 
     try {
       await Future.delayed(Duration(seconds: 1)); // Simulate network delay
-      final hasil =
-          await FirebaseService()
-              .getAllCloseDay(); // Fetch jadwal from Firestore
+      final hasil = await FirebaseService().getAllCloseDay();
 
       setState(() {
         jadwalKhusus = hasil;
@@ -91,27 +89,11 @@ class _HalamanJadwalState extends State<HalamanJadwal>
 
   String _formatDate(DateTime date) {
     List<String> months = [
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
     ];
     List<String> days = [
-      'Senin',
-      'Selasa',
-      'Rabu',
-      'Kamis',
-      'Jumat',
-      'Sabtu',
-      'Minggu',
+      'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu',
     ];
 
     return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
@@ -132,11 +114,23 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     return formatter.format(date);
   }
 
+  String formatDateForStorage(DateTime date) {
+    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+  }
+
   // Check if a date already has a schedule
   bool hasScheduleForDate(DateTime date) {
-    String formattedDate =
-        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+    String formattedDate = formatDateForStorage(date);
     return jadwalKhusus.any((jadwal) => jadwal.date == formattedDate);
+  }
+
+  // Check if date is valid (tomorrow or later)
+  bool isDateValid(DateTime date) {
+    DateTime today = DateTime.now();
+    DateTime startOfToday = DateTime(today.year, today.month, today.day);
+    DateTime tomorrow = startOfToday.add(Duration(days: 1));
+    
+    return date.isAfter(startOfToday) || isSameDay(date, tomorrow);
   }
 
   @override
@@ -157,18 +151,11 @@ class _HalamanJadwalState extends State<HalamanJadwal>
           ],
         ),
       ),
-      body: Stack(
+      body: TabBarView(
+        controller: _tabController,
         children: [
-          TabBarView(
-            controller: _tabController,
-            children: [
-              // Input Jadwal Tab
-              _buildInputJadwalTab(),
-
-              // Daftar Jadwal Tab
-              _buildDaftarJadwalTab(),
-            ],
-          ),
+          _buildInputJadwalTab(),
+          _buildDaftarJadwalTab(),
         ],
       ),
     );
@@ -203,13 +190,12 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                     final picked = await showDatePicker(
                       context: context,
                       initialDate: tanggalKhusus,
-                      firstDate: DateTime(2000),
+                      firstDate: DateTime.now().add(Duration(days: 1)), // Start from tomorrow
                       lastDate: DateTime(2101),
                     );
                     if (picked != null) {
                       // If not in edit mode, check if there's already a schedule for this day
                       if (editingDocId == null && hasScheduleForDate(picked)) {
-                        // Show warning and move to edit mode for that date
                         _showAlreadyExistsDialog(picked);
                       } else {
                         setState(() => tanggalKhusus = picked);
@@ -222,10 +208,17 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                         labelText: "Tanggal",
                         border: OutlineInputBorder(),
                         suffixIcon: Icon(Icons.calendar_today),
+                        helperText: "Pilih tanggal mulai dari besok",
                       ),
                       controller: TextEditingController(
                         text: formatTanggal(tanggalKhusus),
                       ),
+                      validator: (value) {
+                        if (!isDateValid(tanggalKhusus)) {
+                          return 'Hanya dapat membuat jadwal untuk besok dan seterusnya';
+                        }
+                        return null;
+                      },
                     ),
                   ),
                 ),
@@ -299,6 +292,9 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                               if (!isClose && value!.isEmpty) {
                                 return 'Jam selesai harus diisi';
                               }
+                              if (!isClose && !isTimeValid()) {
+                                return 'Jam selesai harus setelah jam mulai';
+                              }
                               return null;
                             },
                           ),
@@ -312,24 +308,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                     if (editingDocId != null)
                       Expanded(
                         child: OutlinedButton(
-                          onPressed:
-                              _isLoading
-                                  ? null
-                                  : () {
-                                    setState(() {
-                                      editingDocId = null;
-                                      tanggalKhusus = DateTime.now();
-                                      jamMulaiKhusus = TimeOfDay(
-                                        hour: 9,
-                                        minute: 0,
-                                      );
-                                      jamSelesaiKhusus = TimeOfDay(
-                                        hour: 18,
-                                        minute: 0,
-                                      );
-                                      isClose = false;
-                                    });
-                                  },
+                          onPressed: _isLoading ? null : _resetForm,
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(
@@ -342,7 +321,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                     if (editingDocId != null) SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : () => _saveJadwal(),
+                        onPressed: _isLoading ? null : _saveJadwal,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: primaryColor,
                           foregroundColor: Colors.white,
@@ -351,19 +330,18 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child:
-                            _isLoading
-                                ? SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                                : Text(
-                                  editingDocId != null ? "Update" : "Simpan",
+                        child: _isLoading
+                            ? SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
                                 ),
+                              )
+                            : Text(
+                                editingDocId != null ? "Update" : "Simpan",
+                              ),
                       ),
                     ),
                   ],
@@ -376,104 +354,98 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     );
   }
 
-  void _showAlreadyExistsDialog(DateTime date) {
-    // Find the existing schedule for this date
-    String formattedDate =
-        "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-    AllCloseDay? existingSchedule = jadwalKhusus.firstWhere(
-      (jadwal) => jadwal.date == formattedDate,
-      orElse:
-          () => AllCloseDay(date: "", isClose: "", startTime: "", endTime: ""),
-    );
+  void _resetForm() {
+    setState(() {
+      editingDocId = null;
+      tanggalKhusus = DateTime.now().add(Duration(days: 1));
+      jamMulaiKhusus = TimeOfDay(hour: 9, minute: 0);
+      jamSelesaiKhusus = TimeOfDay(hour: 18, minute: 0);
+      isClose = false;
+    });
+  }
 
-    if (existingSchedule.date.isEmpty) return;
+  void _showAlreadyExistsDialog(DateTime date) {
+    String formattedDate = formatDateForStorage(date);
+    AllCloseDay? existingSchedule;
+    
+    try {
+      existingSchedule = jadwalKhusus.firstWhere(
+        (jadwal) => jadwal.date == formattedDate,
+      );
+    } catch (e) {
+      // If not found, return early
+      return;
+    }
 
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text("Jadwal Sudah Ada"),
-            content: Text(
-              "Jadwal untuk tanggal ini sudah ada. Apakah Anda ingin mengedit jadwal tersebut?",
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text("Batal"),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _editJadwal(existingSchedule);
-                },
-                style: TextButton.styleFrom(foregroundColor: primaryColor),
-                child: Text("Edit Jadwal"),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text("Jadwal Sudah Ada"),
+        content: Text(
+          "Jadwal untuk tanggal ini sudah ada. Apakah Anda ingin mengedit jadwal tersebut?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Batal"),
           ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _editJadwal(existingSchedule!);
+            },
+            style: TextButton.styleFrom(foregroundColor: primaryColor),
+            child: Text("Edit Jadwal"),
+          ),
+        ],
+      ),
     );
   }
 
   Future<void> _loadOrCreateSlots(DateTime selectedDate) async {
-    setState(() => _isLoading = true);
-    final dateStr =
-        "${selectedDate.year}-${selectedDate.month.toString().padLeft(2, '0')}-${selectedDate.day.toString().padLeft(2, '0')}";
+    final dateStr = formatDateForStorage(selectedDate);
     final slots = await FirebaseService().getTimeSlotsByDate(dateStr);
 
     if (slots.isEmpty) {
-      debugPrint('Slots not exist');
+      debugPrint('Slots not exist, generating...');
       await FirebaseService().generateSlotsOneDay(selectedDate);
-
-      await FirebaseService().closeUseTimeRange(
-        tanggalKhusus,
-        formatTime(jamMulaiKhusus),
-        formatTime(jamSelesaiKhusus),
-      );
-    } else {
-      debugPrint('Slots already exist');
-      await FirebaseService().closeUseTimeRange(
-        tanggalKhusus,
-        formatTime(jamMulaiKhusus),
-        formatTime(jamSelesaiKhusus),
-      );
     }
+    
+    debugPrint('Closing time range slots...');
+    await FirebaseService().closeUseTimeRange(
+      selectedDate, // Pass DateTime instead of tanggalKhusus
+      formatTime(jamMulaiKhusus),
+      formatTime(jamSelesaiKhusus),
+    );
   }
 
   bool isTimeValid() {
-    // Convert TimeOfDay to comparable format
     int startMinutes = jamMulaiKhusus.hour * 60 + jamMulaiKhusus.minute;
     int endMinutes = jamSelesaiKhusus.hour * 60 + jamSelesaiKhusus.minute;
-
     return startMinutes < endMinutes;
   }
 
   Future<void> _saveJadwal() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Check if the date is before today
-    DateTime today = DateTime.now();
-    DateTime startOfToday = DateTime(today.year, today.month, today.day);
-    DateTime tomorrow = startOfToday.add(Duration(days: 1));
-
-    if (tanggalKhusus.isBefore(tomorrow)) {
+    // Additional validation
+    if (!isDateValid(tanggalKhusus)) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Hanya dapat membuat jadwal untuk hari besok dan seterusnya',
-          ),
+          content: Text('Hanya dapat membuat jadwal untuk besok dan seterusnya'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
-    // If not in edit mode, check if there's already a schedule for this day
+    // If not in edit mode, check for existing schedule
     if (editingDocId == null && hasScheduleForDate(tanggalKhusus)) {
       _showAlreadyExistsDialog(tanggalKhusus);
       return;
     }
 
-    // Check if end time is after start time
+    // Time validation for time range mode
     if (!isClose && !isTimeValid()) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -485,13 +457,11 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     }
 
     try {
-      setState(() {
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
 
-      // If editing, first clear existing data
+      // If editing, first delete the existing schedule
       if (editingDocId != null) {
-        await FirebaseService().updateCloseDay(formatTanggal(tanggalKhusus));
+        await FirebaseService().deleteCloseDay(editingDocId!);
       }
 
       if (isClose) {
@@ -503,16 +473,10 @@ class _HalamanJadwalState extends State<HalamanJadwal>
       }
 
       // Reset form after saving
-      setState(() {
-        editingDocId = null;
-        tanggalKhusus = DateTime.now();
-        jamMulaiKhusus = TimeOfDay(hour: 9, minute: 0);
-        jamSelesaiKhusus = TimeOfDay(hour: 18, minute: 0);
-        isClose = false;
-      });
+      _resetForm();
 
       if (!mounted) return;
-      // Show success message
+      
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -520,28 +484,27 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                 ? 'Jadwal berhasil diperbarui'
                 : 'Jadwal berhasil disimpan',
           ),
-          backgroundColor: Colors.blue,
+          backgroundColor: Colors.green,
         ),
       );
 
-      // Refresh jadwal list and switch to the list tab
+      // Refresh and switch to list tab
       await _fetchJadwalKhusus();
       _tabController.animateTo(1);
+      
     } catch (e) {
       if (mounted) {
-        // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Gagal menyimpan jadwal: ${e.toString()}'),
             backgroundColor: Colors.red,
           ),
         );
+        debugPrint('Error saving jadwal: $e');
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -565,96 +528,90 @@ class _HalamanJadwalState extends State<HalamanJadwal>
 
     return jadwalKhusus.isEmpty
         ? RefreshIndicator(
-          onRefresh: () async {
-            await _fetchJadwalKhusus();
-          },
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: const [
-              SizedBox(height: 200),
-              Column(
-                children: [Center(child: Text("Belum ada jadwal khusus"))],
-              ),
-            ],
-          ),
-        )
-        : RefreshIndicator(
-          onRefresh: _fetchJadwalKhusus,
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: jadwalKhusus.length,
-            itemBuilder: (context, index) {
-              final jadwal = jadwalKhusus[index];
-              return Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+            onRefresh: _fetchJadwalKhusus,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: const [
+                SizedBox(height: 200),
+                Column(
+                  children: [Center(child: Text("Belum ada jadwal khusus"))],
                 ),
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _formatDate(DateTime.parse(jadwal.date)),
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: primaryColor,
+              ],
+            ),
+          )
+        : RefreshIndicator(
+            onRefresh: _fetchJadwalKhusus,
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: jadwalKhusus.length,
+              itemBuilder: (context, index) {
+                final jadwal = jadwalKhusus[index];
+                return Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  elevation: 2,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _formatDate(DateTime.parse(jadwal.date)),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryColor,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        jadwal.isClose == 'all day'
-                            ? 'Tutup Sepanjang Hari'
-                            : 'Jam Tutup: ${jadwal.startTime} - ${jadwal.endTime}',
-                        style: TextStyle(fontSize: 15),
-                      ),
-                      Divider(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton.icon(
-                            icon: Icon(Icons.edit, size: 18),
-                            label: Text("Edit"),
-                            onPressed: () {
-                              if (!_isLoading) {
-                                _editJadwal(jadwal);
-                              }
-                            },
-                            style: TextButton.styleFrom(
-                              foregroundColor: primaryColor,
+                            
+                          ],
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          jadwal.isClose == 'all day'
+                              ? 'Tutup Sepanjang Hari'
+                              : 'Jam Tutup: ${jadwal.startTime} - ${jadwal.endTime}',
+                          style: TextStyle(fontSize: 15, color: Colors.grey[700]),
+                        ),
+                        Divider(height: 24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            TextButton.icon(
+                              icon: Icon(Icons.edit, size: 18),
+                              label: Text("Edit"),
+                              onPressed: _isLoading ? null : () => _editJadwal(jadwal),
+                              style: TextButton.styleFrom(
+                                foregroundColor: primaryColor,
+                              ),
                             ),
-                          ),
-                          SizedBox(width: 8),
-                          TextButton.icon(
-                            icon: Icon(Icons.delete, size: 18),
-                            label: Text("Hapus"),
-                            onPressed: () {
-                              _showDeleteConfirmation(jadwal);
-                            },
-                            style: TextButton.styleFrom(
-                              foregroundColor: Colors.red,
+                            SizedBox(width: 8),
+                            TextButton.icon(
+                              icon: Icon(Icons.delete, size: 18),
+                              label: Text("Hapus"),
+                              onPressed: _isLoading ? null : () => _showDeleteConfirmation(jadwal),
+                              style: TextButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
-          ),
-        );
+                );
+              },
+            ),
+          );
   }
 
-  void _editJadwal(AllCloseDay jadwal) async {
+  void _editJadwal(AllCloseDay jadwal) {
     setState(() {
       tanggalKhusus = DateTime.parse(jadwal.date);
       if (jadwal.isClose == 'time range') {
@@ -668,7 +625,6 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     });
 
     if (_tabController.index != 0) {
-      debugPrint('Changing tab to 0');
       _tabController.animateTo(0);
     }
   }
@@ -676,33 +632,32 @@ class _HalamanJadwalState extends State<HalamanJadwal>
   void _showDeleteConfirmation(AllCloseDay jadwal) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text("Konfirmasi"),
-            content: Text("Anda yakin ingin menghapus jadwal ini?"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: Text("Batal"),
-              ),
-              TextButton(
-                onPressed: () async {
-                  Navigator.pop(context);
-                  await _deleteJadwal(jadwal);
-                },
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: Text("Hapus"),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text("Konfirmasi Hapus"),
+        content: Text(
+          "Anda yakin ingin menghapus jadwal untuk ${_formatDate(DateTime.parse(jadwal.date))}?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Batal"),
           ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _deleteJadwal(jadwal);
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text("Hapus"),
+          ),
+        ],
+      ),
     );
   }
 
   Future<void> _deleteJadwal(AllCloseDay jadwal) async {
     try {
-      setState(() {
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
 
       await FirebaseService().deleteCloseDay(jadwal.date);
 
@@ -715,7 +670,6 @@ class _HalamanJadwalState extends State<HalamanJadwal>
         );
       }
 
-      // Refresh the list
       await _fetchJadwalKhusus();
     } catch (e) {
       if (mounted) {
@@ -725,12 +679,11 @@ class _HalamanJadwalState extends State<HalamanJadwal>
             backgroundColor: Colors.red,
           ),
         );
+        debugPrint('Error deleting jadwal: $e');
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }

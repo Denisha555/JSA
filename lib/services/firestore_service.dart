@@ -222,6 +222,7 @@ class UserData {
   final double totalHour;
   final int totalBooking;
   final String noTelp;
+  final String club;
 
   UserData({
     required this.username,
@@ -230,6 +231,7 @@ class UserData {
     required this.totalHour,
     required this.totalBooking,
     required this.noTelp,
+    required this.club,
   });
 
   factory UserData.fromJson(Map<String, dynamic> json) {
@@ -240,6 +242,7 @@ class UserData {
       totalHour: (json['totalHours'] ?? 0).toDouble(),
       totalBooking: (json['totalBooking'] ?? 0).toInt(),
       noTelp: json['phoneNumber'] ?? '',
+      club: json['club'] ?? '',
     );
   }
 }
@@ -1262,7 +1265,9 @@ class FirebaseService {
         final TimeSlot slot = TimeSlot.fromJson(
           slotDoc.data() as Map<String, dynamic>,
         );
-        print('Slot ID: $slotId, Available: ${slot.isAvailable}, Closed: ${slot.isClosed}');
+        print(
+          'Slot ID: $slotId, Available: ${slot.isAvailable}, Closed: ${slot.isClosed}',
+        );
         return (slot.isAvailable && !slot.isClosed);
       } else {
         await generateSlotsOneDay(selectedDate);
@@ -1425,50 +1430,78 @@ class FirebaseService {
     }
   }
 
-  Future<void> cancelBooking(String username, String date, String courtId, String startTime, String endTime) async {
-  final batch = firestore.batch();
-  final slotId = '${courtId}_${date}_${startTime.replaceAll(':', '')}';
+  Future<void> cancelBooking(
+    String username,
+    String date,
+    String courtId,
+    String startTime,
+    String endTime,
+  ) async {
+    final batch = firestore.batch();
+    final slotId = '${courtId}_${date}_${startTime.replaceAll(':', '')}';
 
-  final slotRef = firestore.collection('time_slots').doc(slotId);
-  
-  try {
-    final userQuery = await firestore
-        .collection('users')
-        .where('username', isEqualTo: username)
-        .limit(1)
-        .get();
+    final slotRef = firestore.collection('time_slots').doc(slotId);
 
-    if (userQuery.docs.isEmpty) {
-      throw Exception('user not found');
+    try {
+      final userQuery =
+          await firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .limit(1)
+              .get();
+
+      if (userQuery.docs.isEmpty) {
+        throw Exception('user not found');
+      }
+
+      final userRef = userQuery.docs.first.reference;
+      final userData = userQuery.docs.first.data();
+
+      final lastResetDate =
+          userData['lastResetDate']?.toDate() ?? DateTime(2000);
+      final isSameMonth = DateTime.now().month == lastResetDate.month;
+
+      batch.update(slotRef, {
+        'isAvailable': true,
+        'username': FieldValue.delete(),
+      });
+
+      batch.update(userRef, {
+        'totalHours': FieldValue.increment(-0.5),
+        'point': FieldValue.increment(-0.5),
+        ...(isSameMonth ? {} : {'lastResetDate': DateTime.now()}),
+      });
+
+      await batch.commit();
+    } on FirebaseException catch (e) {
+      throw 'Error canceling booking: ${e.code}';
+    } catch (e) {
+      throw 'Error canceling booking: $e';
     }
-
-    final userRef = userQuery.docs.first.reference;
-    final userData = userQuery.docs.first.data();
-
-    final lastResetDate = userData['lastResetDate']?.toDate() ?? DateTime(2000);
-    final isSameMonth = DateTime.now().month == lastResetDate.month;
-    final pointDeduction = isSameMonth ? -0.5 : 0;
-
-    batch.update(slotRef, {
-      'isAvailable': true,
-      'username': FieldValue.delete(), 
-    });
-
-    batch.update(userRef, {
-      'totalHours': FieldValue.increment(-0.5),
-      'point': FieldValue.increment(pointDeduction),
-      ...(isSameMonth ? {} : {'lastResetDate': DateTime.now()}),
-    });
-
-
-    await batch.commit();
-
-  } on FirebaseException catch (e) {
-    throw '取消预订失败: ${e.code}';
-  } catch (e) {
-    throw '系统错误: $e';
   }
-}
+
+  Future<void> subBooking(String username) async {
+    try {
+      final batch = firestore.batch();
+      final userQuery =
+          await firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .limit(1)
+              .get();
+
+      if (userQuery.docs.isEmpty) {
+        throw Exception('user not found');
+      }
+
+      final userRef = userQuery.docs.first.reference;
+
+      batch.update(userRef, {'totalBooking': FieldValue.increment(-1)});
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to subtract booking: $e');
+    }
+  }
 
   Future<void> bookMultipleSlots(List<String> slotIds, String username) async {
     try {
@@ -1560,10 +1593,7 @@ class FirebaseService {
         selectedDate.day,
       );
 
-      final dateStr =
-          "${targetDate.year.toString().padLeft(4, '0')}-"
-          "${targetDate.month.toString().padLeft(2, '0')}-"
-          "${targetDate.day.toString().padLeft(2, '0')}";
+      final dateStr = DateFormat('yyyy-MM-dd').format(targetDate);
 
       // First, check if we have existing slots for this date
       final existingSlots =
@@ -1576,12 +1606,13 @@ class FirebaseService {
       if (existingSlots.docs.isNotEmpty) {
         var updateBatch = firestore.batch();
         int updateCount = 0;
-        final maxBatchSize = 500;
+        const maxBatchSize = 500;
 
         for (var doc in existingSlots.docs) {
           updateBatch.update(doc.reference, {
-            'isAvailable': true,
+            'isAvailable': false, // Changed from true to false
             'isClosed': true,
+            'updatedAt': FieldValue.serverTimestamp(),
           });
 
           updateCount++;
@@ -1602,7 +1633,7 @@ class FirebaseService {
         // If no existing slots, generate them with isClosed = true
         var createBatch = firestore.batch();
         int createCount = 0;
-        final maxBatchSize = 500;
+        const maxBatchSize = 500;
 
         for (var courtData in _courtsCache.values) {
           final courtNumber = courtData['nomor'].toString();
@@ -1631,7 +1662,7 @@ class FirebaseService {
                 'date': dateStr,
                 'startTime': startTime,
                 'endTime': endTimeStr,
-                'isAvailable': true,
+                'isAvailable': false, // Set to false for closed slots
                 'isClosed': true,
                 'createdAt': FieldValue.serverTimestamp(),
               });
@@ -1660,6 +1691,7 @@ class FirebaseService {
         'startTime': '07:00',
         'endTime': '23:00',
         'isClosed': 'all day',
+        'createdAt': FieldValue.serverTimestamp(),
       });
 
       // Clear cache
@@ -1811,7 +1843,6 @@ class FirebaseService {
       await firestore
           .collection('closed_days')
           .where('date', isEqualTo: selectedDate)
-          .limit(1)
           .get()
           .then((snapshot) {
             for (var doc in snapshot.docs) {

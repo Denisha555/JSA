@@ -730,6 +730,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           );
         }
 
+        await FirebaseService().subBooking(username);
+
         _safeNavigatorPop(context); // Close loading dialog
 
         if (mounted) {
