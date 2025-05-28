@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
+import 'package:intl/intl.dart';
 
 class HalamanKalender extends StatefulWidget {
   const HalamanKalender({super.key});
@@ -218,10 +219,13 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                           });
                         },
                         items:
-                            List.generate(maxConsecutiveSlots, (i) => i + 1).map((
-                              e,
-                            ) {
-                              int startHour = int.parse(startTime.split(':')[0]);
+                            List.generate(
+                              maxConsecutiveSlots,
+                              (i) => i + 1,
+                            ).map((e) {
+                              int startHour = int.parse(
+                                startTime.split(':')[0],
+                              );
                               int startMinute = int.parse(
                                 startTime.split(':')[1],
                               );
@@ -231,12 +235,10 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                               int endMinute = totalMinutes % 60;
                               String formattedEndTime =
                                   '${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}';
-                  
+
                               return DropdownMenuItem(
                                 value: e,
-                                child: Text(
-                                  formattedEndTime,
-                                ),
+                                child: Text(formattedEndTime),
                               );
                             }).toList(),
                       ),
@@ -524,56 +526,187 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   // Show booking details
   void _showBookingDetails(String time, String court, String username) async {
     if (!mounted) return;
-    
+
+    // Find consecutive bookings for better display
+    List<String> consecutiveSlots = _findConsecutiveBookings(
+      time,
+      court,
+      username,
+    );
+    String startTime = consecutiveSlots.first.split(' - ')[0];
+    String endTime = consecutiveSlots.last.split(' - ')[1];
+
     await showDialog(
       context: context,
-      builder: (BuildContext dialogContext) => AlertDialog(
-        title: Text('Booking Details'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Time: $time'),
-            Text('Court: $court'),
-            Text('Customer: $username'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => _safeNavigatorPop(dialogContext),
-            child: Text('Close'),
+      builder:
+          (BuildContext dialogContext) => AlertDialog(
+            title: Text('Detail Booking'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Customer: $username',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  SizedBox(height: 8),
+                  Text('Lapangan: $court'),
+                  Text('Jam Mulai: $startTime'),
+                  Text('Jam Selesai: $endTime'),
+                  Text('Total Durasi: ${consecutiveSlots.length * 30} menit'),
+                  SizedBox(height: 10),
+                  if (consecutiveSlots.length > 1) ...[
+                    Text(
+                      'Slot yang dibooking:',
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                    ...consecutiveSlots.map(
+                      (slot) => Padding(
+                        padding: EdgeInsets.only(left: 16),
+                        child: Text('• $slot'),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => _safeNavigatorPop(dialogContext),
+                child: Text('Tutup'),
+              ),
+              TextButton(
+                onPressed: () => _handleCancelBooking(dialogContext, time, court),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text(
+                  consecutiveSlots.length > 1
+                      ? 'Batalkan Semua'
+                      : 'Batalkan Booking',
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => _handleCancelBooking(dialogContext, time, court),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('Cancel Booking'),
-          ),
-        ],
-      ),
     );
   }
 
-  Future<void> _handleCancelBooking(BuildContext dialogContext, String time, String court) async {
+  List<String> _findConsecutiveBookings(
+    String targetTime,
+    String court,
+    String username,
+  ) {
+    List<String> consecutiveSlots = [];
+
+    // Get all time slots and sort them
+    List<String> allTimeSlots = bookingData.keys.toList();
+    allTimeSlots.sort((a, b) {
+      String timeA = a.split(' - ')[0];
+      String timeB = b.split(' - ')[0];
+      int minutesA = _timeToMinutes(timeA);
+      int minutesB = _timeToMinutes(timeB);
+      return minutesA.compareTo(minutesB);
+    });
+
+    // Find target slot index
+    int targetIndex = allTimeSlots.indexWhere((slot) => slot == targetTime);
+    if (targetIndex == -1) return [targetTime]; // fallback
+
+    // Check backwards for consecutive bookings
+    int startIndex = targetIndex;
+    for (int i = targetIndex - 1; i >= 0; i--) {
+      String timeSlot = allTimeSlots[i];
+      var courtData = bookingData[timeSlot]?[court];
+
+      if (courtData != null &&
+          !courtData['isAvailable'] &&
+          courtData['username'] == username) {
+        startIndex = i;
+      } else {
+        break;
+      }
+    }
+
+    // Check forwards for consecutive bookings
+    int endIndex = targetIndex;
+    for (int i = targetIndex + 1; i < allTimeSlots.length; i++) {
+      String timeSlot = allTimeSlots[i];
+      var courtData = bookingData[timeSlot]?[court];
+
+      if (courtData != null &&
+          !courtData['isAvailable'] &&
+          courtData['username'] == username) {
+        endIndex = i;
+      } else {
+        break;
+      }
+    }
+
+    // Collect all consecutive slots
+    for (int i = startIndex; i <= endIndex; i++) {
+      consecutiveSlots.add(allTimeSlots[i]);
+    }
+
+    return consecutiveSlots;
+  }
+
+  Future<void> _handleCancelBooking(
+    BuildContext dialogContext,
+    String time,
+    String court,
+  ) async {
     _safeNavigatorPop(dialogContext);
-    
-    // Show confirmation
+
+    // Get booking info first
+    var courtData = bookingData[time]?[court];
+    if (courtData == null) return;
+
+    String username = courtData['username'] ?? '';
+    if (username.isEmpty) return;
+
+    // Find all consecutive bookings for this user
+    List<String> consecutiveSlots = _findConsecutiveBookings(
+      time,
+      court,
+      username,
+    );
+
+    // Calculate start and end time for display
+    String startTime = consecutiveSlots.first.split(' - ')[0];
+    String endTime = consecutiveSlots.last.split(' - ')[1];
+
+    // Show confirmation with booking details
     bool? confirm = await showDialog<bool>(
       context: context,
-      builder: (BuildContext confirmContext) => AlertDialog(
-        title: Text('Konfirmasi'),
-        content: Text('Apakah Anda yakin ingin membatalkan booking ini?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(confirmContext).pop(false),
-            child: Text('Tidak'),
+      builder:
+          (BuildContext confirmContext) => AlertDialog(
+            title: Text('Konfirmasi Pembatalan Booking'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Customer: $username'),
+                Text('Lapangan: $court'),
+                Text('Jam Mulai: $startTime'),
+                Text('Jam Selesai: $endTime'),
+                SizedBox(height: 10),
+                Text(
+                  'Apakah Anda yakin ingin membatalkan semua booking ini?',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(confirmContext).pop(false),
+                child: Text('Tidak'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(confirmContext).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text('Ya, Batalkan Semua'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () => Navigator.of(confirmContext).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text('Ya, Batalkan'),
-          ),
-        ],
-      ),
     );
 
     if (confirm == true && mounted) {
@@ -585,30 +718,38 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
       try {
         final dateStr = _formatDateString(selectedDate);
-        final startTime = time.split(' - ')[0];
-        final formatStartTime = startTime.replaceAll(':', '');
-        final slotId = '${court}_${dateStr}_$formatStartTime';
-        
-        // await FirebaseService().cancelBooking(slotId);
-        
+
+        // Cancel all consecutive slots
+        for (String timeSlot in consecutiveSlots) {
+          await FirebaseService().cancelBooking(
+            username,
+            dateStr,
+            court,
+            timeSlot.split(' - ')[0],
+            timeSlot.split(' - ')[1],
+          );
+        }
+
         _safeNavigatorPop(context); // Close loading dialog
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Booking berhasil dibatalkan'),
+              content: Text(
+                'Berhasil membatalkan bookingan untuk $username, hari ${DateFormat('EEEE, d MMMM yyyy').format(selectedDate)}, pukul $startTime - $endTime',
+              ),
               backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
             ),
           );
 
           // Refresh data
           await _loadOrCreateSlots(selectedDate);
         }
-        
       } catch (e) {
         _safeNavigatorPop(context); // Close loading dialog
         debugPrint('Error canceling booking: $e');
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
