@@ -139,6 +139,7 @@ class _HalamanMemberState extends State<HalamanMember> {
   Future<bool> _checkSlotAvailability() async {
     if (courts.isEmpty) {
       await _loadCourts();
+      debugPrint('Lapangan masih kosong, memuat ulang...');
     }
 
     if (courts.isEmpty) {
@@ -154,6 +155,9 @@ class _HalamanMemberState extends State<HalamanMember> {
         _showConfirmationDialog(court.courtId);
         return true;
       }
+      debugPrint(
+        'Lapangan ${court.courtId} tidak tersedia pada waktu yang dipilih.',
+      );
     }
 
     _showErrorSnackBar('Jadwal yang dipilih tidak tersedia');
@@ -172,6 +176,10 @@ class _HalamanMemberState extends State<HalamanMember> {
           slotTime,
           court.courtId,
           date,
+        );
+
+        debugPrint(
+          'Cek ketersediaan: ${court.courtId} pada ${date.toIso8601String()} jam $slotTime: $isAvailable',
         );
         
         if (!isAvailable) return false;

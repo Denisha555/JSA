@@ -1259,9 +1259,12 @@ class FirebaseService {
         final TimeSlot slot = TimeSlot.fromJson(
           slotDoc.data() as Map<String, dynamic>,
         );
+        print('Slot ID: $slotId, Available: ${slot.isAvailable}, Closed: ${slot.isClosed}');
         return (slot.isAvailable && !slot.isClosed);
       } else {
-        return false;
+        await generateSlotsOneDay(selectedDate);
+        print('Slot ID: $slotId does not exist, generating slots for the day');
+        return true; // Slot does not exist, assume available
       }
     } catch (e) {
       throw Exception('Failed to check slot availability: $e');

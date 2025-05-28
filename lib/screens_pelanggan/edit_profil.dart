@@ -152,15 +152,6 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
       isValid = false;
     }
 
-    // Validate club name (optional but if filled, must be valid)
-    String clubName = clubController.text.trim();
-    if (clubName.isNotEmpty && clubName.length < 2) {
-      setState(() {
-        errorTextClub = 'Nama club minimal 2 karakter';
-      });
-      isValid = false;
-    }
-
     return isValid;
   }
 
@@ -193,7 +184,7 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
       await FirebaseService().editProfil(
         username!,
         namaController.text.trim(),
-        clubController.text.trim(),
+        clubController.text.trim() ?? '',
         noTelpController.text.trim(),
       );
 
