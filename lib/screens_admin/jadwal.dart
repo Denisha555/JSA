@@ -373,7 +373,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
         (jadwal) => jadwal.date == formattedDate,
       );
     } catch (e) {
-      // If not found, return early
+      debugPrint('No existing schedule found for date: $formattedDate');
       return;
     }
 

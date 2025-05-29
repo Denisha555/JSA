@@ -1645,12 +1645,15 @@ class FirebaseService {
 
   Future<void> closeAllDay(DateTime selectedDate) async {
     try {
-      if (_courtsCache.isEmpty) {
-        final courts = await firestore.collection('lapangan').get();
-        for (var court in courts.docs) {
-          _courtsCache[court.id] = court.data();
-        }
+      _courtsCache.clear(); // Pastikan cache kosong sebelum diisi ulang
+      final courts = await firestore.collection('lapangan').get();
+      for (var court in courts.docs) {
+        final data = court.data();
+        _courtsCache[court.id] = data;
+        print('Lapangan ${data['nomor']} added to cache');
       }
+
+      print('Total lapangan: ${_courtsCache.length}');
 
       final targetDate = DateTime(
         selectedDate.year,
@@ -1660,29 +1663,28 @@ class FirebaseService {
 
       final dateStr = DateFormat('yyyy-MM-dd').format(targetDate);
 
-      // First, check if we have existing slots for this date
+      // Cek apakah sudah ada slot di tanggal ini
       final existingSlots =
           await firestore
               .collection('time_slots')
               .where('date', isEqualTo: dateStr)
               .get();
 
-      // If we have existing slots, update them in batches
       if (existingSlots.docs.isNotEmpty) {
+        // Jika ada slot, update semuanya jadi isClosed dan tidak available
         var updateBatch = firestore.batch();
         int updateCount = 0;
         const maxBatchSize = 500;
 
         for (var doc in existingSlots.docs) {
           updateBatch.update(doc.reference, {
-            'isAvailable': false, // Changed from true to false
+            'isAvailable': false,
             'isClosed': true,
             'updatedAt': FieldValue.serverTimestamp(),
           });
 
           updateCount++;
 
-          // Commit batch if we reach the limit
           if (updateCount >= maxBatchSize) {
             await updateBatch.commit();
             updateBatch = firestore.batch();
@@ -1690,23 +1692,24 @@ class FirebaseService {
           }
         }
 
-        // Commit any remaining operations
         if (updateCount > 0) {
           await updateBatch.commit();
         }
       } else {
-        // If no existing slots, generate them with isClosed = true
+        // Jika belum ada slot, generate semuanya dengan status closed
         var createBatch = firestore.batch();
         int createCount = 0;
         const maxBatchSize = 500;
 
         for (var courtData in _courtsCache.values) {
           final courtNumber = courtData['nomor'].toString();
+          print('Generating slots for lapangan $courtNumber...');
 
           for (int hour = 7; hour <= 22; hour++) {
             for (int minute = 0; minute < 60; minute += 30) {
               final startTime =
                   "${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}";
+
               final endTime = DateTime(
                 targetDate.year,
                 targetDate.month,
@@ -1714,11 +1717,14 @@ class FirebaseService {
                 hour,
                 minute,
               ).add(Duration(minutes: 30));
+
               final endTimeStr =
                   "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}";
 
               final slotId =
                   "${courtNumber}_${dateStr}_${startTime.replaceAll(':', '')}";
+
+              print('Creating slot: $slotId');
 
               final docRef = firestore.collection('time_slots').doc(slotId);
 
@@ -1727,14 +1733,13 @@ class FirebaseService {
                 'date': dateStr,
                 'startTime': startTime,
                 'endTime': endTimeStr,
-                'isAvailable': false, // Set to false for closed slots
+                'isAvailable': false,
                 'isClosed': true,
                 'createdAt': FieldValue.serverTimestamp(),
               });
 
               createCount++;
 
-              // Commit batch if we reach the limit
               if (createCount >= maxBatchSize) {
                 await createBatch.commit();
                 createBatch = firestore.batch();
@@ -1744,13 +1749,12 @@ class FirebaseService {
           }
         }
 
-        // Commit any remaining operations
         if (createCount > 0) {
           await createBatch.commit();
         }
       }
 
-      // Add to closed_days collection
+      // Tambahkan catatan ke koleksi closed_days
       await firestore.collection('closed_days').add({
         'date': dateStr,
         'startTime': '07:00',
@@ -1759,9 +1763,12 @@ class FirebaseService {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Clear cache
+      // Bersihkan cache slot
       _timeSlotCache.clear();
+
+      print('Semua lapangan ditutup untuk tanggal $dateStr');
     } catch (e) {
+      print('ERROR closeAllDay: $e');
       throw Exception('Failed to close all day: $e');
     }
   }
@@ -1885,7 +1892,7 @@ class FirebaseService {
           .get()
           .then((snapshot) {
             for (var doc in snapshot.docs) {
-              doc.reference.update({'isClosed': false});
+              doc.reference.update({'isClosed': false, 'isavailable': true});
             }
           });
     } catch (e) {
