@@ -534,14 +534,6 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
       }
     } catch (e) {
       debugPrint('Failed to load booking: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gagal memuat data booking'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
     }
   }
 

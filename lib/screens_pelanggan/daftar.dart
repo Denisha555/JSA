@@ -172,17 +172,17 @@ class _HalamanDaftarState extends State<HalamanDaftar>
         return;
       }
 
-      final namaUsed = await FirebaseService().checknama(nama);
-      if (namaUsed) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Nama sudah digunakan'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
+      // final namaUsed = await FirebaseService().checknama(nama);
+      // if (namaUsed) {
+      //   if (!mounted) return;
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     const SnackBar(
+      //       content: Text('Nama sudah digunakan'),
+      //       backgroundColor: Colors.red,
+      //     ),
+      //   );
+      //   return;
+      // }
 
       if (clubController.text.isNotEmpty) {
         final clubUsed = await FirebaseService().checkclub(club);

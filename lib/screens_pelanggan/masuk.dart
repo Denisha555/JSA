@@ -191,6 +191,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
       bool registered = await FirebaseService().checkUser(
         usernameController.text,
       );
+      debugPrint('Registered: $registered');
 
       try {
         if (registered) {

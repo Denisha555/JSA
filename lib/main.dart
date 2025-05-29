@@ -6,6 +6,7 @@ import 'screens_pelanggan/masuk.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'firebase_options.dart';
 import 'package:flutter_application_1/screens_admin/halaman_utama_admin.dart';
 import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -14,21 +15,26 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null);
   try {
-    if (kIsWeb) {
-      await Firebase.initializeApp(
-        options: const FirebaseOptions(
-          apiKey: "AIzaSyDnEzhUMogNLMUD9khqGZs2UbYxKccTVNk",
-          authDomain: "jump-smash-arena.firebaseapp.com",
-          projectId: "jump-smash-arena",
-          storageBucket: "jump-smash-arena.firebasestorage.app",
-          messagingSenderId: "499652308146",
-          appId: "1:499652308146:web:93b5c15bf86ae8a86b2dab",
-          measurementId: "G-34Z6QW3F97",
-        ),
-      );
-    } else {
-      await Firebase.initializeApp();
-    }
+    // if (kIsWeb) {
+    //   await Firebase.initializeApp(
+    //     options: const FirebaseOptions(
+    //       apiKey: "AIzaSyDnEzhUMogNLMUD9khqGZs2UbYxKccTVNk",
+    //       authDomain: "jump-smash-arena.firebaseapp.com",
+    //       projectId: "jump-smash-arena",
+    //       storageBucket: "jump-smash-arena.firebasestorage.app",
+    //       messagingSenderId: "499652308146",
+    //       appId: "1:499652308146:web:93b5c15bf86ae8a86b2dab",
+    //       measurementId: "G-34Z6QW3F97",
+    //     ),
+    //   );
+    // } else {
+    //   await Firebase.initializeApp();
+    // }
+    WidgetsFlutterBinding.ensureInitialized();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
     runApp(const MyApp());
   } catch (e) {
     debugPrint('Error initializing Firebase: $e');

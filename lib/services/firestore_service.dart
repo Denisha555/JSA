@@ -320,6 +320,7 @@ class FirebaseService {
 
   final Map<String, List<TimeSlot>> _timeSlotCache = {};
   final Map<String, dynamic> _courtsCache = {};
+  final Map<String, dynamic> _promoCache = {};
 
   int _timeToMinutes(String time) {
     final parts = time.split(':');
@@ -330,6 +331,10 @@ class FirebaseService {
     final hours = (minutes ~/ 60).toString().padLeft(2, '0');
     final mins = (minutes % 60).toString().padLeft(2, '0');
     return '${hours}${mins}';
+  }
+
+  String _formatDate(DateTime date) {
+    return DateFormat('yyyy-MM-dd').format(date);
   }
 
   // Fungsi untuk menambahkan user ke Firestore
@@ -549,10 +554,40 @@ class FirebaseService {
               .where('username', isEqualTo: username)
               .get();
 
-      for (DocumentSnapshot doc in snapshot.docs) {
-        users.add(UserData.fromJson(doc.data() as Map<String, dynamic>));
-      }
+      if (snapshot.docs.isNotEmpty) {
+        for (DocumentSnapshot doc in snapshot.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          final startTime =
+              data['startTime']
+                  ? _formatDate(DateTime.parse(data['startTime']))
+                  : null;
+          // jika startTime sudah 1 bulan dari sekarang, maka totalHour akan diisi 0
+          if (startTime != null &&
+              DateTime.parse(
+                startTime,
+              ).isBefore(DateTime.now().subtract(Duration(days: 30)))) {
+            await firestore.collection('users').doc(doc.id).update({
+              'totalHour': 0,
+              'startTime': '',
+            });
 
+            QuerySnapshot snapshotNew =
+                await firestore
+                    .collection('users')
+                    .where('username', isEqualTo: username)
+                    .get();
+
+            if (snapshotNew.docs.isNotEmpty) {
+              for (DocumentSnapshot docNew in snapshotNew.docs) {
+                final dataNew = docNew.data() as Map<String, dynamic>;
+                users.add(UserData.fromJson(dataNew));
+              }
+            }
+          } else {
+            users.add(UserData.fromJson(data));
+          }
+        }
+      }
       return users;
     } catch (e) {
       throw Exception('Error Checking User: $e');
@@ -569,10 +604,40 @@ class FirebaseService {
               .where('username', isEqualTo: username)
               .get();
 
-      for (DocumentSnapshot doc in snapshot.docs) {
-        profil.add(UserProfil.fromJson(doc.data() as Map<String, dynamic>));
-      }
+      if (snapshot.docs.isNotEmpty) {
+        for (DocumentSnapshot doc in snapshot.docs) {
+          final data = doc.data() as Map<String, dynamic>;
+          final startTime =
+              data['startTime']
+                  ? _formatDate(DateTime.parse(data['startTime']))
+                  : null;
+          // jika startTime sudah 1 bulan dari sekarang, maka totalHour akan diisi 0
+          if (startTime != null &&
+              DateTime.parse(
+                startTime,
+              ).isBefore(DateTime.now().subtract(Duration(days: 30)))) {
+            await firestore.collection('users').doc(doc.id).update({
+              'totalHour': 0,
+              'startTime': '',
+            });
 
+            QuerySnapshot snapshotNew =
+                await firestore
+                    .collection('users')
+                    .where('username', isEqualTo: username)
+                    .get();
+
+            if (snapshotNew.docs.isNotEmpty) {
+              for (DocumentSnapshot docNew in snapshotNew.docs) {
+                final dataNew = docNew.data() as Map<String, dynamic>;
+                profil.add(UserProfil.fromJson(dataNew));
+              }
+            }
+          } else {
+            profil.add(UserProfil.fromJson(data));
+          }
+        }
+      }
       return profil;
     } catch (e) {
       throw Exception('Error Checking User: $e');
