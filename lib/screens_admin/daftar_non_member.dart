@@ -598,7 +598,7 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
                                     ),
                                   )
                                   : const Text(
-                                    "Daftar",
+                                    "Daftar ",
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,

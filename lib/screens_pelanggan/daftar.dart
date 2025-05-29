@@ -158,7 +158,16 @@ class _HalamanDaftarState extends State<HalamanDaftar>
       final club = clubController.text;
       final noTelp = noTelpController.text;
 
+      // === PERBAIKAN: Cek dengan data real-time tanpa cache ===
+      print("Checking username: $username"); // Debug log
+      
+      // Tambahkan delay kecil untuk memastikan database sudah sinkron
+      await Future.delayed(const Duration(milliseconds: 500));
+      
       final registed = await FirebaseService().checkUser(username);
+      print("Username check: $username"); // Debug log
+      print("Username check result: $registed"); // Debug log
+      
       if (registed) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -172,20 +181,12 @@ class _HalamanDaftarState extends State<HalamanDaftar>
         return;
       }
 
-      // final namaUsed = await FirebaseService().checknama(nama);
-      // if (namaUsed) {
-      //   if (!mounted) return;
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     const SnackBar(
-      //       content: Text('Nama sudah digunakan'),
-      //       backgroundColor: Colors.red,
-      //     ),
-      //   );
-      //   return;
-      // }
-
+      // === Cek club tanpa cache (jika diisi) ===
       if (clubController.text.isNotEmpty) {
+        print("Checking club: $club"); // Debug log
         final clubUsed = await FirebaseService().checkclub(club);
+        print("Club check result: $clubUsed"); // Debug log
+        
         if (clubUsed) {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
@@ -198,8 +199,11 @@ class _HalamanDaftarState extends State<HalamanDaftar>
         }
       }
       
-
+      // === Cek nomor telepon tanpa cache ===
+      print("Checking phone: $noTelp"); // Debug log
       final telpUsed = await FirebaseService().checkphoneNumber(noTelp);
+      print("Phone check result: $telpUsed"); // Debug log
+      
       if (telpUsed) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -211,8 +215,11 @@ class _HalamanDaftarState extends State<HalamanDaftar>
         return;
       }
 
-      // Check if username is already registered
+      // === Tambah user ke database ===
+      print("Adding user to database: $username"); // Debug log
       await FirebaseService().addUser(username, hashPassword(password), nama, club, noTelp);
+      print("User added successfully"); // Debug log
+      
       if (!mounted) return;
 
       Navigator.pop(context);
@@ -223,7 +230,10 @@ class _HalamanDaftarState extends State<HalamanDaftar>
 
       final prefs = await SharedPreferences.getInstance();
       prefs.setString('username', username);
+      
     } catch (e) {
+      print("Error during registration: $e"); // Debug log
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Terjadi kesalahan: $e'),
@@ -231,9 +241,11 @@ class _HalamanDaftarState extends State<HalamanDaftar>
         ),
       );
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 

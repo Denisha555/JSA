@@ -5,7 +5,6 @@ import 'screens_pelanggan/daftar.dart';
 import 'screens_pelanggan/masuk.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'firebase_options.dart';
 import 'package:flutter_application_1/screens_admin/halaman_utama_admin.dart';
 import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';

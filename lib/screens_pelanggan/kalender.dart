@@ -474,101 +474,100 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   }
 
   Widget _buildConfirmationDialog(
-  String startTime,
-  String endTime,
-  String court,
-  DateTime selectedDate,
-  String username,
-) {
-  bool isLoading = false; 
+    String startTime,
+    String endTime,
+    String court,
+    DateTime selectedDate,
+    String username,
+  ) {
+    bool isLoading = false;
 
-  return StatefulBuilder(
-    builder: (context, setState) {
-      return AlertDialog(
-        title: const Text(
-          'Konfirmasi Booking',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Apakah anda yakin ingin booking?',
-              style: TextStyle(fontSize: 18),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Catatan: Booking tidak dikenakan DP, harap datang sesuai jadwal yang dipilih',
-              style: TextStyle(fontSize: 13, color: Colors.grey),
-            ),
-            if (isLoading) ...[
-              const SizedBox(height: 20),
-              const Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  SizedBox(width: 12),
-                  Text('Sedang memproses booking...'),
-                ],
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return AlertDialog(
+          title: const Text(
+            'Konfirmasi Booking',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Apakah anda yakin ingin booking?',
+                style: TextStyle(fontSize: 18),
               ),
-            ],
-          ],
-        ),
-        actions: isLoading
-            ? []
-            : [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Batal'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    setState(() => isLoading = true);
-
-                    try {
-                      await _performBooking(
-                        startTime,
-                        endTime,
-                        court,
-                        selectedDate,
-                        username,
-                      );
-                      await _updateSlot(selectedDate);
-
-                      if (!context.mounted) return;
-
-                      _showSuccessSnackBar(
-                        'Berhasil booking Lapangan $court pada hari ${_formatDate(selectedDate)} pukul $startTime - $endTime',
-                      );
-
-                      Navigator.pop(context);
-                
-                    } catch (e) {
-                      setState(() => isLoading = false);
-                      _showErrorSnackBar('Gagal melakukan booking: $e');
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                  ),
-                  child: const Text(
-                    'Konfirmasi',
-                    style: TextStyle(color: Colors.white),
-                  ),
+              const SizedBox(height: 10),
+              const Text(
+                'Catatan: Booking tidak dikenakan DP, harap datang sesuai jadwal yang dipilih',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              if (isLoading) ...[
+                const SizedBox(height: 20),
+                const Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Text('Sedang memproses booking...'),
+                  ],
                 ),
               ],
-      );
-    },
-  );
-}
+            ],
+          ),
+          actions:
+              isLoading
+                  ? []
+                  : [
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text('Batal'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        setState(() => isLoading = true);
 
+                        try {
+                          await _performBooking(
+                            startTime,
+                            endTime,
+                            court,
+                            selectedDate,
+                            username,
+                          );
+                          await _updateSlot(selectedDate);
+
+                          if (!context.mounted) return;
+
+                          _showSuccessSnackBar(
+                            'Berhasil booking Lapangan $court pada hari ${_formatDate(selectedDate)} pukul $startTime - $endTime',
+                          );
+
+                          Navigator.pop(context);
+                        } catch (e) {
+                          setState(() => isLoading = false);
+                          _showErrorSnackBar('Gagal melakukan booking: $e');
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                      ),
+                      child: const Text(
+                        'Konfirmasi',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+        );
+      },
+    );
+  }
 
   Future<void> _updateSlot(DateTime selectedDate) async {
     try {
@@ -737,12 +736,12 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     String username,
     int maxSlots,
   ) {
+    int selectedDuration = 1; // Move it here to persist across rebuilds
+    final startTime = time.split(' - ')[0];
+
     showDialog(
       context: context,
       builder: (context) {
-        int selectedDuration = 1;
-        final startTime = time.split(' - ')[0];
-
         return StatefulBuilder(
           builder: (context, setState) {
             final endTime = _calculateEndTime(startTime, selectedDuration);
@@ -769,8 +768,12 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                       value: selectedDuration,
                       isExpanded: true,
                       underline: Container(),
-                      onChanged:
-                          (value) => setState(() => selectedDuration = value!),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedDuration =
+                              value!; // Update the outer variable
+                        });
+                      },
                       items:
                           List.generate(maxSlots, (i) => i + 1).map((duration) {
                             final endTime = _calculateEndTime(
@@ -830,7 +833,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   String _calculateEndTime(String startTime, int durationSlots) {
     final startTotalMinutes = _timeToMinutes(startTime);
     final endTotalMinutes = startTotalMinutes + (durationSlots * 30);
-    debugPrint('startTotalMinutes: $startTotalMinutes, endTotalMinutes: $endTotalMinutes');
+    debugPrint(
+      'startTotalMinutes: $startTotalMinutes, endTotalMinutes: $endTotalMinutes',
+    );
     return _minutesToFormattedTime(endTotalMinutes);
   }
 

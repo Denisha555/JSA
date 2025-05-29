@@ -23,7 +23,6 @@ class Terjadwal {
   Terjadwal({required this.tanggal, required this.jam, required this.lapangan});
 }
 
-// Helper class untuk menggabung booking
 class BookingGroup {
   final String date;
   final String courtId;
@@ -154,7 +153,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
 
     return result;
   }
-
+  
   // Fungsi untuk membatalkan booking
   Future<void> _cancelBooking(
     String date,

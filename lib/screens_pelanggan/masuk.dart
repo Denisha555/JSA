@@ -67,190 +67,62 @@ class _HalamanMasukState extends State<HalamanMasuk>
   }
 
   void _login() async {
+    // Reset error states
+    setState(() {
+      errorTextUsername = null;
+      errorTextPassword = null;
+    });
+
     // Validasi input
     if (usernameController.text.isEmpty) {
       setState(() {
         errorTextUsername = "Username tidak boleh kosong";
       });
       return;
-    } else if (passwordController.text.isEmpty) {
+    }
+    
+    if (passwordController.text.isEmpty) {
       setState(() {
         errorTextPassword = "Password tidak boleh kosong";
       });
       return;
-    } else if (passwordController.text.length < 6) {
+    }
+    
+    if (passwordController.text.length < 6) {
       setState(() {
         errorTextPassword = "Password minimal 6 karakter";
       });
       return;
-    } else {
-      setState(() {
-        errorTextUsername = null;
-        errorTextPassword = null;
-        _isLoading = true;
-      });
     }
 
+    // Set loading state
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
-      // Jika username dan password adalah admin
-      if (usernameController.text == "admin_1" &&
-          passwordController.text == "admin_1") {
-        try {
-          bool registered = await FirebaseService().checkUser(
-            usernameController.text,
-          );
-          // jika akun sudah ada
-          if (registered) {
-            if (mounted) {
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const HalamanUtamaAdmin(),
-                ),
-              );
-            }
-            // jika akun belum ada tambah data ke database
-          } else {
-            await FirebaseService().addAdminOwner(
-              usernameController.text,
-              passwordController.text,
-            );
-            if (mounted) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const HalamanUtamaAdmin(),
-                ),
-              );
-            }
-          }
-          SharedPreferences prefs = await SharedPreferences.getInstance();
-          prefs.setString('username', usernameController.text);
-          return;
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Terjadi kesalahan: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
+      // Debug log
+      debugPrint('Starting login process for: ${usernameController.text}');
+
+      // Handle admin login
+      if (usernameController.text == "admin_1" && passwordController.text == "admin_1") {
+        await _handleAdminLogin();
+        return;
       }
 
-      // jika username dan password adalah owner
-      if (usernameController.text == "owner_1" &&
-          passwordController.text == "owner_1") {
-        try {
-          bool registered = await FirebaseService().checkUser(
-            usernameController.text,
-          );
-          // jika sudah ada akun
-          if (registered) {
-            if (mounted) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const HalamanUtamaOwner(),
-                ),
-              );
-            }
-            // jika belum ada akun tambah data ke database
-          } else {
-            await FirebaseService().addAdminOwner(
-              usernameController.text,
-              passwordController.text,
-            );
-            if (mounted) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const HalamanUtamaOwner(),
-                ),
-              );
-            }
-          }
-          SharedPreferences prefs = await SharedPreferences.getInstance();
-          prefs.setString('username', usernameController.text);
-          return;
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Terjadi kesalahan: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
+      // Handle owner login
+      if (usernameController.text == "owner_1" && passwordController.text == "owner_1") {
+        await _handleOwnerLogin();
+        return;
       }
 
-      // Pengecekan login untuk pelanggan
-      bool registered = await FirebaseService().checkUser(
-        usernameController.text,
-      );
-      debugPrint('Registered: $registered');
+      // Handle customer login
+      await _handleCustomerLogin();
 
-      try {
-        if (registered) {
-          bool valid = await FirebaseService().checkPassword(
-            usernameController.text,
-            hashPassword(passwordController.text),
-          );
-
-          // jika username dan password benar
-          if (mounted) {
-            if (valid) {
-              SharedPreferences prefs = await SharedPreferences.getInstance();
-              prefs.setString('username', usernameController.text);
-
-              if (!mounted) return;
-              
-              Navigator.pop(context);
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const PilihHalamanPelanggan(),
-                ),
-              );
-              // jika username dan password salah
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Password tidak sesuai.'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            }
-          }
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Username belum terdaftar, silahkan daftar terlebih dahulu.'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Terjadi kesalahan: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
     } catch (e) {
+      debugPrint('Login error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Terjadi kesalahan: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showErrorSnackBar('Terjadi kesalahan: $e');
       }
     } finally {
       if (mounted) {
@@ -259,6 +131,143 @@ class _HalamanMasukState extends State<HalamanMasuk>
         });
       }
     }
+  }
+
+  Future<void> _handleAdminLogin() async {
+    try {
+      debugPrint('Processing admin login...');
+      
+      bool registered = await FirebaseService().checkUser(usernameController.text);
+      
+      if (!registered) {
+        await FirebaseService().addAdminOwner(
+          usernameController.text,
+          passwordController.text,
+        );
+        debugPrint('Admin account created');
+      }
+
+      // Save to shared preferences
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('username', usernameController.text);
+      
+      debugPrint('Navigating to admin page...');
+      
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const HalamanUtamaAdmin(),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Admin login error: $e');
+      if (mounted) {
+        _showErrorSnackBar('Gagal login admin: $e');
+      }
+    }
+  }
+
+  Future<void> _handleOwnerLogin() async {
+    try {
+      debugPrint('Processing owner login...');
+      
+      bool registered = await FirebaseService().checkUser(usernameController.text);
+      
+      if (!registered) {
+        await FirebaseService().addAdminOwner(
+          usernameController.text,
+          passwordController.text,
+        );
+        debugPrint('Owner account created');
+      }
+
+      // Save to shared preferences
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('username', usernameController.text);
+      
+      debugPrint('Navigating to owner page...');
+      
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const HalamanUtamaOwner(),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Owner login error: $e');
+      if (mounted) {
+        _showErrorSnackBar('Gagal login owner: $e');
+      }
+    }
+  }
+
+  Future<void> _handleCustomerLogin() async {
+    try {
+      debugPrint('Processing customer login...');
+      
+      // Check if user is registered
+      bool registered = await FirebaseService().checkUser(usernameController.text);
+      debugPrint('User registered: $registered');
+
+      if (!registered) {
+        if (mounted) {
+          _showErrorSnackBar('Username belum terdaftar, silahkan daftar terlebih dahulu.');
+        }
+        return;
+      }
+
+      // Check password
+      debugPrint('Checking password...');
+      bool validPassword = await FirebaseService().checkPassword(
+        usernameController.text,
+        hashPassword(passwordController.text),
+      );
+      debugPrint('Password valid: $validPassword');
+
+      if (!validPassword) {
+        if (mounted) {
+          _showErrorSnackBar('Password tidak sesuai.');
+        }
+        return;
+      }
+
+      // Save to shared preferences
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('username', usernameController.text);
+      
+      debugPrint('Login successful, navigating to customer page...');
+
+      if (mounted) {
+        // Add a small delay to ensure all async operations complete
+        await Future.delayed(const Duration(milliseconds: 100));
+        
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const PilihHalamanPelanggan(),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Customer login error: $e');
+      if (mounted) {
+        _showErrorSnackBar('Gagal login: $e');
+      }
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   @override
@@ -293,7 +302,23 @@ class _HalamanMasukState extends State<HalamanMasuk>
                         ),
                         child: Image.asset(
                           'assets/image/LogoJSA.jpg',
-                          width: 150, height: 150
+                          width: 150, 
+                          height: 150,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: 150,
+                              height: 150,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[300],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.image_not_supported,
+                                size: 50,
+                                color: Colors.grey,
+                              ),
+                            );
+                          },
                         ),
                       ),
 
@@ -429,36 +454,46 @@ class _HalamanMasukState extends State<HalamanMasuk>
                           onPressed: _isLoading ? null : _login,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryColor,
-                            disabledBackgroundColor: primaryColor.withOpacity(
-                              0.6,
-                            ),
+                            disabledBackgroundColor: primaryColor.withOpacity(0.6),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(borderRadius),
                             ),
                             elevation: 3,
                           ),
-                          child:
-                              _isLoading
-                                  ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white,
-                                      ),
-                                      strokeWidth: 3,
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.white,
                                     ),
-                                  )
-                                  : const Text(
-                                    "Masuk",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
+                                    strokeWidth: 3,
                                   ),
+                                )
+                              : const Text(
+                                  "Masuk",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16,
+                                  ),
+                                ),
                         ),
                       ),
+                      
+                      // Debug info (remove in production)
+                      if (_isLoading)
+                        const Padding(
+                          padding: EdgeInsets.only(top: 16.0),
+                          child: Text(
+                            "Sedang memproses login...",
+                            style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
