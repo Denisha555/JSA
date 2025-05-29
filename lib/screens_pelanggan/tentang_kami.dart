@@ -138,7 +138,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Jump, smash, and win! Rasakan serunya main badminton di Jump SMASH Arena—lapangan kece, suasana oke!',
+                  'Jump, smash, and win! Rasakan serunya main badminton di Jump Smash Arena—lapangan kece, suasana oke!',
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -254,7 +254,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                style: ElevatedButton.styleFrom(backgroundColor: Color.fromARGB(255, 42, 92, 170)),
                 label: const Text("WhatsApp", style: TextStyle(color: Colors.white)),
                 onPressed: () {
                   _bukaLink('https://wa.me/6281299931908');
@@ -262,7 +262,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
               ),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Color.fromARGB(255, 255, 64, 156),
+                  backgroundColor: Color.fromARGB(255, 42, 92, 170),
                 ),
                 label: const Text("Instagram", style: TextStyle(color: Colors.white)),
                 onPressed: () {

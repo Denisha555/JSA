@@ -280,7 +280,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
             _buildUserInfoRow('Club', user.club),
             _buildUserInfoRow('No Telepon', user.noTelp),
             _buildUserInfoRow('Waktu Mulai', user.startTime),
-            _buildUserInfoRow('Point', user.totalBooking.toString()),
+            _buildUserInfoRow('Poin', user.totalBooking.toString()),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(),

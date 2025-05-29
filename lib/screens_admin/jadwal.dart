@@ -340,7 +340,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                                 ),
                               )
                             : Text(
-                                editingDocId != null ? "Update" : "Simpan",
+                                editingDocId != null ? "Perbarui" : "Simpan",
                               ),
                       ),
                     ),
