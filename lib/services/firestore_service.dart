@@ -284,6 +284,35 @@ class EventPromo {
   }
 }
 
+class Harga {
+  final int harga;
+  final String hariMulai;
+  final String hariSelesai;
+  final int startTime;
+  final int endTime;
+  final String type;
+
+  Harga({
+    required this.harga,
+    required this.hariMulai,
+    required this.hariSelesai,
+    required this.startTime,
+    required this.endTime,
+    required this.type,
+  });
+
+  factory Harga.fromJson(Map<String, dynamic> json) {
+    return Harga(
+      harga: json['harga'],
+      hariMulai: json['hari_mulai'],
+      hariSelesai: json['hari_selesai'],
+      startTime: json['jam_mulai'],
+      endTime: json['jam_selesai'],
+      type: json['type'],
+    );
+  }
+}
+
 const _timeSlots = [
   '07:00',
   '07:30',
@@ -752,6 +781,22 @@ class FirebaseService {
       return null;
     } catch (e) {
       throw Exception('Error Getting Harga Document ID: $e');
+    }
+  }
+
+  Future<List<Harga>> getHarga() async {
+    try {
+      List<Harga> hargaList = [];
+
+      QuerySnapshot snapshot = await firestore.collection('harga').get();
+
+      for (DocumentSnapshot doc in snapshot.docs) {
+        hargaList.add(Harga.fromJson(doc.data() as Map<String, dynamic>));
+      }
+
+      return hargaList;
+    } catch (e) {
+      throw Exception('Error to get the harga: $e');
     }
   }
 

@@ -536,6 +536,78 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     }
   }
 
+  String _namaHari(int weekday) {
+    const hari = [
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+      'Minggu',
+    ];
+    return hari[weekday - 1];
+  }
+
+  bool _isHariDalamRange(String hari, String mulai, String selesai) {
+    const daftarHari = [
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+      'Minggu',
+    ];
+
+    int indexHari = daftarHari.indexOf(hari);
+    int indexMulai = daftarHari.indexOf(mulai);
+    int indexSelesai = daftarHari.indexOf(selesai);
+
+    if (indexMulai <= indexSelesai) {
+      return indexHari >= indexMulai && indexHari <= indexSelesai;
+    } else {
+      // untuk range seperti "Jumat - Senin"
+      return indexHari >= indexMulai || indexHari <= indexSelesai;
+    }
+  }
+
+  Future<double> _totalPrice({
+    required String startTime,
+    required String endTime,
+    required DateTime selectedDate,
+    required String type, // "Non Member" / "Member"
+  }) async {
+    final hargaList = await FirebaseService().getHarga();
+    final hariBooking = _namaHari(selectedDate.weekday); // Misal "Senin"
+
+    int startMinutes = _timeToMinutes(startTime);
+    int endMinutes = _timeToMinutes(endTime);
+
+    double totalPrice = 0;
+
+    for (int time = startMinutes; time < endMinutes; time += 30) {
+      final jam = time ~/ 60;
+
+      // Cari harga yang cocok untuk slot saat ini
+      final hargaMatch = hargaList.firstWhere(
+        (harga) =>
+            harga.type == type &&
+            _isHariDalamRange(
+              hariBooking,
+              harga.hariMulai,
+              harga.hariSelesai,
+            ) &&
+            jam >= harga.startTime &&
+            jam < harga.endTime,
+      );
+
+      totalPrice += hargaMatch.harga / 2; // Karena 30 menit = 0.5 jam
+    }
+
+    return totalPrice;
+  }
+
   // Show booking details
   void _showBookingDetails(String time, String court, String username) async {
     if (!mounted) return;
@@ -586,6 +658,27 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     Text('Jam Mulai: $startTime'),
                     Text('Jam Selesai: $endTime'),
                     Text('Total Durasi: ${consecutiveSlots.length * 30} menit'),
+                    FutureBuilder<double>(
+                      future: _totalPrice(
+                        startTime: startTime,
+                        endTime: endTime,
+                        selectedDate: selectedDate,
+                        type: 'Non Member',
+                      ),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Text('Menghitung harga...');
+                        } else if (snapshot.hasError) {
+                          return Text('Gagal menghitung harga');
+                        } else {
+                          final price = snapshot.data ?? 0;
+                          return Text(
+                            'Total Harga: Rp ${price.toStringAsFixed(0)}',
+                          );
+                        }
+                      },
+                    ),
                     SizedBox(height: 8),
                     // Status konfirmasi
                     Container(
@@ -681,6 +774,27 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     Text('Jam Mulai: $startTime'),
                     Text('Jam Selesai: $endTime'),
                     Text('Total Durasi: ${consecutiveSlots.length * 30} menit'),
+                    FutureBuilder<double>(
+                      future: _totalPrice(
+                        startTime: startTime,
+                        endTime: endTime,
+                        selectedDate: selectedDate,
+                        type: 'Non Member',
+                      ),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Text('Menghitung harga...');
+                        } else if (snapshot.hasError) {
+                          return Text('Gagal menghitung harga');
+                        } else {
+                          final price = snapshot.data ?? 0;
+                          return Text(
+                            'Total Harga: Rp ${price.toStringAsFixed(0)}',
+                          );
+                        }
+                      },
+                    ),
                     SizedBox(height: 10),
                     if (consecutiveSlots.length > 1) ...[
                       Text(
@@ -763,8 +877,26 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               children: [
                 Text('Customer: $username'),
                 Text('Lapangan: $court'),
-                Text(
-                  'Waktu: $startTime - $endTime',
+                Text('Waktu: $startTime - $endTime'),
+                FutureBuilder<double>(
+                  future: _totalPrice(
+                    startTime: startTime,
+                    endTime: endTime,
+                    selectedDate: selectedDate,
+                    type: 'Non Member',
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Text('Menghitung harga...');
+                    } else if (snapshot.hasError) {
+                      return Text('Gagal menghitung harga');
+                    } else {
+                      final price = snapshot.data ?? 0;
+                      return Text(
+                        'Total Harga: Rp ${price.toStringAsFixed(0)}',
+                      );
+                    }
+                  },
                 ), // Tampilkan range waktu lengkap
                 SizedBox(height: 10),
                 Text(
