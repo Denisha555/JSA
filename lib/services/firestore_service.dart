@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class TimeSlot {
@@ -38,6 +39,7 @@ class TimeSlotForAdmin {
   final bool isAvailable;
   final bool isClosed;
   final String? username;
+  final bool isConfirmed;
 
   TimeSlotForAdmin({
     required this.courtId,
@@ -47,6 +49,7 @@ class TimeSlotForAdmin {
     required this.isAvailable,
     required this.isClosed,
     required this.username,
+    required this.isConfirmed,
   });
 
   factory TimeSlotForAdmin.fromJson(Map<String, dynamic> json) {
@@ -58,6 +61,7 @@ class TimeSlotForAdmin {
       isAvailable: json['isAvailable'],
       isClosed: json['isClosed'] ?? false,
       username: json['username'] ?? "",
+      isConfirmed: json['isConfirmed'] ?? false,
     );
   }
 }
@@ -557,37 +561,41 @@ class FirebaseService {
       if (snapshot.docs.isNotEmpty) {
         for (DocumentSnapshot doc in snapshot.docs) {
           final data = doc.data() as Map<String, dynamic>;
-          final startTime =
-              data['startTime']
-                  ? _formatDate(DateTime.parse(data['startTime']))
-                  : null;
-          // jika startTime sudah 1 bulan dari sekarang, maka totalHour akan diisi 0
-          if (startTime != null &&
-              DateTime.parse(
-                startTime,
-              ).isBefore(DateTime.now().subtract(Duration(days: 30)))) {
+
+          final rawStartTime = data['startTime'];
+          DateTime? parsedStartTime;
+
+          if (rawStartTime != null && rawStartTime != '') {
+            parsedStartTime = DateTime.tryParse(rawStartTime);
+          }
+
+          if (parsedStartTime != null &&
+              parsedStartTime.isBefore(
+                DateTime.now().subtract(Duration(days: 30)),
+              )) {
+            // Reset user stats after 30 days
             await firestore.collection('users').doc(doc.id).update({
               'totalHour': 0,
               'startTime': '',
             });
 
+            // Fetch updated data
             QuerySnapshot snapshotNew =
                 await firestore
                     .collection('users')
                     .where('username', isEqualTo: username)
                     .get();
 
-            if (snapshotNew.docs.isNotEmpty) {
-              for (DocumentSnapshot docNew in snapshotNew.docs) {
-                final dataNew = docNew.data() as Map<String, dynamic>;
-                users.add(UserData.fromJson(dataNew));
-              }
+            for (DocumentSnapshot docNew in snapshotNew.docs) {
+              final dataNew = docNew.data() as Map<String, dynamic>;
+              users.add(UserData.fromJson(dataNew));
             }
           } else {
             users.add(UserData.fromJson(data));
           }
         }
       }
+
       return users;
     } catch (e) {
       throw Exception('Error Checking User: $e');
@@ -779,15 +787,82 @@ class FirebaseService {
       String formattedDate =
           "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
 
-      // TODO : check available courts
+      final firestore = FirebaseFirestore.instance;
 
-      QuerySnapshot querySnapshot =
+      // Cek apakah sudah ada slot hari ini
+      final existingSlots =
+          await firestore
+              .collection('time_slots')
+              .where('date', isEqualTo: formattedDate)
+              .limit(1)
+              .get();
+
+      if (existingSlots.docs.isEmpty) {
+        await generateSlotsToday(); // Fungsi milik kamu untuk generate
+      }
+
+      // Ambil semua lapangan
+      QuerySnapshot courtsSnapshot =
           await firestore.collection('lapangan').get();
-      return querySnapshot.docs.map((doc) {
-        return AllCourtsToday.fromJson(doc.data() as Map<String, dynamic>);
-      }).toList();
+
+      List<AllCourtsToday> courtsToday = [];
+
+      final currentTime = TimeOfDay.fromDateTime(DateTime.now());
+      debugPrint('Current time: ${currentTime.hour}:${currentTime.minute}');
+
+      for (var doc in courtsSnapshot.docs) {
+        final courtId = doc.get('nomor') as String;
+
+        debugPrint('Checking court: $courtId');
+
+        final slotSnapshot =
+            await firestore
+                .collection('time_slots')
+                .where('date', isEqualTo: formattedDate)
+                .where('courtId', isEqualTo: courtId)
+                .where('isAvailable', isEqualTo: true)
+                .get();
+
+        final filteredSlots =
+            slotSnapshot.docs.where((doc) {
+              final startTimeStr = doc.get('startTime') as String;
+              debugPrint('Checking slot for $courtId: $startTimeStr');
+
+              final parts = startTimeStr.split(':');
+              if (parts.length != 2) return false;
+
+              final slotTime = TimeOfDay(
+                hour: int.parse(parts[0]),
+                minute: int.parse(parts[1]),
+              );
+
+              // Ambil field isClosed, kalau tidak ada anggap false
+              final isClosed =
+                  doc.data().containsKey('isClosed')
+                      ? doc.get('isClosed') as bool
+                      : false;
+
+              final currentTime = TimeOfDay.fromDateTime(DateTime.now());
+
+              return !isClosed &&
+                  (slotTime.hour > currentTime.hour ||
+                      (slotTime.hour == currentTime.hour &&
+                          slotTime.minute > currentTime.minute));
+            }).toList();
+
+        if (filteredSlots.isNotEmpty) {
+          courtsToday.add(
+            AllCourtsToday.fromJson({
+              'courtId': courtId,
+              'image': doc.get('image') ?? '',
+            }),
+          );
+        }
+      }
+
+      return courtsToday;
     } catch (e) {
-      throw Exception('Error Checking Lapangan: $e');
+      throw Exception('Error checking lapangan: $e');
     }
   }
 
@@ -1765,10 +1840,7 @@ class FirebaseService {
 
       // Bersihkan cache slot
       _timeSlotCache.clear();
-
-      print('Semua lapangan ditutup untuk tanggal $dateStr');
     } catch (e) {
-      print('ERROR closeAllDay: $e');
       throw Exception('Failed to close all day: $e');
     }
   }
@@ -1875,6 +1947,7 @@ class FirebaseService {
 
   Future<void> deleteCloseDay(String selectedDate) async {
     try {
+      // Hapus dari koleksi closed_days
       await firestore
           .collection('closed_days')
           .where('date', isEqualTo: selectedDate)
@@ -1886,13 +1959,18 @@ class FirebaseService {
             }
           });
 
+      // Update slot yang sebelumnya ditutup
       await firestore
           .collection('time_slots')
           .where('date', isEqualTo: selectedDate)
           .get()
           .then((snapshot) {
             for (var doc in snapshot.docs) {
-              doc.reference.update({'isClosed': false, 'isavailable': true});
+              doc.reference.update({
+                'isClosed': false,
+                'isAvailable': true,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
             }
           });
     } catch (e) {
@@ -1923,6 +2001,27 @@ class FirebaseService {
           });
     } catch (e) {
       throw Exception('Failed to update closed day: $e');
+    }
+  }
+
+  Future<void> confirmBookingArrival(
+    String username,
+    String date,
+    String courtId,
+    String startTime,
+  ) async {
+    final slotId = '${courtId}_${date}_${startTime.replaceAll(':', '')}';
+    final slotRef = firestore.collection('time_slots').doc(slotId);
+
+    try {
+      await slotRef.update({
+        'isConfirmed': true,
+        'confirmedAt': FieldValue.serverTimestamp(),
+      });
+    } on FirebaseException catch (e) {
+      throw 'Error confirming booking: ${e.code}';
+    } catch (e) {
+      throw 'Error confirming booking: $e';
     }
   }
 }

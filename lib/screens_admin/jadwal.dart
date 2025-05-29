@@ -459,8 +459,8 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     try {
       setState(() => _isLoading = true);
 
-      // If editing, first delete the existing schedule
       if (editingDocId != null) {
+        debugPrint('Deleting existing schedule with ID: $editingDocId');
         await FirebaseService().deleteCloseDay(editingDocId!);
       }
 

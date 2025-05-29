@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/screens_pelanggan/Kalender.dart';
@@ -7,47 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/screens_pelanggan/price_list.dart';
 import 'package:flutter_application_1/screens_pelanggan/tentang_kami.dart';
-
-// Sample event data - Made const for better performance
-const List<EventPromo> events = [
-  EventPromo(image: "assets/image/PromoEvent.jpeg"),
-  EventPromo(image: "assets/image/PromoEvent.jpeg"),
-  EventPromo(image: "assets/image/PromoEvent.jpeg"),
-];
-
-// Court data model
-class Court {
-  final String imageAssetPath;
-  final String name;
-  final bool isAvailable;
-  final double pricePerHour;
-
-  const Court({
-    required this.imageAssetPath,
-    required this.name,
-    this.isAvailable = true,
-    required this.pricePerHour,
-  });
-}
-
-// Sample courts data - Made const for better performance
-const List<Court> courts = [
-  Court(
-    imageAssetPath: "assets/image/Lapangan.jpg",
-    name: "Lapangan 01",
-    pricePerHour: 50000,
-  ),
-  Court(
-    imageAssetPath: "assets/image/Lapangan.jpg",
-    name: "Lapangan 03",
-    pricePerHour: 45000,
-  ),
-  Court(
-    imageAssetPath: "assets/image/Lapangan.jpg",
-    name: "Lapangan 04",
-    pricePerHour: 60000,
-  ),
-];
 
 class Reward {
   final double currentHours;
@@ -68,6 +26,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
   bool _isLoading = false;
   List<UserData> user = [];
   List<EventPromo> events = [];
+  List<AllCourtsToday> courts = [];
 
   // Initialize with default values
   Reward currentReward = const Reward(currentHours: 0);
@@ -86,13 +45,22 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
 
   Future<void> _init() async {
     setState(() => _isLoading = true);
+
     await Future.wait([
       getUserData(), // Load user data first
       _checkBooked(),
       _getPromoData(),
     ]);
+
+    // Lakukan operasi async terlebih dahulu
+    final courtsData = await FirebaseService().getAllLapanganToday();
+
+    // Kemudian update state secara sinkron
     if (mounted) {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        courts = courtsData;
+      });
     }
   }
 
@@ -102,19 +70,23 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
       final userId = prefs.getString('username');
       if (userId != null) {
         final userData = await FirebaseService().getUserData(userId);
+
         if (mounted) {
           setState(() {
             user = userData;
-            // Update currentReward with actual user data
+
+            // Cek dan isi currentReward
             final hours =
                 (user.isNotEmpty && user[0].totalHour != null)
                     ? user[0].totalHour.toDouble()
                     : 0.0;
+
             currentReward = Reward(currentHours: hours);
           });
         }
+      } else {
+        debugPrint('Username not found in SharedPreferences');
       }
-      debugPrint(user[0].totalHour.toDouble().toString());
     } catch (e) {
       debugPrint('Failed to load user data: $e');
       if (mounted) {
@@ -697,19 +669,32 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              "Lapangan Tersedia",
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        courts.isEmpty
+            ? Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Lapangan Tersedia",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 10,),
+                const Center(child: Text("Tidak ada lapangan tersedia saat ini")),
+              ],
+            )
+            : Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Lapangan Tersedia",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                TextButton(
+                  onPressed: () => _navigateToScreen(const HalamanKalender()),
+                  child: const Text("Lihat Semua"),
+                ),
+              ],
             ),
-            TextButton(
-              onPressed: () => _navigateToScreen(const HalamanKalender()),
-              child: const Text("Lihat Semua"),
-            ),
-          ],
-        ),
         const SizedBox(height: 12),
         ListView.builder(
           physics: const NeverScrollableScrollPhysics(),
@@ -726,7 +711,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
     );
   }
 
-  Widget _buildCourtCard(Court court) {
+  Widget _buildCourtCard(AllCourtsToday court) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -742,8 +727,8 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
               ),
               child: Stack(
                 children: [
-                  Image.asset(
-                    court.imageAssetPath,
+                  Image.memory(
+                    base64Decode(court.image),
                     width: double.infinity,
                     height: 160,
                     fit: BoxFit.cover,
@@ -760,29 +745,29 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
                       );
                     },
                   ),
-                  if (court.isAvailable)
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.green,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'Tersedia',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
+
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.green,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'Tersedia',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
+                  ),
                 ],
               ),
             ),
@@ -795,7 +780,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        court.name,
+                        "Lapangan ${court.courtId}",
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
@@ -811,7 +796,10 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
                           const SizedBox(width: 4),
                           Text(
                             'Indoor Court',
-                            style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
+                            ),
                           ),
                         ],
                       ),

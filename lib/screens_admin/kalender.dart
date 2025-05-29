@@ -424,7 +424,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   }
 
   Future<void> _loadOrCreateSlots(DateTime selectedDate) async {
-    // Set loading state first thing
     if (mounted) {
       setState(() {
         isLoading = true;
@@ -434,23 +433,31 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     }
 
     try {
-      await _loadCourts(); // Load courts first
-
+      await _loadCourts();
+      final courts =
+          await FirebaseService().getAllLapangan(); // ambil semua lapangan
       final slots = await FirebaseService().getTimeSlotsByDateForAdmin(
         selectedDate,
       );
 
-      if (slots.isEmpty) {
-        // Belum ada data -> generate
-        await FirebaseService().generateSlotsOneDay(selectedDate);
+      final expectedSlotCount =
+          courts.length * ((22 - 7 + 1) * 2); // 30 menit per jam
 
-        // Setelah generate, ambil lagi datanya
+      bool isComplete = slots.length >= expectedSlotCount;
+
+      if (!isComplete) {
+        print(
+          'Slot tidak lengkap (${slots.length}/$expectedSlotCount), regenerating...',
+        );
+        await FirebaseService().generateSlotsOneDay(selectedDate);
         final newSlots = await FirebaseService().getTimeSlotsByDateForAdmin(
           selectedDate,
         );
         _processBookingData(newSlots);
       } else {
-        // Sudah ada data
+        print(
+          'Slot lengkap (${slots.length}/$expectedSlotCount), processing data...',
+        );
         _processBookingData(slots);
       }
     } catch (e) {
@@ -480,12 +487,18 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           tempdata[timeRange] = {};
         }
 
-        // Isi data per lapangan
+        // Isi data per lapangan dengan informasi konfirmasi
         tempdata[timeRange]![slot.courtId] = {
           'isAvailable': slot.isAvailable,
           'username': slot.username,
           'isClosed': slot.isClosed,
+          'isConfirmed':
+              slot.isConfirmed ?? false, // Tambahkan status konfirmasi
         };
+
+        debugPrint(
+          'Processing slot: $timeRange, Court: ${slot.courtId}, Available: ${slot.isAvailable}, Username: ${slot.username}, Closed: ${slot.isClosed}, Confirmed: ${slot.isConfirmed}',
+        );
       }
 
       if (mounted) {
@@ -536,59 +549,289 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     String startTime = consecutiveSlots.first.split(' - ')[0];
     String endTime = consecutiveSlots.last.split(' - ')[1];
 
-    await showDialog(
-      context: context,
-      builder:
-          (BuildContext dialogContext) => AlertDialog(
-            title: Text('Detail Booking'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Customer: $username',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  Text('Lapangan: $court'),
-                  Text('Jam Mulai: $startTime'),
-                  Text('Jam Selesai: $endTime'),
-                  Text('Total Durasi: ${consecutiveSlots.length * 30} menit'),
-                  SizedBox(height: 10),
-                  if (consecutiveSlots.length > 1) ...[
+    // Check if booking is confirmed - perbaiki bagian ini
+    try {
+      String docId =
+          '${court}_${_formatDateString(selectedDate)}_${startTime.replaceAll(':', '')}';
+      DocumentSnapshot snapshot =
+          await FirebaseFirestore.instance
+              .collection('time_slots')
+              .doc(docId)
+              .get();
+
+      bool isConfirmed = false;
+      if (snapshot.exists) {
+        final data = snapshot.data() as Map<String, dynamic>?;
+        isConfirmed = data?['isConfirmed'] ?? false;
+      }
+
+      if (!mounted) return;
+
+      await showDialog(
+        context: context,
+        builder:
+            (BuildContext dialogContext) => AlertDialog(
+              title: Text('Detail Booking'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      'Slot yang dibooking:',
-                      style: TextStyle(fontWeight: FontWeight.w500),
+                      'Customer: $username',
+                      style: TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    ...consecutiveSlots.map(
-                      (slot) => Padding(
-                        padding: EdgeInsets.only(left: 16),
-                        child: Text('• $slot'),
+                    SizedBox(height: 8),
+                    Text('Lapangan: $court'),
+                    Text('Jam Mulai: $startTime'),
+                    Text('Jam Selesai: $endTime'),
+                    Text('Total Durasi: ${consecutiveSlots.length * 30} menit'),
+                    SizedBox(height: 8),
+                    // Status konfirmasi
+                    Container(
+                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color:
+                            isConfirmed
+                                ? Colors.green.shade100
+                                : Colors.orange.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        isConfirmed
+                            ? '✓ Sudah Konfirmasi Kedatangan'
+                            : '⏳ Belum Konfirmasi Kedatangan',
+                        style: TextStyle(
+                          color:
+                              isConfirmed
+                                  ? Colors.green.shade700
+                                  : Colors.orange.shade700,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                        ),
                       ),
                     ),
+                    SizedBox(height: 10),
+                    if (consecutiveSlots.length > 1) ...[
+                      Text(
+                        'Slot yang dibooking:',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      ...consecutiveSlots.map(
+                        (slot) => Padding(
+                          padding: EdgeInsets.only(left: 16),
+                          child: Text('• $slot'),
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
+              actions: [
+                TextButton(
+                  onPressed: () => _safeNavigatorPop(dialogContext),
+                  child: Text('Tutup'),
+                ),
+                TextButton(
+                  onPressed:
+                      () => _handleCancelBooking(dialogContext, time, court),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: Text(
+                    consecutiveSlots.length > 1
+                        ? 'Batalkan Semua'
+                        : 'Batalkan Booking',
+                  ),
+                ),
+                if (!isConfirmed)
+                  TextButton(
+                    onPressed:
+                        () => _handleConfirmArrival(
+                          dialogContext,
+                          time,
+                          court,
+                          username,
+                        ),
+                    style: TextButton.styleFrom(foregroundColor: Colors.green),
+                    child: Text('Konfirmasi Kedatangan'),
+                  ),
+              ],
+            ),
+      );
+    } catch (e) {
+      debugPrint('Error getting booking confirmation status: $e');
+      // Tampilkan dialog tanpa status konfirmasi jika ada error
+      if (!mounted) return;
+
+      await showDialog(
+        context: context,
+        builder:
+            (BuildContext dialogContext) => AlertDialog(
+              title: Text('Detail Booking'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Customer: $username',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 8),
+                    Text('Lapangan: $court'),
+                    Text('Jam Mulai: $startTime'),
+                    Text('Jam Selesai: $endTime'),
+                    Text('Total Durasi: ${consecutiveSlots.length * 30} menit'),
+                    SizedBox(height: 10),
+                    if (consecutiveSlots.length > 1) ...[
+                      Text(
+                        'Slot yang dibooking:',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      ...consecutiveSlots.map(
+                        (slot) => Padding(
+                          padding: EdgeInsets.only(left: 16),
+                          child: Text('• $slot'),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => _safeNavigatorPop(dialogContext),
+                  child: Text('Tutup'),
+                ),
+                TextButton(
+                  onPressed:
+                      () => _handleCancelBooking(dialogContext, time, court),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: Text(
+                    consecutiveSlots.length > 1
+                        ? 'Batalkan Semua'
+                        : 'Batalkan Booking',
+                  ),
+                ),
+                TextButton(
+                  onPressed:
+                      () => _handleConfirmArrival(
+                        dialogContext,
+                        time,
+                        court,
+                        username,
+                      ),
+                  style: TextButton.styleFrom(foregroundColor: Colors.green),
+                  child: Text('Konfirmasi Kedatangan'),
+                ),
+              ],
+            ),
+      );
+    }
+  }
+
+  Future<void> _handleConfirmArrival(
+    BuildContext dialogContext,
+    String time,
+    String court,
+    String username, // Parameter username sudah ada, jangan buat lagi
+  ) async {
+    _safeNavigatorPop(dialogContext);
+
+    // Hapus bagian yang mengambil username dari bookingData karena sudah ada di parameter
+    if (username.isEmpty) return;
+
+    // Find all consecutive bookings for this user
+    List<String> consecutiveSlots = _findConsecutiveBookings(
+      time,
+      court,
+      username,
+    );
+
+    // Calculate start and end time for display
+    String startTime = consecutiveSlots.first.split(' - ')[0];
+    String endTime = consecutiveSlots.last.split(' - ')[1];
+
+    // Show confirmation dialog
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (BuildContext confirmContext) => AlertDialog(
+            title: Text('Konfirmasi Kedatangan'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Customer: $username'),
+                Text('Lapangan: $court'),
+                Text(
+                  'Waktu: $startTime - $endTime',
+                ), // Tampilkan range waktu lengkap
+                SizedBox(height: 10),
+                Text(
+                  'Konfirmasi bahwa customer sudah datang?',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
             actions: [
               TextButton(
-                onPressed: () => _safeNavigatorPop(dialogContext),
-                child: Text('Tutup'),
+                onPressed: () => Navigator.of(confirmContext).pop(false),
+                child: Text('Tidak'),
               ),
               TextButton(
-                onPressed:
-                    () => _handleCancelBooking(dialogContext, time, court),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: Text(
-                  consecutiveSlots.length > 1
-                      ? 'Batalkan Semua'
-                      : 'Batalkan Booking',
-                ),
+                onPressed: () => Navigator.of(confirmContext).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.green),
+                child: Text('Ya, Konfirmasi'),
               ),
             ],
           ),
     );
+
+    if (confirm == true && mounted) {
+      _showLoadingDialog(context, 'Mengkonfirmasi kedatangan...');
+
+      try {
+        final dateStr = _formatDateString(selectedDate);
+
+        // Update semua slot berturut-turut sebagai terkonfirmasi
+        for (String slot in consecutiveSlots) {
+          String slotStartTime = slot.split(' - ')[0];
+          await FirebaseService().confirmBookingArrival(
+            username,
+            dateStr,
+            court,
+            slotStartTime,
+          );
+        }
+
+        _safeNavigatorPop(context); // Close loading dialog
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Kedatangan $username berhasil dikonfirmasi'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+
+          // Refresh data untuk update tampilan
+          await _loadOrCreateSlots(selectedDate);
+        }
+      } catch (e) {
+        _safeNavigatorPop(context); // Close loading dialog
+        debugPrint('Error confirming arrival: $e');
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error saat konfirmasi kedatangan: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
   }
 
   List<String> _findConsecutiveBookings(

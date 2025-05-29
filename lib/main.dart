@@ -15,26 +15,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('id_ID', null);
   try {
-    // if (kIsWeb) {
-    //   await Firebase.initializeApp(
-    //     options: const FirebaseOptions(
-    //       apiKey: "AIzaSyDnEzhUMogNLMUD9khqGZs2UbYxKccTVNk",
-    //       authDomain: "jump-smash-arena.firebaseapp.com",
-    //       projectId: "jump-smash-arena",
-    //       storageBucket: "jump-smash-arena.firebasestorage.app",
-    //       messagingSenderId: "499652308146",
-    //       appId: "1:499652308146:web:93b5c15bf86ae8a86b2dab",
-    //       measurementId: "G-34Z6QW3F97",
-    //     ),
-    //   );
-    // } else {
-    //   await Firebase.initializeApp();
-    // }
     WidgetsFlutterBinding.ensureInitialized();
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-
     runApp(const MyApp());
   } catch (e) {
     debugPrint('Error initializing Firebase: $e');
