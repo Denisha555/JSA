@@ -128,7 +128,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                       _buildHeaderCell('Jam', width: 110),
                       ...sortedCourtIds
                           .map((id) => _buildHeaderCell('Lapangan $id'))
-                          .toList(),
+                          ,
                     ],
                   ),
                 ),
@@ -151,10 +151,10 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                           cellData['username'] ?? '',
                           cellData['isClosed'] ?? false,
                         );
-                      }).toList(),
+                      }),
                     ],
                   );
-                }).toList(),
+                }),
               ],
             ),
           ),

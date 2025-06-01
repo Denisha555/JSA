@@ -229,7 +229,7 @@ class _HalamanPriceListState extends State<HalamanPriceList> {
                     color: color.withValues(alpha: 0.1),
                   ),
                 )
-                .toList(),
+                ,
 
             const SizedBox(height: 20),
           ],

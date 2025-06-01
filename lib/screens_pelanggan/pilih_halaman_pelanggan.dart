@@ -14,6 +14,9 @@ class PilihHalamanPelanggan extends StatefulWidget {
 
 class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
   int _currentIndex = 0;
+  
+  // Key untuk force rebuild halaman Aktivitas
+  Key _aktivitasKey = UniqueKey();
 
   @override
   void initState() {
@@ -21,15 +24,27 @@ class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
     _currentIndex = widget.selectedIndex;
   }
 
-  // Daftar halaman dengan type safety
-  static const List<Widget> _pages = <Widget>[
-    HalamanUtamaPelanggan(),
-    HalamanAktivitas(),
-    HalamanProfil(),
-  ];
+  // Method untuk mendapatkan halaman berdasarkan index
+  Widget _getCurrentPage() {
+    switch (_currentIndex) {
+      case 0:
+        return const HalamanUtamaPelanggan();
+      case 1:
+        // Generate key baru setiap kali tab Aktivitas dibuka
+        return HalamanAktivitas();
+      case 2:
+        return const HalamanProfil();
+      default:
+        return const HalamanUtamaPelanggan();
+    }
+  }
 
   void _onItemTapped(int index) {
     setState(() {
+      // Jika pindah ke tab Aktivitas, generate key baru untuk force refresh
+      if (index == 1) {
+        _aktivitasKey = UniqueKey();
+      }
       _currentIndex = index;
     });
   }
@@ -37,7 +52,8 @@ class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      // Gunakan body langsung tanpa IndexedStack
+      body: _getCurrentPage(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: _onItemTapped,

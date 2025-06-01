@@ -3,15 +3,18 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:intl/intl.dart';
 
+// Data Models
 class Riwayat {
   final String tanggal;
   final String keterangan;
   final String waktu;
+  final String type;
 
   Riwayat({
     required this.tanggal,
     required this.keterangan,
     required this.waktu,
+    required this.type,
   });
 }
 
@@ -19,8 +22,14 @@ class Terjadwal {
   final String tanggal;
   final String jam;
   final String lapangan;
+  final String type;
 
-  Terjadwal({required this.tanggal, required this.jam, required this.lapangan});
+  Terjadwal({
+    required this.tanggal,
+    required this.jam,
+    required this.lapangan,
+    required this.type,
+  });
 }
 
 class BookingGroup {
@@ -58,114 +67,346 @@ class HalamanAktivitas extends StatefulWidget {
   State<HalamanAktivitas> createState() => _HalamanAktivitasState();
 }
 
-class _HalamanAktivitasState extends State<HalamanAktivitas> {
+class _HalamanAktivitasState extends State<HalamanAktivitas>
+    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
   List<Riwayat> riwayats = [];
   List<Terjadwal> terjadwals = [];
   bool isLoading = true;
   String username = '';
+  bool isMember = false;
+
+  // Constants
+  static const List<String> daftarHari = [
+    'Senin',
+    'Selasa',
+    'Rabu',
+    'Kamis',
+    'Jumat',
+    'Sabtu',
+    'Minggu',
+  ];
+
+  @override
+  bool get wantKeepAlive => false; // Tidak keep alive agar selalu fresh
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initialize();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Lifecycle observer untuk detect ketika app kembali ke foreground
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    if (state == AppLifecycleState.resumed && mounted) {
+      // App kembali ke foreground, refresh data
+      _fetchBookingData();
+    }
+  }
+
+  // Auto refresh setiap kali widget di-build ulang (misal dari navigation)
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // Refresh data jika sudah pernah di-initialize sebelumnya
+    if (username.isNotEmpty) {
+      _fetchBookingData();
+    }
+  }
+
+  // Initialization Methods
   Future<void> _initialize() async {
     await _loadUserData();
   }
 
   Future<void> _loadUserData() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+    final prefs = await SharedPreferences.getInstance();
     username = prefs.getString('username') ?? '';
+
     await _fetchBookingData();
   }
 
-  // Fungsi untuk menggabung booking yang berurutan
+  // Enhanced Booking Data Methods dengan loading indicator yang lebih smooth
+  Future<void> _fetchBookingData() async {
+    if (!mounted) return;
+
+    // Hanya show loading di awal atau kalau data kosong
+    if (riwayats.isEmpty && terjadwals.isEmpty) {
+      setState(() => isLoading = true);
+    }
+
+    try {
+      final allBookings = await FirebaseService().getAllBookingsByUsername(
+        username,
+      );
+      if (!mounted) return;
+
+      // FIX: Set isMember lebih awal dan dengan pengecekan yang lebih robust
+      bool memberStatus = false;
+      if (allBookings.isNotEmpty) {
+        // Cek semua booking untuk memastikan status member
+        memberStatus = allBookings.any(
+          (booking) => booking.type?.toString().toLowerCase() == 'member',
+        );
+      }
+
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      final (pastBookings, upcomingBookings) = _separateBookings(
+        allBookings,
+        today,
+      );
+
+      final pastGroups = _groupConsecutiveBookings(pastBookings);
+      final upcomingGroups = _groupConsecutiveBookings(upcomingBookings);
+
+      setState(() {
+        // Set isMember dulu sebelum convert data
+        isMember = memberStatus;
+        riwayats = _convertToRiwayat(pastGroups);
+        terjadwals = _convertToTerjadwal(upcomingGroups);
+        isLoading = false;
+      });
+
+      // Debug log untuk monitoring
+      debugPrint('Total bookings: ${allBookings.length}');
+      debugPrint('Member status: $isMember');
+      if (allBookings.isNotEmpty) {
+        debugPrint('First booking type: ${allBookings.first.type}');
+      }
+    } catch (e) {
+      debugPrint('Error fetching booking data: $e');
+      if (mounted) {
+        setState(() => isLoading = false);
+
+        // Show error snackbar
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Gagal memuat data. Coba lagi.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  (List<dynamic>, List<dynamic>) _separateBookings(
+    List<dynamic> bookings,
+    DateTime today,
+  ) {
+    final pastBookings = <dynamic>[];
+    final upcomingBookings = <dynamic>[];
+
+    for (final booking in bookings) {
+      final bookingDate = DateTime.parse(booking.date.toString());
+      final isPast =
+          bookingDate.isBefore(today) ||
+          (bookingDate.isAtSameMomentAs(today) &&
+              _isTimeInPast(booking.startTime));
+
+      if (isPast) {
+        pastBookings.add(booking);
+      } else {
+        upcomingBookings.add(booking);
+      }
+    }
+
+    return (pastBookings, upcomingBookings);
+  }
+
+  List<Riwayat> _convertToRiwayat(List<BookingGroup> groups) {
+    final riwayats =
+        groups
+            .map(
+              (group) => Riwayat(
+                tanggal: group.date,
+                keterangan: "Lapangan ${group.courtId}",
+                waktu: group.combinedTimeRange,
+                type:
+                    isMember
+                        ? 'Member'
+                        : 'Non Member', // Menggunakan isMember yang sudah di-set
+              ),
+            )
+            .toList();
+
+    // Sort by date (newest first) then by time
+    riwayats.sort((a, b) {
+      final dateCompare = b.tanggal.compareTo(a.tanggal);
+      return dateCompare != 0 ? dateCompare : a.waktu.compareTo(b.waktu);
+    });
+
+    return riwayats;
+  }
+
+  List<Terjadwal> _convertToTerjadwal(List<BookingGroup> groups) {
+    final terjadwals =
+        groups
+            .map(
+              (group) => Terjadwal(
+                tanggal: group.date,
+                jam: group.combinedTimeRange,
+                lapangan: "Lapangan ${group.courtId}",
+                type:
+                    isMember
+                        ? 'Member'
+                        : 'Non Member', // Menggunakan isMember yang sudah di-set
+              ),
+            )
+            .toList();
+
+    // Sort by date (earliest first) then by time
+    terjadwals.sort((a, b) {
+      final dateCompare = a.tanggal.compareTo(b.tanggal);
+      return dateCompare != 0 ? dateCompare : a.jam.compareTo(b.jam);
+    });
+
+    return terjadwals;
+  }
+
+  // Booking Grouping Logic
   List<BookingGroup> _groupConsecutiveBookings(List<dynamic> bookings) {
     if (bookings.isEmpty) return [];
 
-    // Group bookings by date and court
-    Map<String, Map<String, List<String>>> groupedBookings = {};
+    final groupedBookings = <String, Map<String, List<String>>>{};
 
-    for (var booking in bookings) {
-      String date = DateFormat(
+    // Group bookings by date and court
+    for (final booking in bookings) {
+      final date = DateFormat(
         'yyyy-MM-dd',
       ).format(DateTime.parse(booking.date.toString()));
-      String courtId = booking.courtId.toString();
-      String timeSlot = '${booking.startTime} - ${booking.endTime}';
+      final courtId = booking.courtId.toString();
+      final timeSlot = '${booking.startTime} - ${booking.endTime}';
 
       groupedBookings[date] ??= {};
       groupedBookings[date]![courtId] ??= [];
       groupedBookings[date]![courtId]!.add(timeSlot);
     }
 
-    List<BookingGroup> result = [];
+    final result = <BookingGroup>[];
 
-    groupedBookings.forEach((date, courts) {
-      courts.forEach((courtId, timeSlots) {
-        // Sort time slots
-        timeSlots.sort((a, b) {
-          final timeA = a.split(' - ')[0];
-          final timeB = b.split(' - ')[0];
-          return timeA.compareTo(timeB);
-        });
-
-        // Group consecutive time slots
-        List<String> currentGroup = [];
-        String? lastEndTime;
-
-        for (String timeSlot in timeSlots) {
-          String startTime = timeSlot.split(' - ')[0];
-          String endTime = timeSlot.split(' - ')[1];
-
-          if (lastEndTime == null || lastEndTime == startTime) {
-            // This is consecutive or the first slot
-            if (currentGroup.isEmpty) {
-              currentGroup.add(timeSlot);
-            } else {
-              // Update the end time of the group
-              String groupStartTime = currentGroup.first.split(' - ')[0];
-              currentGroup = ['$groupStartTime - $endTime'];
-            }
-            lastEndTime = endTime;
-          } else {
-            // Not consecutive, start a new group
-            result.add(
-              BookingGroup(
-                date: date,
-                courtId: courtId,
-                timeSlots: List.from(currentGroup),
-              ),
-            );
-            currentGroup = [timeSlot];
-            lastEndTime = endTime;
-          }
-        }
-
-        // Add the last group
-        if (currentGroup.isNotEmpty) {
-          result.add(
-            BookingGroup(date: date, courtId: courtId, timeSlots: currentGroup),
-          );
-        }
-      });
-    });
+    for (final MapEntry(key: date, value: courts) in groupedBookings.entries) {
+      for (final MapEntry(key: courtId, value: timeSlots) in courts.entries) {
+        result.addAll(_createConsecutiveGroups(date, courtId, timeSlots));
+      }
+    }
 
     return result;
   }
-  
-  // Fungsi untuk membatalkan booking
+
+  List<BookingGroup> _createConsecutiveGroups(
+    String date,
+    String courtId,
+    List<String> timeSlots,
+  ) {
+    // Sort time slots
+    timeSlots.sort((a, b) {
+      final timeA = a.split(' - ')[0];
+      final timeB = b.split(' - ')[0];
+      return timeA.compareTo(timeB);
+    });
+
+    final result = <BookingGroup>[];
+    var currentGroup = <String>[];
+    String? lastEndTime;
+
+    for (final timeSlot in timeSlots) {
+      final parts = timeSlot.split(' - ');
+      final startTime = parts[0];
+      final endTime = parts[1];
+
+      if (lastEndTime == null || lastEndTime == startTime) {
+        // Consecutive or first slot
+        if (currentGroup.isEmpty) {
+          currentGroup.add(timeSlot);
+        } else {
+          // Update the end time of the group
+          final groupStartTime = currentGroup.first.split(' - ')[0];
+          currentGroup = ['$groupStartTime - $endTime'];
+        }
+        lastEndTime = endTime;
+      } else {
+        // Not consecutive, start new group
+        result.add(
+          BookingGroup(
+            date: date,
+            courtId: courtId,
+            timeSlots: List.from(currentGroup),
+          ),
+        );
+        currentGroup = [timeSlot];
+        lastEndTime = endTime;
+      }
+    }
+
+    // Add the last group
+    if (currentGroup.isNotEmpty) {
+      result.add(
+        BookingGroup(date: date, courtId: courtId, timeSlots: currentGroup),
+      );
+    }
+
+    return result;
+  }
+
+  // Booking Cancellation
   Future<void> _cancelBooking(
     String date,
     String courtId,
     String timeRange,
   ) async {
     try {
-      // Tampilkan dialog konfirmasi
-      final shouldCancel = await showDialog<bool>(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
+      final shouldCancel = await _showCancelConfirmation(
+        date,
+        courtId,
+        timeRange,
+      );
+      if (shouldCancel != true) return;
+
+      final timesToCancel = _parseTimeRange(timeRange);
+
+      for (final timeSlot in timesToCancel) {
+        final times = timeSlot.split(' - ');
+        if (times.length != 2) continue;
+
+        await FirebaseService().cancelBooking(
+          username,
+          date,
+          courtId,
+          times[0].trim(),
+          times[1].trim(),
+        );
+      }
+
+      _showSuccessMessage('Booking berhasil dibatalkan');
+      await _fetchBookingData();
+    } catch (e) {
+      debugPrint('Error canceling booking: $e');
+      _showErrorMessage('Terjadi kesalahan saat membatalkan booking');
+    }
+  }
+
+  Future<bool?> _showCancelConfirmation(
+    String date,
+    String courtId,
+    String timeRange,
+  ) {
+    return showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
             title: const Text('Konfirmasi Pembatalan'),
             content: Text(
               'Apakah Anda yakin ingin membatalkan booking?\n\n'
@@ -184,170 +425,44 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
                 child: const Text('Ya, Batalkan'),
               ),
             ],
-          );
-        },
-      );
-
-      // Jika user batal (false) atau keluar (null), hentikan
-      if (shouldCancel != true) return;
-
-      final timesToCancel = _parseTimeRange(timeRange);
-
-      for (final timeSlot in timesToCancel) {
-        final times = timeSlot.split(' - ');
-        if (times.length != 2) continue; // validasi format waktu
-
-        final startTime = times[0].trim();
-        final endTime = times[1].trim();
-
-        await FirebaseService().cancelBooking(
-          username,
-          date,
-          courtId,
-          startTime,
-          endTime,
-        );
-      }
-
-      // Beri notifikasi sukses
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Booking berhasil dibatalkan'),
-            backgroundColor: Colors.green,
           ),
-        );
-      }
-
-      // Refresh data setelah pembatalan
-      await _fetchBookingData();
-    } catch (e) {
-      debugPrint('Error canceling booking: $e');
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Terjadi kesalahan saat membatalkan booking'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    );
   }
 
-  // Helper function to parse time range back to individual slots
+  void _showSuccessMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    );
+  }
+
+  void _showErrorMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  // Helper Methods
   List<String> _parseTimeRange(String timeRange) {
-    List<String> times = timeRange.split(' - ');
-    String startTime = times[0];
-    String endTime = times[1];
+    final times = timeRange.split(' - ');
+    final startTime = times[0];
+    final endTime = times[1];
 
-    List<String> timeSlots = [];
-    DateTime start = DateFormat('HH:mm').parse(startTime);
-    DateTime end = DateFormat('HH:mm').parse(endTime);
+    final timeSlots = <String>[];
+    final start = DateFormat('HH:mm').parse(startTime);
+    final end = DateFormat('HH:mm').parse(endTime);
 
-    DateTime current = start;
+    var current = start;
     while (current.isBefore(end)) {
-      DateTime next = current.add(const Duration(minutes: 30));
-      String currentStr = DateFormat('HH:mm').format(current);
-      String nextStr = DateFormat('HH:mm').format(next);
+      final next = current.add(const Duration(minutes: 30));
+      final currentStr = DateFormat('HH:mm').format(current);
+      final nextStr = DateFormat('HH:mm').format(next);
       timeSlots.add('$currentStr - $nextStr');
       current = next;
     }
 
     return timeSlots;
-  }
-
-  Future<void> _fetchBookingData() async {
-    if (!mounted) return;
-
-    setState(() {
-      isLoading = true;
-    });
-
-    try {
-      final allBookings = await FirebaseService().getAllBookingsByUsername(
-        username,
-      );
-
-      if (!mounted) return;
-
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-
-      List<dynamic> pastBookingsList = [];
-      List<dynamic> upcomingBookingsList = [];
-
-      // Separate past and upcoming bookings
-      for (var booking in allBookings) {
-        DateTime bookingDate = DateTime.parse(booking.date.toString());
-
-        if (bookingDate.isBefore(today) ||
-            (bookingDate.isAtSameMomentAs(today) &&
-                _isTimeInPast(booking.startTime))) {
-          pastBookingsList.add(booking);
-        } else {
-          upcomingBookingsList.add(booking);
-        }
-      }
-
-      // Group consecutive bookings
-      List<BookingGroup> pastGroups = _groupConsecutiveBookings(
-        pastBookingsList,
-      );
-      List<BookingGroup> upcomingGroups = _groupConsecutiveBookings(
-        upcomingBookingsList,
-      );
-
-      // Convert to display format
-      List<Riwayat> pastBookings =
-          pastGroups
-              .map(
-                (group) => Riwayat(
-                  tanggal: group.date,
-                  keterangan: "Lapangan ${group.courtId}",
-                  waktu: group.combinedTimeRange,
-                ),
-              )
-              .toList();
-
-      List<Terjadwal> upcomingBookings =
-          upcomingGroups
-              .map(
-                (group) => Terjadwal(
-                  tanggal: group.date,
-                  jam: group.combinedTimeRange,
-                  lapangan: "Lapangan ${group.courtId}",
-                ),
-              )
-              .toList();
-
-      // Sort by date and time
-      pastBookings.sort((a, b) {
-        int dateCompare = b.tanggal.compareTo(
-          a.tanggal,
-        ); // Newest first for history
-        if (dateCompare != 0) return dateCompare;
-        return a.waktu.compareTo(b.waktu);
-      });
-
-      upcomingBookings.sort((a, b) {
-        int dateCompare = a.tanggal.compareTo(
-          b.tanggal,
-        ); // Earliest first for scheduled
-        if (dateCompare != 0) return dateCompare;
-        return a.jam.compareTo(b.jam);
-      });
-
-      setState(() {
-        riwayats = pastBookings;
-        terjadwals = upcomingBookings;
-        isLoading = false;
-      });
-    } catch (e) {
-      debugPrint('Error fetching booking data: $e');
-      setState(() {
-        isLoading = false;
-      });
-    }
   }
 
   bool _isTimeInPast(String timeString) {
@@ -364,8 +479,357 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
     return bookingDateTime.isBefore(now);
   }
 
+  String _namaHari(int weekday) => daftarHari[weekday - 1];
+
+  bool _isHariDalamRange(String hari, String mulai, String selesai) {
+    final indexHari = daftarHari.indexOf(hari);
+    final indexMulai = daftarHari.indexOf(mulai);
+    final indexSelesai = daftarHari.indexOf(selesai);
+
+    if (indexMulai <= indexSelesai) {
+      return indexHari >= indexMulai && indexHari <= indexSelesai;
+    } else {
+      // Range seperti "Jumat - Senin"
+      return indexHari >= indexMulai || indexHari <= indexSelesai;
+    }
+  }
+
+  int _timeToMinutes(String time) {
+    final parts = time.split(':');
+    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+  }
+
+  // Price Calculation
+  Future<double> _calculateTotalPrice({
+    required String startTime,
+    required String endTime,
+    required DateTime selectedDate,
+    required String type,
+  }) async {
+    try {
+      final hargaList = await FirebaseService().getHarga();
+      final hariBooking = _namaHari(selectedDate.weekday);
+
+      final startMinutes = _timeToMinutes(startTime);
+      final endMinutes = _timeToMinutes(endTime);
+
+      double totalPrice = 0;
+
+      for (int time = startMinutes; time < endMinutes; time += 30) {
+        final jam = time ~/ 60;
+
+        final hargaMatch =
+            hargaList
+                .where(
+                  (harga) =>
+                      harga.type == type &&
+                      _isHariDalamRange(
+                        hariBooking,
+                        harga.hariMulai,
+                        harga.hariSelesai,
+                      ) &&
+                      jam >= harga.startTime &&
+                      jam < harga.endTime,
+                )
+                .firstOrNull;
+
+        if (hargaMatch != null) {
+          totalPrice += hargaMatch.harga / 2;
+        } else {
+          debugPrint(
+            'No matching price found for: $type, $hariBooking, $jam:${time % 60}',
+          );
+        }
+      }
+
+      return totalPrice;
+    } catch (e) {
+      debugPrint('Error calculating price: $e');
+      return 0;
+    }
+  }
+
+  // UI Components
+  Widget _buildDetailDialog(
+    String date,
+    String lapangan,
+    String waktu,
+    String type,
+  ) {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Detail Booking",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            const SizedBox(height: 16),
+            Text("Tanggal: $date"),
+            const SizedBox(height: 8),
+            Text("Lapangan: ${lapangan.split('Lapangan ')[1]}"),
+            const SizedBox(height: 8),
+            Text("Waktu: $waktu"),
+            const SizedBox(height: 8),
+            Text(
+              "Status: $type",
+              style: TextStyle(
+                color: type == 'Member' ? Colors.blue : Colors.orange,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            FutureBuilder<double>(
+              future: _calculateTotalPrice(
+                startTime: waktu.split(' - ')[0],
+                endTime: waktu.split(' - ')[1],
+                selectedDate: DateFormat('yyyy-MM-dd').parse(date),
+                type: type,
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Text('Menghitung harga...');
+                } else if (snapshot.hasError) {
+                  return Text('Gagal menghitung harga: ${snapshot.error}');
+                } else {
+                  final price = snapshot.data ?? 0;
+                  return Text(
+                    'Total Harga: Rp ${price.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.green,
+                    ),
+                  );
+                }
+              },
+            ),
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Tutup'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryTab() {
+    return RefreshIndicator(
+      onRefresh: _fetchBookingData,
+      child:
+          riwayats.isEmpty
+              ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 200),
+                  Center(child: Text("Tidak ada riwayat pemesanan")),
+                ],
+              )
+              : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: riwayats.length,
+                itemBuilder: (context, index) {
+                  final riwayat = riwayats[index];
+                  return GestureDetector(
+                    onTap:
+                        () => _showDetailDialog(
+                          riwayat.tanggal,
+                          riwayat.keterangan,
+                          riwayat.waktu,
+                          riwayat.type,
+                        ),
+                    child: Card(
+                      elevation: 2,
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.check_circle,
+                          color: Colors.green,
+                        ),
+                        title: Row(
+                          children: [
+                            Text(
+                              riwayat.tanggal,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              riwayat.waktu,
+                              style: const TextStyle(color: Colors.blue),
+                            ),
+                          ],
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(riwayat.keterangan),
+                            Text(
+                              riwayat.type,
+                              style: TextStyle(
+                                color:
+                                    riwayat.type == 'Member'
+                                        ? Colors.blue
+                                        : Colors.orange,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+    );
+  }
+
+  Widget _buildScheduledTab() {
+    return RefreshIndicator(
+      onRefresh: _fetchBookingData,
+      child:
+          terjadwals.isEmpty
+              ? ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 200),
+                  Center(child: Text("Tidak ada jadwal pemesanan mendatang")),
+                ],
+              )
+              : ListView.builder(
+                padding: const EdgeInsets.all(10),
+                itemCount: terjadwals.length,
+                itemBuilder: (context, index) {
+                  final booking = terjadwals[index];
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: GestureDetector(
+                      onTap:
+                          () => _showDetailDialog(
+                            booking.tanggal,
+                            booking.lapangan,
+                            booking.jam,
+                            booking.type,
+                          ),
+                      child: Dismissible(
+                        key: ValueKey(
+                          '${booking.tanggal}_${booking.lapangan}_${booking.jam}',
+                        ),
+                        direction: DismissDirection.endToStart,
+                        confirmDismiss: (direction) async {
+                          final courtId = booking.lapangan.replaceAll(
+                            'Lapangan ',
+                            '',
+                          );
+                          await _cancelBooking(
+                            booking.tanggal,
+                            courtId,
+                            booking.jam,
+                          );
+                          return false;
+                        },
+                        background: _buildDismissBackground(),
+                        child: Card(
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: ListTile(
+                            leading: const Icon(
+                              Icons.schedule,
+                              color: Colors.blue,
+                            ),
+                            title: Row(
+                              children: [
+                                Text(
+                                  booking.tanggal,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  booking.jam,
+                                  style: const TextStyle(color: Colors.blue),
+                                ),
+                              ],
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(booking.lapangan),
+                                Text(
+                                  booking.type,
+                                  style: TextStyle(
+                                    color:
+                                        booking.type == 'Member'
+                                            ? Colors.blue
+                                            : Colors.orange,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+    );
+  }
+
+  Widget _buildDismissBackground() {
+    return Container(
+      alignment: Alignment.centerRight,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        color: Colors.red,
+      ),
+      child: const Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Icon(Icons.cancel, color: Colors.white),
+          SizedBox(width: 8),
+          Text(
+            'Batal',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDetailDialog(
+    String date,
+    String lapangan,
+    String waktu,
+    String type,
+  ) {
+    showDialog(
+      context: context,
+      builder: (context) => _buildDetailDialog(date, lapangan, waktu, type),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Required for AutomaticKeepAliveClientMixin
+
     return DefaultTabController(
       length: 2,
       child: Scaffold(
@@ -383,170 +847,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas> {
             isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : TabBarView(
-                  children: [
-                    // Riwayat Tab
-                    RefreshIndicator(
-                      onRefresh: _fetchBookingData,
-                      child:
-                          riwayats.isEmpty
-                              ? ListView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                children: const [
-                                  SizedBox(height: 200),
-                                  Center(
-                                    child: Text("Tidak ada riwayat pemesanan"),
-                                  ),
-                                ],
-                              )
-                              : ListView.builder(
-                                padding: const EdgeInsets.all(16),
-                                itemCount: riwayats.length,
-                                itemBuilder: (context, index) {
-                                  final riwayat = riwayats[index];
-                                  return Card(
-                                    elevation: 2,
-                                    margin: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
-                                    child: ListTile(
-                                      leading: const Icon(
-                                        Icons.check_circle,
-                                        color: Colors.green,
-                                      ),
-                                      title: Row(
-                                        children: [
-                                          Text(
-                                            riwayat.tanggal,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Text(
-                                            riwayat.waktu,
-                                            style: const TextStyle(
-                                              color: Colors.blue,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      subtitle: Text(riwayat.keterangan),
-                                    ),
-                                  );
-                                },
-                              ),
-                    ),
-
-                    // Terjadwal Tab
-                    RefreshIndicator(
-                      onRefresh: _fetchBookingData,
-                      child:
-                          terjadwals.isEmpty
-                              ? ListView(
-                                physics: const AlwaysScrollableScrollPhysics(),
-                                children: const [
-                                  SizedBox(height: 200),
-                                  Center(
-                                    child: Text(
-                                      "Tidak ada jadwal pemesanan mendatang",
-                                    ),
-                                  ),
-                                ],
-                              )
-                              : ListView.builder(
-                                padding: const EdgeInsets.all(10),
-                                itemCount: terjadwals.length,
-                                itemBuilder: (context, index) {
-                                  final booking = terjadwals[index];
-                                  return Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 8,
-                                    ),
-                                    child: Dismissible(
-                                      key: ValueKey(
-                                        '${booking.tanggal}_${booking.lapangan}_${booking.jam}',
-                                      ),
-                                      direction: DismissDirection.endToStart,
-                                      confirmDismiss: (direction) async {
-                                        // Extract court number from lapangan string (e.g., "Lapangan 1" -> "1")
-                                        String courtId = booking.lapangan
-                                            .replaceAll('Lapangan ', '');
-
-                                        await _cancelBooking(
-                                          booking.tanggal,
-                                          courtId,
-                                          booking.jam,
-                                        );
-                                        return false; // Don't actually dismiss, let the refresh handle the UI update
-                                      },
-                                      background: Container(
-                                        alignment: Alignment.centerRight,
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 20,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                          color: Colors.red,
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.end,
-                                          children: const [
-                                            Icon(
-                                              Icons.cancel,
-                                              color: Colors.white,
-                                            ),
-                                            SizedBox(width: 8),
-                                            Text(
-                                              'Batal',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      child: Card(
-                                        elevation: 2,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            10,
-                                          ),
-                                        ),
-                                        child: ListTile(
-                                          leading: const Icon(
-                                            Icons.schedule,
-                                            color: Colors.blue,
-                                          ),
-                                          title: Row(
-                                            children: [
-                                              Text(
-                                                booking.tanggal,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 10),
-                                              Text(
-                                                booking.jam,
-                                                style: const TextStyle(
-                                                  color: Colors.blue,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          subtitle: Text(booking.lapangan),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                    ),
-                  ],
+                  children: [_buildHistoryTab(), _buildScheduledTab()],
                 ),
       ),
     );

@@ -1493,7 +1493,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                                               'Lapangan $id',
                                             ),
                                           )
-                                          .toList(),
+                                          ,
                                     ],
                                   ),
                                 ),
@@ -1521,10 +1521,10 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                                           cellData['username'] ?? '',
                                           cellData['isClosed'] ?? false,
                                         );
-                                      }).toList(),
+                                      }),
                                     ],
                                   );
-                                }).toList(),
+                                }),
                               ],
                             ),
                           ),

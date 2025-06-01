@@ -27,7 +27,7 @@ class _HalamanMemberState extends State<HalamanMember> {
   static const Duration _slotDuration = Duration(minutes: 30);
   static const int _startHour = 7;
   static const int _endHour = 23;
-  
+
   // Static data - no need to recreate every time
   static final List<String> _timeOptions = _generateTimeOptions();
   static const Map<String, int> _weekdayMap = {
@@ -62,7 +62,7 @@ class _HalamanMemberState extends State<HalamanMember> {
 
   Future<void> _loadCourts() async {
     if (courts.isNotEmpty) return; // Avoid unnecessary API calls
-    
+
     try {
       final loadedCourts = await FirebaseService().getAllLapangan();
       if (mounted) {
@@ -105,21 +105,27 @@ class _HalamanMemberState extends State<HalamanMember> {
   List<DateTime> _getWeekdaysInRange(int weekday, DateTime baseDate) {
     final endDate = DateTime(baseDate.year, baseDate.month + 1, baseDate.day);
     final daysDifference = endDate.difference(baseDate).inDays + 1;
-    
-    return List.generate(daysDifference, (i) => baseDate.add(Duration(days: i)))
-        .where((date) => date.weekday == weekday)
-        .toList();
+
+    return List.generate(
+      daysDifference,
+      (i) => baseDate.add(Duration(days: i)),
+    ).where((date) => date.weekday == weekday).toList();
   }
 
   String _getWeekdayName(int weekday) {
     return _weekdayMap.entries
-        .firstWhere((entry) => entry.value == weekday, orElse: () => const MapEntry('', 0))
+        .firstWhere(
+          (entry) => entry.value == weekday,
+          orElse: () => const MapEntry('', 0),
+        )
         .key;
   }
 
   // Validation methods
   bool _validateInputs() {
-    if (selectedStartTime == null || selectedEndTime == null || selectedDates.isEmpty) {
+    if (selectedStartTime == null ||
+        selectedEndTime == null ||
+        selectedDates.isEmpty) {
       _showErrorSnackBar('Lengkapi semua pilihan terlebih dahulu.');
       return false;
     }
@@ -170,7 +176,11 @@ class _HalamanMemberState extends State<HalamanMember> {
     int endMinutes,
   ) async {
     for (final date in selectedDates) {
-      for (int slotStart = startMinutes; slotStart < endMinutes; slotStart += 30) {
+      for (
+        int slotStart = startMinutes;
+        slotStart < endMinutes;
+        slotStart += 30
+      ) {
         final slotTime = _minutesToTime(slotStart);
         final isAvailable = await FirebaseService().isSlotAvailable(
           slotTime,
@@ -181,14 +191,14 @@ class _HalamanMemberState extends State<HalamanMember> {
         debugPrint(
           'Cek ketersediaan: ${court.courtId} pada ${date.toIso8601String()} jam $slotTime: $isAvailable',
         );
-        
+
         if (!isAvailable) return false;
       }
     }
     return true;
   }
 
-  Future<void> _becomeMember(String courtId) async {
+  Future<void> _becomeMember(String courtId, List<DateTime> dates) async {
     if (!mounted) return;
 
     setState(() => isLoading = true);
@@ -201,12 +211,19 @@ class _HalamanMemberState extends State<HalamanMember> {
         throw Exception('Username tidak ditemukan');
       }
 
-      // Update user status
-      await FirebaseService().nonMemberToMember(username);
+      for (final selectedDate in dates) {
+        final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
+        debugPrint('Selected date: $formattedDate');
 
-      // Book slots
-      await _bookAllSlots(courtId, username);
+        await _bookAllSlots(courtId, username);
 
+        if (selectedDate == dates.first) {
+          await FirebaseService().nonMemberToMember(username, formattedDate);
+        }
+      }
+
+      
+      
       if (mounted) {
         _showSuccessSnackBar('Selamat! Anda berhasil menjadi member');
         Navigator.of(context).pop();
@@ -229,11 +246,11 @@ class _HalamanMemberState extends State<HalamanMember> {
 
     for (final date in selectedDates) {
       final dateStr = dateFormatter.format(date);
-      
+
       for (int minute = startMinutes; minute < endMinutes; minute += 30) {
         final slotTime = _minutesToTime(minute).replaceAll(':', '');
         final slotId = '${courtId}_${dateStr}_$slotTime';
-        
+
         debugPrint('Booking slot: $slotId');
         await FirebaseService().bookSlotForMember(slotId, username);
       }
@@ -243,32 +260,30 @@ class _HalamanMemberState extends State<HalamanMember> {
   // UI helper methods
   void _showErrorSnackBar(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showSuccessSnackBar(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.green,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.green),
     );
   }
 
   void _showConfirmationDialog(String courtId) {
     showDialog(
       context: context,
-      builder: (context) => _ConfirmationDialog(
-        courtId: courtId,
-        startTime: selectedStartTime!,
-        endTime: selectedEndTime!,
-        selectedDates: selectedDates,
-        onConfirm: () => _becomeMember(courtId),
-        getWeekdayName: _getWeekdayName,
-      ),
+      builder:
+          (context) => _ConfirmationDialog(
+            courtId: courtId,
+            startTime: selectedStartTime!,
+            endTime: selectedEndTime!,
+            selectedDates: selectedDates,
+            onConfirm: () => _becomeMember(courtId, selectedDates),
+            getWeekdayName: _getWeekdayName,
+          ),
     );
   }
 
@@ -276,7 +291,7 @@ class _HalamanMemberState extends State<HalamanMember> {
     if (!_validateInputs()) return;
 
     setState(() => isLoading = true);
-    
+
     try {
       await _checkSlotAvailability();
     } finally {
@@ -313,9 +328,7 @@ class _HalamanMemberState extends State<HalamanMember> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Ayo Jadi Member'),
-      ),
+      appBar: AppBar(title: const Text('Ayo Jadi Member')),
       body: Stack(
         children: [
           Padding(
@@ -359,23 +372,24 @@ class _HalamanMemberState extends State<HalamanMember> {
           height: 40,
           child: ListView(
             scrollDirection: Axis.horizontal,
-            children: _weekdayMap.keys.map((day) {
-              final isSelected = _weekdayMap[day] == selectedWeekday;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: ChoiceChip(
-                  label: Text(
-                    day,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : Colors.black,
+            children:
+                _weekdayMap.keys.map((day) {
+                  final isSelected = _weekdayMap[day] == selectedWeekday;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: ChoiceChip(
+                      label: Text(
+                        day,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : Colors.black,
+                        ),
+                      ),
+                      selected: isSelected,
+                      selectedColor: Colors.blue,
+                      onSelected: (_) => _onWeekdaySelected(day),
                     ),
-                  ),
-                  selected: isSelected,
-                  selectedColor: Colors.blue,
-                  onSelected: (_) => _onWeekdaySelected(day),
-                ),
-              );
-            }).toList(),
+                  );
+                }).toList(),
           ),
         ),
       ],
@@ -423,18 +437,14 @@ class _HalamanMemberState extends State<HalamanMember> {
   Widget _buildCheckButton() {
     return ElevatedButton(
       onPressed: isLoading ? null : _onCheckAvailability,
-      child: Text(
-        isLoading ? 'Sedang Mencari...' : 'Cek Ketersediaan Waktu',
-      ),
+      child: Text(isLoading ? 'Sedang Mencari...' : 'Cek Ketersediaan Waktu'),
     );
   }
 
   Widget _buildLoadingOverlay() {
     return Container(
       color: Colors.black.withOpacity(0.3),
-      child: const Center(
-        child: CircularProgressIndicator(),
-      ),
+      child: const Center(child: CircularProgressIndicator()),
     );
   }
 }
@@ -471,10 +481,7 @@ class _ConfirmationDialog extends StatelessWidget {
             _buildInfoRow('Jam Mulai', startTime),
             _buildInfoRow('Jam Selesai', endTime),
             const SizedBox(height: 10),
-            const Text(
-              'Tanggal dipilih:',
-              style: TextStyle(fontSize: 18),
-            ),
+            const Text('Tanggal dipilih:', style: TextStyle(fontSize: 18)),
             Expanded(
               child: ListView.builder(
                 itemCount: selectedDates.length,
@@ -482,10 +489,8 @@ class _ConfirmationDialog extends StatelessWidget {
                   final date = selectedDates[index];
                   final weekdayName = getWeekdayName(date.weekday);
                   final formattedDate = DateFormat('dd MMM yyyy').format(date);
-                  
-                  return ListTile(
-                    title: Text('$weekdayName, $formattedDate'),
-                  );
+
+                  return ListTile(title: Text('$weekdayName, $formattedDate'));
                 },
               ),
             ),
@@ -511,10 +516,7 @@ class _ConfirmationDialog extends StatelessWidget {
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Text(
-        '$label: $value',
-        style: const TextStyle(fontSize: 18),
-      ),
+      child: Text('$label: $value', style: const TextStyle(fontSize: 18)),
     );
   }
 }

@@ -72,6 +72,7 @@ class AllBookedUser {
   final String startTime;
   final String endTime;
   final String username;
+  final String type;
 
   AllBookedUser({
     required this.courtId,
@@ -79,6 +80,7 @@ class AllBookedUser {
     required this.startTime,
     required this.endTime,
     required this.username,
+    required this.type,
   });
 
   factory AllBookedUser.fromJson(Map<String, dynamic> json) {
@@ -88,6 +90,7 @@ class AllBookedUser {
       startTime: json['startTime'],
       endTime: json['endTime'],
       username: json['username'],
+      type: json['type'] ?? 'nonMember',
     );
   }
 }
@@ -222,6 +225,7 @@ class SlotStatus {
 class UserData {
   final String username;
   final String startTime;
+  final String startTimeMember;
   final double point;
   final double totalHour;
   final int totalBooking;
@@ -231,6 +235,7 @@ class UserData {
   UserData({
     required this.username,
     required this.startTime,
+    required this.startTimeMember,
     required this.point,
     required this.totalHour,
     required this.totalBooking,
@@ -242,6 +247,7 @@ class UserData {
     return UserData(
       username: json['username'] ?? '',
       startTime: json['startTime'] ?? '',
+      startTimeMember: json['startTimeMember'] ?? '',
       point: (json['point'] ?? 0).toDouble(),
       totalHour: (json['totalHours'] ?? 0).toDouble(),
       totalBooking: (json['totalBooking'] ?? 0).toInt(),
@@ -363,7 +369,7 @@ class FirebaseService {
   String _formatMinutes(int minutes) {
     final hours = (minutes ~/ 60).toString().padLeft(2, '0');
     final mins = (minutes % 60).toString().padLeft(2, '0');
-    return '${hours}${mins}';
+    return '$hours$mins';
   }
 
   String _formatDate(DateTime date) {
@@ -1086,7 +1092,7 @@ class FirebaseService {
         final minute = int.parse(minuteStr);
 
         final slotData = _buildSlotData(courtNumber, dateStr, hour, minute);
-        final slotId = '${courtNumber}_${dateStr}_${hourStr}${minuteStr}';
+        final slotId = '${courtNumber}_${dateStr}_$hourStr$minuteStr';
 
         batch.set(firestore.collection('time_slots').doc(slotId), slotData);
         operationCount++;
@@ -1397,6 +1403,23 @@ class FirebaseService {
               .where('username', isEqualTo: username)
               .where('role', isEqualTo: 'member')
               .get();
+      
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data();
+        final startTime = data['startTimeMember'] as String?;
+        if (startTime != null && startTime.isNotEmpty) {
+          final parsedStartTime = DateTime.tryParse(startTime);
+          if (parsedStartTime != null &&
+              parsedStartTime.isBefore(DateTime.now().subtract(Duration(days: 30)))) {
+            // Reset user stats after 30 days
+            await firestore.collection('users').doc(doc.id).update({
+              'role': 'nonMember',
+              'startTimeMember': '',
+            });
+            return false; // User is now non-member
+          }
+        }
+      }
 
       return querySnapshot.docs.isNotEmpty;
     } catch (e) {
@@ -1404,7 +1427,7 @@ class FirebaseService {
     }
   }
 
-  Future<void> nonMemberToMember(String username) async {
+  Future<void> nonMemberToMember(String username, String date) async {
     try {
       final querySnapshot =
           await firestore
@@ -1418,7 +1441,27 @@ class FirebaseService {
 
       final docRef = querySnapshot.docs.first.reference;
 
-      await docRef.update({'role': 'member'});
+      await docRef.update({'role': 'member', 'startTimeMember': date});
+    } catch (e) {
+      throw Exception('Failed to update user status: $e');
+    }
+  }
+
+  Future<void> memberToNonMember(String username) async {
+    try {
+      final querySnapshot =
+          await firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        throw Exception('User tidak ditemukan');
+      }
+
+      final docRef = querySnapshot.docs.first.reference;
+
+      await docRef.update({'role': 'nonMember', 'startTimeMember': ''});
     } catch (e) {
       throw Exception('Failed to update user status: $e');
     }
@@ -1499,7 +1542,8 @@ class FirebaseService {
       await firestore.collection('time_slots').doc(slotId).update({
         'isAvailable': false,
         'username': username,
-      });
+        'type': 'member',
+      }); 
     } catch (e) {
       throw Exception('Failed to book slot: $e');
     }

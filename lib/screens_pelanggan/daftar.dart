@@ -183,9 +183,7 @@ class _HalamanDaftarState extends State<HalamanDaftar>
 
       // === Cek club tanpa cache (jika diisi) ===
       if (clubController.text.isNotEmpty) {
-        print("Checking club: $club"); // Debug log
         final clubUsed = await FirebaseService().checkclub(club);
-        print("Club check result: $clubUsed"); // Debug log
         
         if (clubUsed) {
           if (!mounted) return;

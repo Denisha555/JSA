@@ -16,7 +16,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
   final LatLng _lokasiArena = const LatLng(-0.05687, 109.35996);
   LatLng? _lokasiPengguna;
   late final MapController _mapController = MapController();
-  bool _isLoading = false;
+  final bool _isLoading = false;
   bool _mapReady = false;
 
   @override

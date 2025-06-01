@@ -15,6 +15,8 @@ extension StringToDateTime on String {
 }
 
 class HalamanJadwal extends StatefulWidget {
+  const HalamanJadwal({super.key});
+
   @override
   _HalamanJadwalState createState() => _HalamanJadwalState();
 }
@@ -246,8 +248,9 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                             context: context,
                             initialTime: jamMulaiKhusus,
                           );
-                          if (picked != null)
+                          if (picked != null) {
                             setState(() => jamMulaiKhusus = picked);
+                          }
                         },
                         child: AbsorbPointer(
                           child: TextFormField(
@@ -275,8 +278,9 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                             context: context,
                             initialTime: jamSelesaiKhusus,
                           );
-                          if (picked != null)
+                          if (picked != null) {
                             setState(() => jamSelesaiKhusus = picked);
+                          }
                         },
                         child: AbsorbPointer(
                           child: TextFormField(

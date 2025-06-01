@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_application_1/constants_file.dart';
@@ -241,9 +240,6 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
         return;
       }
 
-      // Convert user to member
-      await FirebaseService().nonMemberToMember(username);
-
       // Book all slots
       await _bookAllSlots(courtId, username);
 
@@ -274,6 +270,10 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
         final slotId = '${courtId}_${dateStr}_$slotTime';
         
         await FirebaseService().bookSlotForMember(slotId, username);
+      }
+
+      if (date == selectedDates.first) {
+        await FirebaseService().nonMemberToMember(username, dateStr);
       }
     }
   }

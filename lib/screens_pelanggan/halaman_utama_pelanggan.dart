@@ -76,8 +76,8 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
             user = userData;
 
             // Cek dan isi currentReward
-            final hours = (user.isNotEmpty && user[0].totalHour != null)
-                ? user[0].totalHour!.toDouble()
+            final hours = (user.isNotEmpty)
+                ? user[0].totalHour.toDouble()
                 : 0.0;
 
             currentReward = Reward(currentHours: hours);

@@ -4,6 +4,7 @@ import 'package:flutter_application_1/main.dart';
 import 'package:flutter_application_1/screens_pelanggan/edit_profil.dart';
 import 'package:flutter_application_1/screens_pelanggan/member.dart';
 import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/screens_pelanggan/halaman_utama_pelanggan.dart';
@@ -23,6 +24,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
   bool isMember = false;
   List<LastActivity> activity = [];
   List<UserData> data = [];
+  List<AllBookedUser> userbooked = [];
   Reward currentReward = const Reward(currentHours: 0);
   int? endTime;
 
@@ -40,11 +42,66 @@ class _HalamanProfilState extends State<HalamanProfil> {
     try {
       await _loadData();
       if (username != null && username!.isNotEmpty) {
+        // Cek member status terlebih dahulu
         final result = await FirebaseService().memberOrNonmember(username!);
 
         setState(() {
           isMember = result;
         });
+
+        // Setelah isMember diset, baru hitung endTime jika user adalah member
+        if (isMember && data.isNotEmpty && data[0].startTimeMember.isNotEmpty) {
+          try {
+            // Parse startTime dengan penanganan error
+            final startDate = DateTime.parse(data[0].startTimeMember);
+
+            // Tambahkan 1 bulan ke startTime
+            final finishDate = DateTime(
+              startDate.year,
+              startDate.month + 1,
+              startDate.day,
+            );
+
+            // Hitung selisih hari dari sekarang
+            final now = DateTime.now();
+            final difference = finishDate.difference(now);
+            final daysLeft = difference.inDays;
+
+            debugPrint(
+              'Start Date: $startDate, Finish Date: $finishDate, Days Left: $daysLeft',
+            );
+
+            if (daysLeft <= 0) {
+              // Jika membership sudah expired
+              setState(() {
+                endTime = 0;
+                userbooked = []; // Clear booking data
+              });
+              debugPrint('Membership expired. Days left: $daysLeft');
+              await FirebaseService().memberToNonMember(username!);
+            } else {
+              // Jika masih ada waktu tersisa
+              setState(() {
+                endTime = daysLeft;
+              });
+              debugPrint('Membership active. Days left: $daysLeft');
+
+              // Load member bookings
+              await _loadMemberBookings();
+            }
+          } catch (e) {
+            debugPrint('Error calculating endTime: $e');
+            setState(() {
+              endTime = null;
+              userbooked = [];
+            });
+          }
+        } else {
+          setState(() {
+            endTime = null;
+            userbooked = [];
+          });
+        }
 
         await getLastActivity();
       }
@@ -61,6 +118,130 @@ class _HalamanProfilState extends State<HalamanProfil> {
       }
     }
   }
+
+  Future<void> _loadMemberBookings() async {
+  try {
+    if (username == null) return;
+
+    final now = DateTime.now();
+    final temp = await FirebaseService().getAllBookingsByUsername(username!);
+
+    List<AllBookedUser> memberBookings = [];
+
+    for (var booking in temp) {
+      // Cek apakah booking masih aktif (belum berakhir)
+      if (booking.endTime != null) {
+        try {
+          final start = DateTime.parse(booking.date.toString());
+          
+          // Cek apakah booking masih berlaku dan merupakan booking member
+          if (start.isAfter(now) && booking.type == 'member') {
+            memberBookings.add(booking);
+            debugPrint(
+              'Found member booking: ${booking.courtId} at ${booking.startTime}',
+            );
+          }
+        } catch (e) {
+          debugPrint('Error parsing booking end time: $e');
+        }
+      }
+    }
+
+    // Sort bookings by date and time (ascending)
+    memberBookings.sort((a, b) {
+      try {
+        final dateA = DateTime.parse(a.date.toString());
+        final dateB = DateTime.parse(b.date.toString());
+        
+        int dateComparison = dateA.compareTo(dateB);
+        if (dateComparison != 0) {
+          return dateComparison;
+        }
+        
+        // Jika tanggal sama, sort berdasarkan startTime
+        return a.startTime.toString().compareTo(b.startTime.toString());
+      } catch (e) {
+        debugPrint('Error sorting bookings: $e');
+        return 0;
+      }
+    });
+
+    // Group bookings by date dan combine jam
+    List<AllBookedUser> consolidatedBookings = [];
+    Map<String, List<AllBookedUser>> groupedByDate = {};
+    
+    // Group booking berdasarkan tanggal
+    for (var booking in memberBookings) {
+      try {
+        final dateKey = DateTime.parse(booking.date.toString()).toIso8601String().split('T')[0];
+        
+        if (!groupedByDate.containsKey(dateKey)) {
+          groupedByDate[dateKey] = [];
+        }
+        groupedByDate[dateKey]!.add(booking);
+      } catch (e) {
+        debugPrint('Error grouping bookings: $e');
+      }
+    }
+    
+    // Combine bookings untuk setiap tanggal
+    for (var dateEntry in groupedByDate.entries) {
+      List<AllBookedUser> dayBookings = dateEntry.value;
+      
+      if (dayBookings.isNotEmpty) {
+        // Sort berdasarkan startTime untuk hari ini
+        dayBookings.sort((a, b) => a.startTime.toString().compareTo(b.startTime.toString()));
+        
+        // Ambil booking pertama sebagai base
+        AllBookedUser consolidatedBooking = dayBookings.first;
+        
+        // Update endTime dengan endTime dari booking terakhir di hari yang sama
+        if (dayBookings.length > 1) {
+          consolidatedBooking = AllBookedUser(
+            // Copy semua properti dari booking pertama
+            username: consolidatedBooking.username,
+            courtId: consolidatedBooking.courtId,
+            date: consolidatedBooking.date,
+            startTime: consolidatedBooking.startTime, // Jam mulai dari yang pertama
+            endTime: dayBookings.last.endTime, // Jam selesai dari yang terakhir
+            type: consolidatedBooking.type,
+            // Tambahkan properti lain sesuai dengan struktur AllBookedUser Anda
+          );
+        }
+        
+        consolidatedBookings.add(consolidatedBooking);
+        
+        debugPrint(
+          'Consolidated booking for ${dateEntry.key}: Court ${consolidatedBooking.courtId}, '
+          'Start: ${consolidatedBooking.startTime}, End: ${consolidatedBooking.endTime}'
+        );
+      }
+    }
+
+    // Sort consolidated bookings by date
+    consolidatedBookings.sort((a, b) {
+      try {
+        final dateA = DateTime.parse(a.date.toString());
+        final dateB = DateTime.parse(b.date.toString());
+        return dateA.compareTo(dateB);
+      } catch (e) {
+        debugPrint('Error sorting consolidated bookings: $e');
+        return 0;
+      }
+    });
+
+    setState(() {
+      userbooked = consolidatedBookings;
+    });
+
+    debugPrint('Loaded ${consolidatedBookings.length} consolidated member bookings');
+  } catch (e) {
+    debugPrint('Error loading member bookings: $e');
+    setState(() {
+      userbooked = [];
+    });
+  }
+}
 
   String hashPassword(String password) {
     final bytes = utf8.encode(password);
@@ -87,34 +268,11 @@ class _HalamanProfilState extends State<HalamanProfil> {
         data = temp;
 
         // Update currentReward with actual user data
-        final hours =
-            (data.isNotEmpty && data[0].totalHour != null)
-                ? data[0].totalHour.toDouble()
-                : 0.0;
+        final hours = (data.isNotEmpty) ? data[0].totalHour.toDouble() : 0.0;
         currentReward = Reward(currentHours: hours);
-
-        if (data[0].startTime.isEmpty) {
-          return;
-        }
-
-        // Ubah startTime (String) jadi DateTime
-        final startDate = DateTime.parse(data[0].startTime);
-
-        // Tambahkan 1 bulan ke startTime
-        final finishDate = DateTime(
-          startDate.year,
-          startDate.month + 1,
-          startDate.day,
-        );
-
-        // Hitung selisih hari dari sekarang
-        final now = DateTime.now();
-        final daysLeft = finishDate.difference(now).inDays;
-
-        // Simpan ke variabel endTime
-        endTime = daysLeft;
       });
     } catch (e) {
+      debugPrint('Error in _loadData: $e');
       throw Exception('Error loading user data : $e');
     }
   }
@@ -737,6 +895,207 @@ class _HalamanProfilState extends State<HalamanProfil> {
     );
   }
 
+  Widget _memberSchedule() {
+  return Dialog(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    child: SingleChildScrollView(
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                Icon(Icons.schedule, color: primaryColor, size: 24),
+                const SizedBox(width: 8),
+                Text(
+                  "Jadwal Member",
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: primaryColor,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Content berdasarkan kondisi
+            if (userbooked.isEmpty) ...[
+              // Jika tidak ada booking
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Column(
+                  children: [
+                    Icon(Icons.event_busy, size: 48, color: Colors.grey),
+                    SizedBox(height: 8),
+                    Text(
+                      "Belum ada jadwal booking",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      "Silakan lakukan booking terlebih dahulu",
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              // Jika ada booking - tampilkan semua jadwal yang sudah dikonsolidasi
+              Text(
+                "Jadwal Booking Anda:",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: primaryColor,
+                  fontSize: 16,
+                ),
+              ),
+              const SizedBox(height: 12),
+              
+              ...userbooked.map((booking) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: primaryColor.withOpacity(0.3)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Tanggal
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today, size: 16, color: primaryColor),
+                        const SizedBox(width: 8),
+                        Text(
+                          _formatDate(booking.date),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    
+                    // Info lapangan
+                    _buildScheduleItem(
+                      icon: Icons.sports_tennis,
+                      label: "Lapangan",
+                      value: booking.courtId.toString(),
+                    ),
+                    const SizedBox(height: 4),
+                    
+                    // Waktu (sudah dikonsolidasi)
+                    _buildScheduleItem(
+                      icon: Icons.access_time,
+                      label: "Waktu",
+                      value: "${_formatTime(booking.startTime)} - ${_formatTime(booking.endTime)}",
+                    ),
+                  ],
+                ),
+              )).toList(),
+            ],
+
+            const SizedBox(height: 20),
+
+            // Tombol aksi
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text("Tutup"),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+  Widget _buildScheduleItem({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: primaryColor),
+        const SizedBox(width: 8),
+        Text(
+          "$label:",
+          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 14, color: Colors.black87),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatTime(dynamic time) {
+    if (time == null) return "Tidak tersedia";
+
+    try {
+      if (time is String) {
+        // Jika sudah dalam format string yang readable
+        if (time.contains(':')) {
+          return time;
+        }
+        // Jika dalam format DateTime string
+        final dateTime = DateTime.parse(time);
+        return DateFormat('HH:mm').format(dateTime);
+      } else if (time is DateTime) {
+        return DateFormat('HH:mm').format(time);
+      }
+      return time.toString();
+    } catch (e) {
+      debugPrint('Error formatting time: $e');
+      return time.toString();
+    }
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return "Tidak tersedia";
+
+    try {
+      if (date is String) {
+        final dateTime = DateTime.parse(date);
+        return DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(dateTime);
+      } else if (date is DateTime) {
+        return DateFormat('EEEE, dd MMMM yyyy', 'id_ID').format(date);
+      }
+      return date.toString();
+    } catch (e) {
+      debugPrint('Error formatting date: $e');
+      return date.toString();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
@@ -919,7 +1278,13 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             : const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap:
                         isMember
-                            ? null
+                            ? () {
+                              // Navigate to member schedule or details
+                              showDialog(
+                                context: context,
+                                builder: (context) => _memberSchedule(),
+                              ).then((_) => _init());
+                            }
                             : () {
                               Navigator.push(
                                 context,

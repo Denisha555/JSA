@@ -345,6 +345,16 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
   }
 
+  static const List<String> daftarHari = [
+    'Senin',
+    'Selasa',
+    'Rabu',
+    'Kamis',
+    'Jumat',
+    'Sabtu',
+    'Minggu',
+  ];
+
   Future<void> _loadCourts() async {
     try {
       final courtsSnapshot =
@@ -473,6 +483,62 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
   }
 
+  String _namaHari(int weekday) => daftarHari[weekday - 1];
+
+  bool _isHariDalamRange(String hari, String mulai, String selesai) {
+    final indexHari = daftarHari.indexOf(hari);
+    final indexMulai = daftarHari.indexOf(mulai);
+    final indexSelesai = daftarHari.indexOf(selesai);
+
+    if (indexMulai <= indexSelesai) {
+      return indexHari >= indexMulai && indexHari <= indexSelesai;
+    } else {
+      // Range seperti "Jumat - Senin"
+      return indexHari >= indexMulai || indexHari <= indexSelesai;
+    }
+  }
+
+  // Price Calculation - Updated untuk Member/Non-Member
+  Future<double> _calculateTotalPrice({
+    required String startTime,
+    required String endTime,
+    required DateTime selectedDate,
+    required String type,
+  }) async {
+    try {
+      final hargaList = await FirebaseService().getHarga();
+      final hariBooking = _namaHari(selectedDate.weekday);
+
+      final startMinutes = _timeToMinutes(startTime);
+      final endMinutes = _timeToMinutes(endTime);
+
+      double totalPrice = 0;
+
+      for (int time = startMinutes; time < endMinutes; time += 30) {
+        final jam = time ~/ 60;
+
+        // Cari harga yang sesuai dengan type (Member/Non-Member)
+        final hargaMatch = hargaList.where((harga) =>
+            harga.type == type &&
+            _isHariDalamRange(hariBooking, harga.hariMulai, harga.hariSelesai) &&
+            jam >= harga.startTime &&
+            jam < harga.endTime).firstOrNull;
+
+        if (hargaMatch != null) {
+          totalPrice += hargaMatch.harga / 2; // 30 menit = 0.5 jam
+        } else {
+          // Fallback jika tidak ada harga yang cocok
+          debugPrint('No matching price found for: $type, $hariBooking, $jam:${time % 60}');
+        }
+      }
+
+      return totalPrice;
+    } catch (e) {
+      debugPrint('Error calculating price: $e');
+      return 0;
+    }
+  }
+
   Widget _buildConfirmationDialog(
     String startTime,
     String endTime,
@@ -497,6 +563,34 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 'Apakah anda yakin ingin booking?',
                 style: TextStyle(fontSize: 18),
               ),
+              
+              const SizedBox(height: 16),
+
+              FutureBuilder<double>(
+              future: _calculateTotalPrice(
+                startTime: startTime,
+                endTime: endTime,
+                selectedDate: selectedDate,
+                type: 'Non Member', 
+              ),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Text('Menghitung harga...');
+                } else if (snapshot.hasError) {
+                  return Text('Gagal menghitung harga: ${snapshot.error}');
+                } else {
+                  final price = snapshot.data ?? 0;
+                  return Text(
+                    'Total Harga: Rp ${price.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.green,
+                    ),
+                  );
+                }
+              },
+            ),
               const SizedBox(height: 10),
               const Text(
                 'Catatan: Booking tidak dikenakan DP, harap datang sesuai jadwal yang dipilih',

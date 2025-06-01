@@ -366,10 +366,6 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
                       Expanded(
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _simpanLapangan,
-                          child: Text(
-                            _isEditing ? 'Perbarui' : 'Simpan',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryColor,
                             foregroundColor: Colors.white,
@@ -378,15 +374,16 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
+                          child: Text(
+                            _isEditing ? 'Perbarui' : 'Simpan',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                       ),
                       if (_isEditing) ...[
                         const SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: _isLoading ? null : () => _resetForm(),
-                          child: const Text('Batal', style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                          )),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: primaryColor,
@@ -395,6 +392,9 @@ class _HalamanLapanganState extends State<HalamanLapangan> with SingleTickerProv
                               borderRadius: BorderRadius.circular(10),
                             ),
                           ),
+                          child: const Text('Batal', style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                          )),
                         ),
                       ],
                     ],

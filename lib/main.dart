@@ -60,7 +60,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyAppError extends StatelessWidget {
-  const MyAppError({Key? key}) : super(key: key);
+  const MyAppError({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +93,7 @@ class MyAppError extends StatelessWidget {
 
 // halaman loading sebelum masuk ke aplikasi
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   _SplashScreenState createState() => _SplashScreenState();
