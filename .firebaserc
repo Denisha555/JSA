@@ -1,8 +1,16 @@
 {
   "projects": {
-    "default": "jump-smash-arena",
-    "jump-smash-arena": "jump-smash-arena"
+    "default": "jsa-badminton",
+    "jsa-badminton": "jsa-badminton"
   },
-  "targets": {},
+  "targets": {
+    "jsa-badminton": {
+      "hosting": {
+        "jsa-badminton": [
+          "default"
+        ]
+      }
+    }
+  },
   "etags": {}
 }

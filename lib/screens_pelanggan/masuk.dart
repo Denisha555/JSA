@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
 import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/screens_admin/halaman_utama_admin.dart';
-import 'package:flutter_application_1/screen_owner/halaman_utama_owner.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:crypto/crypto.dart';
@@ -181,21 +180,6 @@ class _HalamanMasukState extends State<HalamanMasuk>
           passwordController.text,
         );
         debugPrint('Owner account created');
-      }
-
-      // Save to shared preferences
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('username', usernameController.text);
-      
-      debugPrint('Navigating to owner page...');
-      
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const HalamanUtamaOwner(),
-          ),
-        );
       }
     } catch (e) {
       debugPrint('Owner login error: $e');

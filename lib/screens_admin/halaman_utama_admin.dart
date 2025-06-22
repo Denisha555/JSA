@@ -107,59 +107,63 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
       );
     }
 
-    return Expanded(
-      child: SingleChildScrollView(
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                // Header row
-                Container(
-                  decoration: const BoxDecoration(
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(8),
-                      topRight: Radius.circular(8),
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  children: [
+                    // Header row
+                    Container(
+                      decoration: const BoxDecoration(
+                        borderRadius: BorderRadius.only(
+                          topLeft: Radius.circular(8),
+                          topRight: Radius.circular(8),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          _buildHeaderCell('Jam', width: 110),
+                          ...sortedCourtIds
+                              .map((id) => _buildHeaderCell('Lapangan $id'))
+                              ,
+                        ],
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      _buildHeaderCell('Jam', width: 110),
-                      ...sortedCourtIds
-                          .map((id) => _buildHeaderCell('Lapangan $id'))
-                          ,
-                    ],
-                  ),
+        
+                    // Data rows
+                    ...bookingData.entries.map((entry) {
+                      final time = entry.key;
+                      final courts = entry.value;
+        
+                      return Row(
+                        children: [
+                          _buildTimeCell(time),
+                          ...sortedCourtIds.map((id) {
+                            final cellData =
+                                courts[id] ?? {'isAvailable': true, 'username': '', 'isClosed': false};
+                            return _buildCourtCell(
+                              time,
+                              id,
+                              cellData['isAvailable'] ?? true,
+                              cellData['username'] ?? '',
+                              cellData['isClosed'] ?? false,
+                            );
+                          }),
+                        ],
+                      );
+                    }),
+                  ],
                 ),
-
-                // Data rows
-                ...bookingData.entries.map((entry) {
-                  final time = entry.key;
-                  final courts = entry.value;
-
-                  return Row(
-                    children: [
-                      _buildTimeCell(time),
-                      ...sortedCourtIds.map((id) {
-                        final cellData =
-                            courts[id] ?? {'isAvailable': true, 'username': '', 'isClosed': false};
-                        return _buildCourtCell(
-                          time,
-                          id,
-                          cellData['isAvailable'] ?? true,
-                          cellData['username'] ?? '',
-                          cellData['isClosed'] ?? false,
-                        );
-                      }),
-                    ],
-                  );
-                }),
-              ],
+              ),
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 

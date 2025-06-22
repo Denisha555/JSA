@@ -283,7 +283,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Harga telah diupdate'), backgroundColor: Colors.green));
+        ).showSnackBar(SnackBar(content: Text('Harga telah diperbarui'), backgroundColor: Colors.green));
       }
     } catch (e) {
       setState(() => _isLoading = false);

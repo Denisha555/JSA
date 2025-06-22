@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_application_1/screen_owner/halaman_utama_owner.dart';
 import 'screens_pelanggan/daftar.dart';
 import 'screens_pelanggan/masuk.dart';
 import 'package:flutter_application_1/constants_file.dart';
@@ -116,13 +115,6 @@ class _SplashScreenState extends State<SplashScreen> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const HalamanUtamaAdmin()),
-          );
-        }
-      } else if (username == 'owner_1') {
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HalamanUtamaOwner()),
           );
         }
       } else {

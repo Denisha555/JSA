@@ -76,9 +76,8 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
             user = userData;
 
             // Cek dan isi currentReward
-            final hours = (user.isNotEmpty)
-                ? user[0].totalHour.toDouble()
-                : 0.0;
+            final hours =
+                (user.isNotEmpty) ? user[0].totalHour.toDouble() : 0.0;
 
             currentReward = Reward(currentHours: hours);
           });
@@ -313,9 +312,10 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
     required String hoursRequired,
   }) {
     return GestureDetector(
-      onTap: isAvailable
-          ? () => _showRewardDialog(rewardText)
-          : () => _showRewardRequirementDialog(hoursRequired),
+      onTap:
+          isAvailable
+              ? () => _showRewardDialog(rewardText)
+              : () => _showRewardRequirementDialog(hoursRequired),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         width: 32,
@@ -324,15 +324,16 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
           color: isAvailable ? Colors.amber : Colors.white.withOpacity(0.5),
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white, width: 2),
-          boxShadow: isAvailable
-              ? [
-                  BoxShadow(
-                    color: Colors.amber.withOpacity(0.5),
-                    blurRadius: 8,
-                    spreadRadius: 2,
-                  ),
-                ]
-              : null,
+          boxShadow:
+              isAvailable
+                  ? [
+                    BoxShadow(
+                      color: Colors.amber.withOpacity(0.5),
+                      blurRadius: 8,
+                      spreadRadius: 2,
+                    ),
+                  ]
+                  : null,
         ),
         child: Icon(
           isAvailable ? Icons.card_giftcard : Icons.lock,
@@ -346,45 +347,47 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
   void _showRewardDialog(String rewardText) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('🎉 Selamat!'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Kamu mendapatkan $rewardText!'),
-            const SizedBox(height: 12),
-            const Text(
-              'Catatan: Reward ini dapat digunakan pada booking selanjutnya dengan konfirmasi admin.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('🎉 Selamat!'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Kamu mendapatkan $rewardText!'),
+                const SizedBox(height: 12),
+                const Text(
+                  'Catatan: Reward ini dapat digunakan pada booking selanjutnya dengan konfirmasi admin.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Tutup'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Tutup'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   void _showRewardRequirementDialog(String hoursRequired) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reward Terkunci'),
-        content: Text(
-          'Mainkan hingga $hoursRequired untuk membuka reward ini.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Tutup'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Reward Terkunci'),
+            content: Text(
+              'Mainkan hingga $hoursRequired untuk membuka reward ini.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Tutup'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
@@ -602,20 +605,20 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
         const SizedBox(height: 16),
         events.isNotEmpty
             ? SizedBox(
-                height: 200,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: events.length,
-                  itemBuilder: (context, index) {
-                    return Padding(
-                      padding: EdgeInsets.only(
-                        right: index < events.length - 1 ? 16 : 0,
-                      ),
-                      child: _buildPromoCard(events[index]),
-                    );
-                  },
-                ),
-              )
+              height: 200,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: events.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      right: index < events.length - 1 ? 16 : 0,
+                    ),
+                    child: _buildPromoCard(events[index]),
+                  );
+                },
+              ),
+            )
             : const Center(child: Text("Tidak ada promo atau event saat ini")),
       ],
     );
@@ -635,29 +638,72 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
           ),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Stack(
-          children: [
-            Image.memory(
-              base64Decode(promo.image),
-              height: 200,
-              width: 160,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  height: 200,
-                  width: 160,
-                  color: Colors.grey[300],
-                  child: const Icon(
-                    Icons.image_not_supported,
-                    size: 50,
-                    color: Colors.grey,
+      child: GestureDetector(
+        onTap: () {
+          showDialog(
+            context: context,
+            builder:
+                (context) => Dialog(
+                  backgroundColor: Colors.black.withOpacity(0.8),
+                  insetPadding: const EdgeInsets.all(16),
+                  child: Stack(
+                    children: [
+                      // Gambar besar
+                      InteractiveViewer(
+                        child: Image.memory(
+                          base64Decode(promo.image),
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      // Tombol close di pojok kanan atas
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: GestureDetector(
+                          onTap: () => Navigator.of(context).pop(),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            padding: const EdgeInsets.all(4),
+                            child: const Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                );
-              },
-            ),
-          ],
+                ),
+          );
+        },
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: Stack(
+            children: [
+              Image.memory(
+                base64Decode(promo.image),
+                height: 200,
+                width: 160,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 200,
+                    width: 160,
+                    color: Colors.grey[300],
+                    child: const Icon(
+                      Icons.image_not_supported,
+                      size: 50,
+                      color: Colors.grey,
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -669,31 +715,32 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
       children: [
         courts.isEmpty
             ? Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Lapangan Tersedia",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  const Center(
-                      child: Text("Tidak ada lapangan tersedia saat ini")),
-                ],
-              )
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Lapangan Tersedia",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 10),
+                const Center(
+                  child: Text("Tidak ada lapangan tersedia saat ini"),
+                ),
+              ],
+            )
             : Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    "Lapangan Tersedia",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  TextButton(
-                    onPressed: () => _navigateToScreen(const HalamanKalender()),
-                    child: const Text("Lihat Semua"),
-                  ),
-                ],
-              ),
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Lapangan Tersedia",
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                TextButton(
+                  onPressed: () => _navigateToScreen(const HalamanKalender()),
+                  child: const Text("Lihat Semua"),
+                ),
+              ],
+            ),
         const SizedBox(height: 12),
         ListView.builder(
           physics: const NeverScrollableScrollPhysics(),
