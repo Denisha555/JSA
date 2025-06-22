@@ -290,7 +290,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Gagal update harga: $e')));
+        ).showSnackBar(SnackBar(content: Text('Gagal perbarui harga: $e')));
       }
     }
   }
