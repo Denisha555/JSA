@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
-import 'halaman_utama_pelanggan.dart';
-import 'aktivitas.dart';
 import 'profile.dart';
+import 'aktivitas.dart';
+import 'halaman_utama_pelanggan.dart';
+import 'package:flutter/material.dart';
+
 
 class PilihHalamanPelanggan extends StatefulWidget {
   final int selectedIndex;
@@ -14,9 +15,7 @@ class PilihHalamanPelanggan extends StatefulWidget {
 
 class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
   int _currentIndex = 0;
-  
-  // Key untuk force rebuild halaman Aktivitas
-  Key _aktivitasKey = UniqueKey();
+  Key _aktivitasKey = UniqueKey(); // ← disimpan di level state
 
   @override
   void initState() {
@@ -24,14 +23,12 @@ class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
     _currentIndex = widget.selectedIndex;
   }
 
-  // Method untuk mendapatkan halaman berdasarkan index
   Widget _getCurrentPage() {
     switch (_currentIndex) {
       case 0:
         return const HalamanUtamaPelanggan();
       case 1:
-        // Generate key baru setiap kali tab Aktivitas dibuka
-        return HalamanAktivitas();
+        return HalamanAktivitas(key: _aktivitasKey); 
       case 2:
         return const HalamanProfil();
       default:
@@ -41,9 +38,8 @@ class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
 
   void _onItemTapped(int index) {
     setState(() {
-      // Jika pindah ke tab Aktivitas, generate key baru untuk force refresh
       if (index == 1) {
-        _aktivitasKey = UniqueKey();
+        _aktivitasKey = UniqueKey(); // ← update state
       }
       _currentIndex = index;
     });
@@ -52,7 +48,6 @@ class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Gunakan body langsung tanpa IndexedStack
       body: _getCurrentPage(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,

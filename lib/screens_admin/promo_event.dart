@@ -1,11 +1,15 @@
 import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_application_1/constants_file.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_1/constants_file.dart';
+import 'package:flutter_application_1/function/snackbar/snackbar.dart';
+import 'package:flutter_application_1/services/event_promo/firebase_add_event_promo.dart';
+import 'package:flutter_application_1/services/event_promo/firebase_delete_event_promo.dart';
+
 
 class HalamanPromoEvent extends StatefulWidget {
   const HalamanPromoEvent({super.key});
@@ -30,17 +34,6 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
   void dispose() {
     _tabController.dispose();
     super.dispose();
-  }
-
-  void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Theme.of(context).primaryColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
   }
 
   Future<void> _pickImage() async {
@@ -112,7 +105,7 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
 
   Future<void> _simpanPromo() async {
     if (_imageFile == null) {
-      _showSnackBar('Silakan pilih gambar terlebih dahulu');
+      showErrorSnackBar(context, 'Silakan pilih gambar terlebih dahulu');
       return;
     }
 
@@ -125,16 +118,15 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
       String base64Image = await _convertImageToBase64(_imageFile!);
 
       // Simpan ke Firestore dengan base64
-      await FirebaseFirestore.instance.collection('promo_event').add({
-        'gambar': base64Image,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      await FirebaseAddEventPromo().addEventPromo(base64Image, DateTime.now());
 
-      _showSnackBar('Promo berhasil diunggah');
+      if (!mounted) return; 
+
+      showSuccessSnackBar(context, 'Promo berhasil diunggah');
       _resetForm();
       _tabController.animateTo(1);
     } catch (e) {
-      _showSnackBar('Gagal mengunggah promo: $e');
+      showErrorSnackBar(context, 'Gagal mengunggah promo: $e');
     } finally {
       setState(() {
         _isLoading = false;
@@ -220,7 +212,6 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
                     height: 50,
                     child: ElevatedButton.icon(
                       onPressed: _isLoading ? null : _simpanPromo,
-                      icon: const Icon(Icons.upload),
                       label:
                           _isLoading
                               ? const SizedBox(
@@ -260,9 +251,9 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
     return StreamBuilder<QuerySnapshot>(
       stream:
           FirebaseFirestore.instance
-              .collection('promo_event')
-              .orderBy('createdAt', descending: true)
-              .snapshots(),
+            .collection('promo_event')
+            .orderBy('createdAt', descending: true)
+            .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -408,14 +399,14 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
 
     try {
       // Hapus dokumen dari Firestore
-      await FirebaseFirestore.instance
-          .collection('promo_event')
-          .doc(docId)
-          .delete();
-
-      _showSnackBar('Promo berhasil dihapus');
+      await FirebaseDeleteEventPromo().deleteEventPromo(docId);
+      _resetForm();
+      
+      if (!mounted) return; 
+      showSuccessSnackBar(context, 'Promo berhasil dihapus');
     } catch (e) {
-      _showSnackBar('Gagal menghapus promo: $e');
+      if (!mounted) return;
+      showErrorSnackBar(context, 'Gagal menghapus promo: $e');
     } finally {
       setState(() {
         _isLoading = false;

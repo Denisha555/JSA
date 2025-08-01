@@ -1,18 +1,21 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
-import 'package:flutter_application_1/screens_pelanggan/Kalender.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_application_1/services/firestore_service.dart';
-import 'package:flutter_application_1/screens_pelanggan/price_list.dart';
+import 'package:flutter_application_1/model/user_model.dart';
+import 'package:flutter_application_1/model/court_model.dart';
+import 'package:flutter_application_1/model/reward_model.dart';
+import 'package:flutter_application_1/function/reward/reward.dart';
+import 'package:flutter_application_1/model/event_promo_model.dart';
+import 'package:flutter_application_1/screens_pelanggan/price.dart';
+import 'package:flutter_application_1/screens_pelanggan/Kalender.dart';
+import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/screens_pelanggan/tentang_kami.dart';
-
-class Reward {
-  final double currentHours;
-  final double requiredHours;
-
-  const Reward({required this.currentHours, this.requiredHours = 20});
-}
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
+import 'package:flutter_application_1/services/court/firebase_get_court.dart';
+import 'package:flutter_application_1/services/user/firebase_check_user.dart';
+import 'package:flutter_application_1/services/booking/firebase_get_booking.dart';
+import 'package:flutter_application_1/services/event_promo/firebase_get_event_promo.dart';
 
 class HalamanUtamaPelanggan extends StatefulWidget {
   const HalamanUtamaPelanggan({super.key});
@@ -24,12 +27,12 @@ class HalamanUtamaPelanggan extends StatefulWidget {
 class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
   Widget? currentBookingCard;
   bool _isLoading = false;
-  List<UserData> user = [];
-  List<EventPromo> events = [];
-  List<AllCourtsToday> courts = [];
+  List<UserModel> user = [];
+  List<EventPromoModel> events = [];
+  List<CourtModel> courts = [];
 
   // Initialize with default values
-  Reward currentReward = const Reward(currentHours: 0);
+  RewardModel currentReward = RewardModel(currentHours: 0);
 
   @override
   void initState() {
@@ -37,23 +40,15 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
     _init();
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _checkBooked();
-  }
-
   Future<void> _init() async {
     setState(() => _isLoading = true);
 
-    await Future.wait([
-      getUserData(), // Load user data first
-      _checkBooked(),
-      _getPromoData(),
-    ]);
+    await getUserData();
+
+    await Future.wait([_checkBooked(), _getPromoData()]);
 
     // Lakukan operasi async terlebih dahulu
-    final courtsData = await FirebaseService().getAllLapanganToday();
+    final courtsData = await FirebaseGetCourt().getAllLapanganToday();
 
     // Kemudian update state secara sinkron
     if (mounted) {
@@ -69,38 +64,53 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('username');
       if (userId != null) {
-        final userData = await FirebaseService().getUserData(userId);
+        await Future.wait([
+          FirebaseCheckUser().checkMembership(userId),
+          FirebaseCheckUser().checkRewardTime(userId),
+        ]);
+        final userData = await FirebaseGetUser().getUserByUsername(userId);
 
         if (mounted) {
           setState(() {
             user = userData;
 
-            // Cek dan isi currentReward
-            final hours =
-                (user.isNotEmpty) ? user[0].totalHour.toDouble() : 0.0;
+            final hours = (user.isNotEmpty) ? user[0].point.toDouble() : 0.0;
 
-            currentReward = Reward(currentHours: hours);
+            currentReward = RewardModel(currentHours: hours);
+
+            bool isMember = user.isNotEmpty ? user[0].role == 'member' : false;
+
+            if (isMember) {
+              prefs.setBool('isMember', true);
+
+              int memberTotalBooking = user[0].memberTotalBooking;
+              int memberCurrentTotalBooking = user[0].memberCurrentTotalBooking;
+              int memberBookingLength = user[0].memberBookingLength;
+
+              prefs.setInt('memberTotalBooking', memberTotalBooking);
+              prefs.setInt(
+                'memberCurrentTotalBooking',
+                memberCurrentTotalBooking,
+              );
+              prefs.setInt('memberBookingLength', memberBookingLength);
+              
+            } else {
+              prefs.setBool('isMember', false);
+            }
           });
         }
       } else {
         debugPrint('Username not found in SharedPreferences');
       }
     } catch (e) {
-      debugPrint('Failed to load user data: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gagal memuat data pengguna'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      showErrorSnackBar(context, 'Gagal memuat data pengguna');
     }
   }
 
   Future<void> _getPromoData() async {
     try {
-      List<EventPromo> temp = await FirebaseService().getPromo();
+      final temp = await FirebaseGetEventPromo().getPromo();
       if (mounted) {
         setState(() {
           events = temp;
@@ -108,7 +118,6 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
       }
     } catch (e) {
       debugPrint('Failed to get promo data: $e');
-      // Don't throw exception, just log the error
     }
   }
 
@@ -153,7 +162,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
                   const SizedBox(height: 16),
 
                   // Reward section
-                  _buildRewardSection(context),
+                  Reward(currentReward: currentReward),
                   const SizedBox(height: 24),
 
                   // Promotions Events
@@ -168,226 +177,6 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildRewardSection(BuildContext context) {
-    final progress = (currentReward.currentHours / currentReward.requiredHours)
-        .clamp(0.0, 1.0);
-
-    final isRewardAvailable1 = currentReward.currentHours >= 10;
-    final isRewardAvailable2 = currentReward.currentHours >= 20;
-
-    final nextStageHours = ((currentReward.currentHours / 10).floor() + 1) * 10;
-    final hoursToNext = (nextStageHours - currentReward.currentHours).clamp(
-      0,
-      double.infinity,
-    );
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [primaryColor, primaryColor.withOpacity(0.8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Your Reward Progress',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Progress bar with markers
-          _buildProgressBar(progress, isRewardAvailable1, isRewardAvailable2),
-          const SizedBox(height: 16),
-
-          // Progress text
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${currentReward.currentHours.toInt()}h dimainkan',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                '${hoursToNext.toInt()}h lagi untuk reward',
-                style: const TextStyle(color: Colors.white70),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressBar(
-    double progress,
-    bool isRewardAvailable1,
-    bool isRewardAvailable2,
-  ) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const markerSize = 32.0;
-        final barWidth = constraints.maxWidth;
-        final firstMarkerPos = (barWidth * 0.5) - (markerSize / 2);
-        final secondMarkerPos = barWidth - markerSize;
-
-        return SizedBox(
-          height: 40,
-          child: Stack(
-            children: [
-              // Background bar
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 16,
-                child: Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.3),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-
-              // Progress bar
-              Positioned(
-                left: 0,
-                top: 16,
-                child: Container(
-                  width: barWidth * progress,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-
-              // First reward marker (10 hours)
-              Positioned(
-                left: firstMarkerPos,
-                top: 4,
-                child: _buildRewardMarker(
-                  isAvailable: isRewardAvailable1,
-                  rewardText: '1 jam gratis',
-                  hoursRequired: '10 jam',
-                ),
-              ),
-
-              // Second reward marker (20 hours)
-              Positioned(
-                left: secondMarkerPos,
-                top: 4,
-                child: _buildRewardMarker(
-                  isAvailable: isRewardAvailable2,
-                  rewardText: '2 jam gratis',
-                  hoursRequired: '20 jam',
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildRewardMarker({
-    required bool isAvailable,
-    required String rewardText,
-    required String hoursRequired,
-  }) {
-    return GestureDetector(
-      onTap:
-          isAvailable
-              ? () => _showRewardDialog(rewardText)
-              : () => _showRewardRequirementDialog(hoursRequired),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: isAvailable ? Colors.amber : Colors.white.withOpacity(0.5),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 2),
-          boxShadow:
-              isAvailable
-                  ? [
-                    BoxShadow(
-                      color: Colors.amber.withOpacity(0.5),
-                      blurRadius: 8,
-                      spreadRadius: 2,
-                    ),
-                  ]
-                  : null,
-        ),
-        child: Icon(
-          isAvailable ? Icons.card_giftcard : Icons.lock,
-          color: isAvailable ? Colors.white : Colors.grey[600],
-          size: 18,
-        ),
-      ),
-    );
-  }
-
-  void _showRewardDialog(String rewardText) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('🎉 Selamat!'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Kamu mendapatkan $rewardText!'),
-                const SizedBox(height: 12),
-                const Text(
-                  'Catatan: Reward ini dapat digunakan pada booking selanjutnya dengan konfirmasi admin.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Tutup'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _showRewardRequirementDialog(String hoursRequired) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Reward Terkunci'),
-            content: Text(
-              'Mainkan hingga $hoursRequired untuk membuka reward ini.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Tutup'),
-              ),
-            ],
-          ),
     );
   }
 
@@ -484,9 +273,9 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
       final username = prefs.getString('username') ?? '';
       final selectedDate = DateTime.now();
 
-      final timeSlots = await FirebaseService().getTimeSlotByUsername(
+      final timeSlots = await FirebaseGetBooking().getBookingByUsername(
         username,
-        selectedDate,
+        selectedDate: selectedDate,
       );
 
       if (!mounted) return;
@@ -518,7 +307,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
+            color: Colors.grey.withValues(alpha: 0.1),
             spreadRadius: 1,
             blurRadius: 8,
             offset: const Offset(0, 2),
@@ -577,7 +366,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, size: 28, color: color),
@@ -624,14 +413,14 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
     );
   }
 
-  Widget _buildPromoCard(EventPromo promo) {
+  Widget _buildPromoCard(EventPromoModel promo) {
     return Container(
       width: 160,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
+            color: Colors.grey.withValues(alpha: 0.2),
             spreadRadius: 1,
             blurRadius: 8,
             offset: const Offset(0, 2),
@@ -644,7 +433,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
             context: context,
             builder:
                 (context) => Dialog(
-                  backgroundColor: Colors.black.withOpacity(0.8),
+                  backgroundColor: Colors.black.withValues(alpha: 0.8),
                   insetPadding: const EdgeInsets.all(16),
                   child: Stack(
                     children: [
@@ -757,7 +546,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
     );
   }
 
-  Widget _buildCourtCard(AllCourtsToday court) {
+  Widget _buildCourtCard(CourtModel court) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -774,7 +563,7 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
               child: Stack(
                 children: [
                   Image.memory(
-                    base64Decode(court.image),
+                    base64Decode(court.imageUrl!),
                     width: double.infinity,
                     height: 160,
                     fit: BoxFit.cover,

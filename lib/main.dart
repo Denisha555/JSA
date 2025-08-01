@@ -1,13 +1,15 @@
-import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'screens_pelanggan/daftar.dart';
+import 'firebase_options.dart';
 import 'screens_pelanggan/masuk.dart';
+import 'screens_pelanggan/daftar.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'firebase_options.dart';
+import 'package:flutter_application_1/function/navigator/navigator.dart';
 import 'package:flutter_application_1/screens_admin/halaman_utama_admin.dart';
 import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
-import 'package:intl/date_symbol_data_local.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -111,30 +113,15 @@ class _SplashScreenState extends State<SplashScreen> {
     String username = prefs.getString('username') ?? '';
     if (username.isNotEmpty) {
       if (username == 'admin_1') {
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HalamanUtamaAdmin()),
-          );
-        }
+        if (!mounted) return;
+        navigateToReplace(context, HalamanUtamaAdmin());
       } else {
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const PilihHalamanPelanggan(),
-            ),
-          );
-        }
+        if (!mounted) return;
+        navigateToReplace(context, PilihHalamanPelanggan());
       }
     } else {
-      // berpindah ke halaman login
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MainApp()),
-        );
-      }
+      if (!mounted) return;
+      navigateToReplace(context, const MainApp());
     }
   }
 

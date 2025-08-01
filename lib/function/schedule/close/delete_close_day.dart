@@ -1,0 +1,44 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class DeleteCloseDay {
+  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+  Future<void> deleteCloseDay(String selectedDate) async {
+    try {
+      await firestore
+          .collection('jadwal_khusus')
+          .where('date', isEqualTo: selectedDate)
+          .limit(1)
+          .get()
+          .then((snapshot) {
+            for (var doc in snapshot.docs) {
+              doc.reference.delete();
+            }
+          });
+
+      final docId = await firestore
+          .collection('time_slots')
+          .where('date', isEqualTo: selectedDate)
+          .get();
+
+      List<Map<String, dynamic>> updatedSlots = [];
+      
+      if (docId.docs.isEmpty) {
+        throw Exception('No time slots found for the selected date.');
+      } else {
+        for (var doc in docId.docs) {
+          final slots = doc.data()['slots'] as List<dynamic>;
+          for (var slot in slots) {
+            var updatedSlot = Map<String, dynamic>.from(slot);
+            updatedSlot['isClosed'] = false;
+            updatedSlot['isAvailable'] = true;
+            updatedSlots.add(updatedSlot);
+          }
+          doc.reference.set({'slots': updatedSlots}, SetOptions(merge: true));
+        }
+      }
+    } catch (e) {
+      throw Exception('Failed to delete closed day: $e');
+    }
+  }
+}

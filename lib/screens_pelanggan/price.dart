@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_1/constants_file.dart';
+import 'package:flutter_application_1/services/price/firebase_get_price.dart';
+
 
 class HalamanPriceList extends StatefulWidget {
   const HalamanPriceList({super.key});
@@ -61,34 +62,29 @@ class _HalamanPriceListState extends State<HalamanPriceList> {
     setState(() => _isLoading = true);
 
     try {
-      // Get prices from Firestore
-      final QuerySnapshot querySnapshot =
-          await FirebaseFirestore.instance.collection('harga').get();
+      final price = await FirebaseGetPrice().getHarga();
 
       // Process and organize by membership type
       final List<Map<String, dynamic>> memberPrices = [];
       final List<Map<String, dynamic>> nonMemberPrices = [];
 
-      for (var doc in querySnapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-
-        // Create a display-friendly map with all the needed info
+      for (var pricelist in price) {
         final Map<String, dynamic> priceInfo = {
-          'type': data['type'],
-          'jam_mulai': data['jam_mulai'],
-          'jam_selesai': data['jam_selesai'],
-          'hari_mulai': data['hari_mulai'],
-          'hari_selesai': data['hari_selesai'],
-          'harga': data['harga'],
-          'display_time': '${data['jam_mulai']}.00 - ${data['jam_selesai']}.00',
-          'display_day': '${data['hari_mulai']} - ${data['hari_selesai']}',
+          'type': pricelist.type,
+          'jam_mulai': pricelist.jamMulai,
+          'jam_selesai': pricelist.jamSelesai,
+          'hari_mulai': pricelist.hariMulai,
+          'hari_selesai': pricelist.hariSelesai,
+          'harga': pricelist.harga,
+          'display_time': '${formatJam(pricelist.jamMulai)} - ${formatJam(pricelist.jamSelesai)}',
+          'display_day': '${pricelist.hariMulai} - ${pricelist.hariSelesai}',
         };
 
         // Sort by membership type
-        if (data['type'] == 'Member') {
+        if (pricelist.type == 'member') {
           memberPrices.add(priceInfo);
         }
-        if (data['type'] == 'Non Member') {
+        if (pricelist.type == 'nonMember') {
           nonMemberPrices.add(priceInfo);
         }
 
@@ -128,19 +124,6 @@ class _HalamanPriceListState extends State<HalamanPriceList> {
         ).showSnackBar(SnackBar(content: Text('Failed to load prices: $e')));
       }
     }
-  }
-
-  int getDayIndex(String day) {
-    const days = [
-      'Senin',
-      'Selasa',
-      'Rabu',
-      'Kamis',
-      'Jumat',
-      'Sabtu',
-      'Minggu',
-    ];
-    return days.indexOf(day);
   }
 
   Widget _buildPricingTable({
@@ -188,13 +171,22 @@ class _HalamanPriceListState extends State<HalamanPriceList> {
     final Map<String, List<Map<String, dynamic>>> groupedPrices = {};
 
     for (var price in prices) {
-      final String dayKey = '${price['hari_mulai']} - ${price['hari_selesai']}';
+      if (price['hari_mulai'] == 'Libur' && price['hari_selesai'] == 'Libur') {
+        String dayKey = 'Hari Libur';
 
-      if (!groupedPrices.containsKey(dayKey)) {
-        groupedPrices[dayKey] = [];
+        if (!groupedPrices.containsKey(dayKey)) {
+          groupedPrices[dayKey] = [];
+        }
+        groupedPrices[dayKey]!.add(price);
+      } else {
+        String dayKey = '${price['hari_mulai']} - ${price['hari_selesai']}';
+
+        if (!groupedPrices.containsKey(dayKey)) {
+          groupedPrices[dayKey] = [];
+        }
+
+        groupedPrices[dayKey]!.add(price);
       }
-
-      groupedPrices[dayKey]!.add(price);
     }
 
     // Build widgets for each day group
@@ -221,15 +213,13 @@ class _HalamanPriceListState extends State<HalamanPriceList> {
             const SizedBox(height: 12),
 
             // Build each time slot row
-            ...dayPrices
-                .map(
-                  (price) => _buildPriceRow(
-                    timeRange: price['display_time'],
-                    price: price['harga'],
-                    color: color.withValues(alpha: 0.1),
-                  ),
-                )
-                ,
+            ...dayPrices.map(
+              (price) => _buildPriceRow(
+                timeRange: price['display_time'],
+                price: price['harga'],
+                color: color.withValues(alpha: 0.1),
+              ),
+            ),
 
             const SizedBox(height: 20),
           ],
@@ -245,13 +235,6 @@ class _HalamanPriceListState extends State<HalamanPriceList> {
     required int price,
     required Color color,
   }) {
-    // Format price with IDR currency
-    final String formattedPrice = NumberFormat.currency(
-      locale: 'id',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    ).format(price);
-
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -268,7 +251,7 @@ class _HalamanPriceListState extends State<HalamanPriceList> {
             ),
           ),
           Text(
-            formattedPrice,
+            formatPrice(price),
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ],

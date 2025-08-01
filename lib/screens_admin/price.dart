@@ -1,8 +1,12 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_application_1/constants_file.dart';
-import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_1/constants_file.dart';
+import 'package:flutter_application_1/function/snackbar/snackbar.dart';
+import 'package:flutter_application_1/services/price/firebase_add_price.dart';
+import 'package:flutter_application_1/services/price/firebase_check_price.dart';
+import 'package:flutter_application_1/services/price/firebase_update_price.dart';
+
 
 class HalamanPrice extends StatefulWidget {
   const HalamanPrice({super.key});
@@ -29,10 +33,12 @@ class _HalamanPriceState extends State<HalamanPrice> {
       TextEditingController();
   final TextEditingController _nonMemberWeekendController =
       TextEditingController();
+  final TextEditingController _nonMemberHolidayController =
+      TextEditingController();
 
   final List<Map<String, dynamic>> _priceEntries = [
     {
-      'type': 'Member',
+      'type': 'member',
       'jam_mulai': 7,
       'jam_selesai': 14,
       'hari_mulai': 'Senin',
@@ -43,7 +49,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
       'display_day': 'Senin - Jumat',
     },
     {
-      'type': 'Member',
+      'type': 'member',
       'jam_mulai': 14,
       'jam_selesai': 23,
       'hari_mulai': 'Senin',
@@ -54,7 +60,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
       'display_day': 'Senin - Jumat',
     },
     {
-      'type': 'Member',
+      'type': 'member',
       'jam_mulai': 7,
       'jam_selesai': 23,
       'hari_mulai': 'Sabtu',
@@ -65,7 +71,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
       'display_day': 'Sabtu - Minggu',
     },
     {
-      'type': 'Non Member',
+      'type': 'nonMember',
       'jam_mulai': 7,
       'jam_selesai': 14,
       'hari_mulai': 'Senin',
@@ -76,7 +82,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
       'display_day': 'Senin - Jumat',
     },
     {
-      'type': 'Non Member',
+      'type': 'nonMember',
       'jam_mulai': 14,
       'jam_selesai': 23,
       'hari_mulai': 'Senin',
@@ -87,7 +93,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
       'display_day': 'Senin - Jumat',
     },
     {
-      'type': 'Non Member',
+      'type': 'nonMember',
       'jam_mulai': 7,
       'jam_selesai': 23,
       'hari_mulai': 'Sabtu',
@@ -96,6 +102,17 @@ class _HalamanPriceState extends State<HalamanPrice> {
       'id': null,
       'display_time': '07.00 - 23.00',
       'display_day': 'Sabtu - Minggu',
+    },
+    {
+      'type': 'nonMember',
+      'jam_mulai': 7,
+      'jam_selesai': 23,
+      'hari_mulai': 'Libur',
+      'hari_selesai': 'Libur',
+      'controller': null,
+      'id': null,
+      'display_time': '07.00 - 23.00',
+      'display_day': 'Hari Libur',
     },
   ];
 
@@ -110,6 +127,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
     _priceEntries[3]['controller'] = _nonMemberWeekdayMorningController;
     _priceEntries[4]['controller'] = _nonMemberWeekdayEveningController;
     _priceEntries[5]['controller'] = _nonMemberWeekendController;
+    _priceEntries[6]['controller'] = _nonMemberHolidayController;
 
     _loadPrices();
   }
@@ -123,6 +141,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
     _nonMemberWeekdayMorningController.dispose();
     _nonMemberWeekdayEveningController.dispose();
     _nonMemberWeekendController.dispose();
+    _nonMemberHolidayController.dispose();
     super.dispose();
   }
 
@@ -168,9 +187,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
       setState(() => _isLoading = false);
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal memuat harga: $e')));
+        showErrorSnackBar(context, 'Gagal memuat harga: $e');
       }
     }
   }
@@ -194,6 +211,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
     _nonMemberWeekdayMorningController.text = _formatPrice('50000');
     _nonMemberWeekdayEveningController.text = _formatPrice('50000');
     _nonMemberWeekendController.text = _formatPrice('50000');
+    _nonMemberHolidayController.text = _formatPrice('50000');
   }
 
   String _formatPrice(String price) {
@@ -218,9 +236,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
 
         if (priceStr.isEmpty) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Semua kolom harga harus diisi')),
-            );
+            showErrorSnackBar(context, 'Semua kolom harga harus diisi');
           }
           setState(() => _isLoading = false);
           return;
@@ -237,7 +253,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
         final hariMulai = entry['hari_mulai'] as String;
         final hariSelesai = entry['hari_selesai'] as String;
 
-        final exists = await FirebaseService().checkHarga(
+        final exists = await FirebaseCheckPrice().checkPrice(
           type,
           jamMulai,
           jamSelesai,
@@ -245,13 +261,10 @@ class _HalamanPriceState extends State<HalamanPrice> {
           hariSelesai,
         );
 
-        if (exists && entry['id'] != null) {
-          await FirebaseFirestore.instance
-              .collection('harga')
-              .doc(entry['id'] as String)
-              .update({'harga': price});
-        } else {
-          await FirebaseService().saveHarga(
+        debugPrint(exists.toString());
+
+        if (exists) {
+          await FirebaseUpdatePrice().updatePrice(
             type,
             jamMulai,
             jamSelesai,
@@ -259,19 +272,15 @@ class _HalamanPriceState extends State<HalamanPrice> {
             hariSelesai,
             price,
           );
-
-          if (entry['id'] == null) {
-            final docId = await FirebaseService().getHargaDocumentId(
-              type,
-              jamMulai,
-              jamSelesai,
-              hariMulai,
-              hariSelesai,
-            );
-            if (docId != null) {
-              entry['id'] = docId;
-            }
-          }
+        } else {
+          await FirebaseAddPrice().addPrice(
+            type,
+            jamMulai,
+            jamSelesai,
+            hariMulai,
+            hariSelesai,
+            price,
+          );
         }
       }
 
@@ -281,16 +290,12 @@ class _HalamanPriceState extends State<HalamanPrice> {
       });
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Harga telah diperbarui'), backgroundColor: Colors.green));
+        showSuccessSnackBar(context, 'Harga telah diperbarui');
       }
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Gagal perbarui harga: $e')));
+        showErrorSnackBar(context, 'Gagal perbarui harga: $e');
       }
     }
   }
@@ -300,6 +305,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
     required TextEditingController morningController,
     required TextEditingController eveningController,
     required TextEditingController weekendController,
+    TextEditingController? holidayController,
     required Color color,
   }) {
     return Card(
@@ -333,6 +339,13 @@ class _HalamanPriceState extends State<HalamanPrice> {
               icon: Icons.radio_button_checked_outlined,
               weekendController: weekendController,
             ),
+            const SizedBox(height: 16,),
+            if (holidayController != null)
+              _buildDaySection(
+                title: "Hari Libur",
+                icon: Icons.radio_button_checked_outlined,
+                holidayController: holidayController,
+              ),
           ],
         ),
       ),
@@ -345,6 +358,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
     TextEditingController? morningController,
     TextEditingController? eveningController,
     TextEditingController? weekendController,
+    TextEditingController? holidayController,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,6 +392,11 @@ class _HalamanPriceState extends State<HalamanPrice> {
           _buildTimeRow(
             label: "07.00 - 23.00 :",
             controller: weekendController,
+          ),
+        if (holidayController != null)
+          _buildTimeRow(
+            label: "07.00 - 23.00 :",
+            controller: holidayController,
           ),
       ],
     );
@@ -464,6 +483,7 @@ class _HalamanPriceState extends State<HalamanPrice> {
                         morningController: _nonMemberWeekdayMorningController,
                         eveningController: _nonMemberWeekdayEveningController,
                         weekendController: _nonMemberWeekendController,
+                        holidayController: _nonMemberHolidayController,
                         color: Colors.orange,
                       ),
                       const SizedBox(height: 20),

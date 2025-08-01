@@ -1,10 +1,12 @@
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screens_pelanggan/masuk.dart';
-import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
+import 'package:flutter_application_1/screens_pelanggan/masuk.dart';
+import 'package:flutter_application_1/function/snackbar/snackbar.dart';
+import 'package:flutter_application_1/services/user/firebase_add_user.dart';
+import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 
 class HalamanDaftar extends StatefulWidget {
   const HalamanDaftar({super.key});
@@ -76,7 +78,7 @@ class _HalamanDaftarState extends State<HalamanDaftar>
   String hashPassword(String password) {
     final bytes = utf8.encode(password);
     final digest = sha256.convert(bytes);
-    return digest.toString(); 
+    return digest.toString();
   }
 
   void _daftar() async {
@@ -158,66 +160,58 @@ class _HalamanDaftarState extends State<HalamanDaftar>
       final club = clubController.text;
       final noTelp = noTelpController.text;
 
-      // === PERBAIKAN: Cek dengan data real-time tanpa cache ===
-      print("Checking username: $username"); // Debug log
-      
       // Tambahkan delay kecil untuk memastikan database sudah sinkron
       await Future.delayed(const Duration(milliseconds: 500));
-      
-      final registed = await FirebaseService().checkUser(username);
-      print("Username check: $username"); // Debug log
-      print("Username check result: $registed"); // Debug log
-      
+
+      final registed = await FirebaseCheckUser().checkExistence(
+        'username',
+        username,
+      );
+
       if (registed) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Username sudah terdaftar, silahkan gunakan username lain',
-            ),
-            backgroundColor: Colors.red,
-          ),
+        showErrorSnackBar(
+          context,
+          'Username sudah terdaftar, silahkan gunakan username lain',
         );
         return;
       }
 
-      // === Cek club tanpa cache (jika diisi) ===
       if (clubController.text.isNotEmpty) {
-        final clubUsed = await FirebaseService().checkclub(club);
-        
+        final clubUsed = await FirebaseCheckUser().checkExistence('club', club);
+
         if (clubUsed) {
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Club sudah digunakan'),
-              backgroundColor: Colors.red,
-            ),
+          showErrorSnackBar(
+            context,
+            'Club sudah terdaftar, silahkan gunakan club lain',
           );
           return;
         }
       }
-      
-      // === Cek nomor telepon tanpa cache ===
-      print("Checking phone: $noTelp"); // Debug log
-      final telpUsed = await FirebaseService().checkphoneNumber(noTelp);
-      print("Phone check result: $telpUsed"); // Debug log
-      
+
+      final telpUsed = await FirebaseCheckUser().checkExistence(
+        'phoneNumber',
+        noTelp,
+      );
       if (telpUsed) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Nomor telepon sudah digunakan'),
-            backgroundColor: Colors.red,
-          ),
+        showErrorSnackBar(
+          context,
+          'Nomor telepon sudah terdaftar, silahkan gunakan nomor lain',
         );
         return;
       }
 
-      // === Tambah user ke database ===
-      print("Adding user to database: $username"); // Debug log
-      await FirebaseService().addUser(username, hashPassword(password), nama, club, noTelp);
-      print("User added successfully"); // Debug log
-      
+      await FirebaseAddUser().addUser(
+        userName: username,
+        password: hashPassword(password),
+        role: 'nonMember',
+        name: nama,
+        club: club,
+        phoneNumber: noTelp,
+      );
+
       if (!mounted) return;
 
       Navigator.pop(context);
@@ -228,16 +222,9 @@ class _HalamanDaftarState extends State<HalamanDaftar>
 
       final prefs = await SharedPreferences.getInstance();
       prefs.setString('username', username);
-      
     } catch (e) {
-      print("Error during registration: $e"); // Debug log
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Terjadi kesalahan: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showErrorSnackBar(context, 'Terjadi kesalahan: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -609,8 +596,8 @@ class _HalamanDaftarState extends State<HalamanDaftar>
                           onPressed: _isLoading ? null : _daftar,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryColor,
-                            disabledBackgroundColor: primaryColor.withOpacity(
-                              0.6,
+                            disabledBackgroundColor: primaryColor.withValues(
+                              alpha: 0.6,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(borderRadius),

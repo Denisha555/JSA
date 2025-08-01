@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:geolocator/geolocator.dart';
 import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 
 class HalamanTentangKami extends StatefulWidget {
   const HalamanTentangKami({super.key});
@@ -208,7 +209,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                   ),
                   if (_isLoading)
                     Container(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       child: const Center(
                         child: CircularProgressIndicator(),
                       ),
@@ -226,7 +227,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Jln. Parit Haji Husein 1, Gg. Sawit No.10, Bangka Belitung Laut, Kec. Pontianak Tenggara, Kota Pontianak, Kalimantan Barat 78124\n\n(Tap untuk petunjuk arah)',
+                    'Jln. Parit Haji Husein 1, Gg. Sawit No.10, Bangka Belitung Laut, Kec. Pontianak Tenggara, Kota Pontianak, Kalimantan Barat 78124',
                     style: TextStyle(
                       color: Colors.blue,
                       decoration: TextDecoration.underline,

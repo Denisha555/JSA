@@ -1,7 +1,16 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_application_1/services/firestore_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_application_1/constants_file.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_1/model/court_model.dart';
+import 'package:flutter_application_1/function/price/price.dart';
+import 'package:flutter_application_1/model/time_slot_model.dart';
+import 'package:flutter_application_1/function/snackbar/snackbar.dart';
+import 'package:flutter_application_1/services/court/firebase_get_court.dart';
+import 'package:flutter_application_1/services/user/firebase_check_user.dart';
+import 'package:flutter_application_1/services/user/firebase_update_user.dart';
+import 'package:flutter_application_1/services/booking/member/booking_member.dart';
+import 'package:flutter_application_1/services/time_slot/firebase_check_time_slot.dart';
 
 class HalamanMember extends StatefulWidget {
   const HalamanMember({super.key});
@@ -11,25 +20,27 @@ class HalamanMember extends StatefulWidget {
 }
 
 class _HalamanMemberState extends State<HalamanMember> {
+  TimeOfDay jamMulai = const TimeOfDay(hour: 7, minute: 0);
+  TimeOfDay jamSelesai = const TimeOfDay(hour: 8, minute: 0);
+
+  List<CourtModel> courts = [];
+  List<CourtModel> availableCourts = [];
+  List<TimeSlotModel> availableSlots = [];
+  List<String> selectedCourts = [];
+
   // State variables
-  String? selectedStartTime;
-  String? selectedEndTime;
+  String selectedStartTime = '07:00';
+  String selectedEndTime = '08:00';
   int? selectedWeekday;
   List<DateTime> selectedDates = [];
-  List<AllCourts> courts = [];
   bool isLoading = false;
 
   // Controllers
   late final TextEditingController startTimeController;
   late final TextEditingController endTimeController;
 
-  // Constants
-  static const Duration _slotDuration = Duration(minutes: 30);
-  static const int _startHour = 7;
-  static const int _endHour = 23;
+  static const int _slotDurationMinutes = 30;
 
-  // Static data - no need to recreate every time
-  static final List<String> _timeOptions = _generateTimeOptions();
   static const Map<String, int> _weekdayMap = {
     'Senin': 1,
     'Selasa': 2,
@@ -64,41 +75,16 @@ class _HalamanMemberState extends State<HalamanMember> {
     if (courts.isNotEmpty) return; // Avoid unnecessary API calls
 
     try {
-      final loadedCourts = await FirebaseService().getAllLapangan();
+      final loadedCourts = await FirebaseGetCourt().getCourts();
       if (mounted) {
         setState(() {
           courts = loadedCourts;
         });
       }
     } catch (e) {
-      if (mounted) {
-        _showErrorSnackBar('Gagal memuat data lapangan: $e');
-      }
+      if (!mounted) return;
+      showErrorSnackBar(context, 'Gagal memuat data lapangan: $e');
     }
-  }
-
-  // Static methods for better performance
-  static List<String> _generateTimeOptions() {
-    final List<String> timeOptions = [];
-    DateTime currentTime = DateTime(0, 1, 1, _startHour, 0);
-    final DateTime endTime = DateTime(0, 1, 1, _endHour, 0);
-
-    while (currentTime.isBefore(endTime)) {
-      timeOptions.add(DateFormat.Hm().format(currentTime));
-      currentTime = currentTime.add(_slotDuration);
-    }
-    return timeOptions;
-  }
-
-  static int _timeToMinutes(String time) {
-    final parts = time.split(':');
-    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
-  }
-
-  static String _minutesToTime(int minutes) {
-    final hours = (minutes ~/ 60).toString().padLeft(2, '0');
-    final mins = (minutes % 60).toString().padLeft(2, '0');
-    return '$hours:$mins';
   }
 
   // Business logic methods
@@ -123,82 +109,70 @@ class _HalamanMemberState extends State<HalamanMember> {
 
   // Validation methods
   bool _validateInputs() {
-    if (selectedStartTime == null ||
-        selectedEndTime == null ||
-        selectedDates.isEmpty) {
-      _showErrorSnackBar('Lengkapi semua pilihan terlebih dahulu.');
-      return false;
-    }
-
-    final start = DateFormat.Hm().parse(selectedStartTime!);
-    final end = DateFormat.Hm().parse(selectedEndTime!);
+    final start = DateFormat.Hm().parse(selectedStartTime);
+    final end = DateFormat.Hm().parse(selectedEndTime);
 
     if (!end.isAfter(start)) {
-      _showErrorSnackBar('Jam selesai harus setelah jam mulai.');
+      showErrorSnackBar(context, 'Jam selesai harus setelah jam mulai.');
       return false;
     }
 
     return true;
   }
 
-  // API interaction methods
-  Future<bool> _checkSlotAvailability() async {
+  Future<void> _findAvailableCourt() async {
     if (courts.isEmpty) {
-      await _loadCourts();
-      debugPrint('Lapangan masih kosong, memuat ulang...');
+      showErrorSnackBar(context, 'Data lapangan belum dimuat');
+      return;
     }
 
-    if (courts.isEmpty) {
-      _showErrorSnackBar('Tidak ada lapangan yang tersedia');
-      return false;
-    }
+    final startMinutes = timeToMinutes(selectedStartTime);
+    final endMinutes = timeToMinutes(selectedEndTime);
 
-    final startMinutes = _timeToMinutes(selectedStartTime!);
-    final endMinutes = _timeToMinutes(selectedEndTime!);
+    availableCourts.clear();
 
     for (final court in courts) {
       if (await _isCourtAvailableForAllDates(court, startMinutes, endMinutes)) {
-        _showConfirmationDialog(court.courtId);
-        return true;
+        availableCourts.add(court);
       }
-      debugPrint(
-        'Lapangan ${court.courtId} tidak tersedia pada waktu yang dipilih.',
-      );
     }
 
-    _showErrorSnackBar('Jadwal yang dipilih tidak tersedia');
-    return false;
+    availableCourts.sort((a, b) => a.courtId.compareTo(b.courtId));
+
+    setState(() {
+      availableCourts = availableCourts;
+    });
   }
 
   Future<bool> _isCourtAvailableForAllDates(
-    AllCourts court,
+    CourtModel court,
     int startMinutes,
     int endMinutes,
   ) async {
+    // final List<Future<bool>> tasks = [];
+
     for (final date in selectedDates) {
+      final dateStr = DateFormat('yyyy-MM-dd').format(date);
       for (
         int slotStart = startMinutes;
         slotStart < endMinutes;
         slotStart += 30
       ) {
-        final slotTime = _minutesToTime(slotStart);
-        final isAvailable = await FirebaseService().isSlotAvailable(
-          slotTime,
+        final slotTime = minutesToFormattedTime(slotStart);
+        final isAvailable = await FirebaseCheckTimeSlot().isSlotAvailable(
           court.courtId,
-          date,
+          dateStr,
+          slotTime,
         );
-
-        debugPrint(
-          'Cek ketersediaan: ${court.courtId} pada ${date.toIso8601String()} jam $slotTime: $isAvailable',
-        );
-
-        if (!isAvailable) return false;
+        if (!isAvailable) {
+          return false; // Jika ada slot yang tidak tersedia, langsung return false
+        }
       }
     }
-    return true;
+    return true; // Jika semua slot tersedia, return true
   }
 
-  Future<void> _becomeMember(String courtId, List<DateTime> dates) async {
+  Future<void> _becomeMember(List<String> courts, List<DateTime> dates) async {
     if (!mounted) return;
 
     setState(() => isLoading = true);
@@ -215,22 +189,29 @@ class _HalamanMemberState extends State<HalamanMember> {
         final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
         debugPrint('Selected date: $formattedDate');
 
-        await _bookAllSlots(courtId, username);
+        // await _bookAllSlots(courtId, username);
+        await _registerMemberMultipleCourts(courts);
 
         if (selectedDate == dates.first) {
-          await FirebaseService().nonMemberToMember(username, formattedDate);
+          await FirebaseUpdateUser().updateUser('role', username, 'member');
+          await FirebaseUpdateUser().updateUser(
+            'startTimeMember',
+            username,
+            formattedDate,
+          );
         }
       }
 
-      
-      
       if (mounted) {
-        _showSuccessSnackBar('Selamat! Anda berhasil menjadi member');
+        showSuccessSnackBar(context, 'Selamat! Anda berhasil menjadi member');
         Navigator.of(context).pop();
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        prefs.setBool('isMember', true);
+        prefs.setBool('isMemberUI', true);
       }
     } catch (e) {
       if (mounted) {
-        _showErrorSnackBar('Gagal menjadi member: $e');
+        showErrorSnackBar(context, 'Gagal menjadi member: $e');
       }
     } finally {
       if (mounted) {
@@ -239,50 +220,332 @@ class _HalamanMemberState extends State<HalamanMember> {
     }
   }
 
-  Future<void> _bookAllSlots(String courtId, String username) async {
-    final startMinutes = _timeToMinutes(selectedStartTime!);
-    final endMinutes = _timeToMinutes(selectedEndTime!);
-    final dateFormatter = DateFormat('yyyy-MM-dd');
+  Future<void> _registerMemberMultipleCourts(List<String> courtIds) async {
+    final prefs = await SharedPreferences.getInstance();
+    final username = prefs.getString('username') ?? '';
 
-    for (final date in selectedDates) {
-      final dateStr = dateFormatter.format(date);
+    // final username = usernameController.text.trim();
 
-      for (int minute = startMinutes; minute < endMinutes; minute += 30) {
-        final slotTime = _minutesToTime(minute).replaceAll(':', '');
-        final slotId = '${courtId}_${dateStr}_$slotTime';
+    setState(() => isLoading = true);
 
-        debugPrint('Booking slot: $slotId');
-        await FirebaseService().bookSlotForMember(slotId, username);
+    try {
+      // Check if user exists
+      final userExists = await FirebaseCheckUser().checkExistence(
+        'username',
+        username,
+      );
+      if (!userExists) {
+        if (!mounted) return;
+        showErrorSnackBar(context, 'Username tidak ditemukan');
+        return;
+      }
+
+      // Book all slots for all selected courts
+      await _bookAllSlotsMultipleCourts(courtIds, username);
+    } catch (e) {
+      if (mounted) {
+        showErrorSnackBar(context, 'Gagal mendaftarkan member: $e');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
       }
     }
   }
 
-  // UI helper methods
-  void _showErrorSnackBar(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
+  Future<void> _bookAllSlotsMultipleCourts(
+    List<String> courtIds,
+    String username,
+  ) async {
+    final startMinutes = timeToMinutes(selectedStartTime);
+    final endMinutes = timeToMinutes(selectedEndTime);
+    int length = 0;
 
-  void _showSuccessSnackBar(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.green),
+    final selectedDatesStr =
+        selectedDates
+            .map((date) => DateFormat('yyyy-MM-dd').format(date))
+            .toList();
+
+    // Loop through each selected court
+    for (final courtId in courtIds) {
+      for (final date in selectedDates) {
+        final dateStr = DateFormat('yyyy-MM-dd').format(date);
+        try {
+          for (
+            int minute = startMinutes;
+            minute < endMinutes;
+            minute += _slotDurationMinutes
+          ) {
+            final slotTime = minutesToFormattedTime(minute);
+
+            await BookingMember().bookSlotForMember(
+              courtId,
+              dateStr,
+              slotTime,
+              username,
+            );
+
+            if (selectedDates.first == date && courtIds.first == courtId) {
+              length++;
+            }
+          }
+        } catch (e) {
+          if (!mounted) return;
+          showErrorSnackBar(context, 'Gagal memesan slot: $e');
+        }
+      }
+    }
+    
+    await BookingMember().addTotalBookingDays(
+      username,
+      selectedDates.length,
+      length,
     );
+
+    await BookingMember().addBookingDates(username, selectedDatesStr);
+
+    // Update user role hanya sekali setelah semua booking selesai
+    if (selectedDates.isNotEmpty) {
+      try {
+        final firstDateStr = DateFormat(
+          'yyyy-MM-dd',
+        ).format(selectedDates.first);
+        await FirebaseUpdateUser().updateUser('role', username, 'member');
+        await FirebaseUpdateUser().updateUser(
+          'startTimeMember',
+          username,
+          firstDateStr,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        showErrorSnackBar(context, 'Gagal memperbarui role user: $e');
+      }
+    }
   }
 
-  void _showConfirmationDialog(String courtId) {
+  void _showBookingConfirmationDialog() {
+    if (availableCourts.isEmpty) {
+      showErrorSnackBar(context, 'Tidak ada lapangan yang tersedia');
+      return;
+    }
+
+    // Reset selected courts saat dialog dibuka
+    selectedCourts.clear();
+
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder:
-          (context) => _ConfirmationDialog(
-            courtId: courtId,
-            startTime: selectedStartTime!,
-            endTime: selectedEndTime!,
-            selectedDates: selectedDates,
-            onConfirm: () => _becomeMember(courtId, selectedDates),
-            getWeekdayName: _getWeekdayName,
+          (context) => StatefulBuilder(
+            // Gunakan StatefulBuilder
+            builder:
+                (context, setDialogState) => AlertDialog(
+                  title: const Text('Konfirmasi Booking'),
+                  content: SizedBox(
+                    width: double.maxFinite,
+                    child: SingleChildScrollView(
+                      // Tambahkan scroll untuk content yang panjang
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInfoRow('Jam Mulai', selectedStartTime),
+                          _buildInfoRow('Jam Selesai', selectedEndTime),
+
+                          FutureBuilder<double>(
+                            future: totalPrice(
+                              startTime: selectedStartTime,
+                              endTime: selectedEndTime,
+                              selectedDate: selectedDates[0],
+                              type: 'member',
+                            ),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return Text('Menghitung harga...');
+                              } else if (snapshot.hasError) {
+                                return Text('Gagal menghitung harga');
+                              } else {
+                                double price = snapshot.data ?? 0;
+                                price =
+                                    price *
+                                    selectedDates.length *
+                                    selectedCourts.length;
+                                return Text(
+                                  'Total Harga: Rp ${price.toStringAsFixed(0)}',
+                                );
+                              }
+                            },
+                          ),
+                          const SizedBox(height: 16),
+
+                          const Text(
+                            'Pilih Lapangan:',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                          const SizedBox(height: 5),
+
+                          // Grid layout untuk lapangan (lebih rapi untuk banyak lapangan)
+                          availableCourts.isEmpty
+                              ? const Center(
+                                child: Text(
+                                  'Tidak ada lapangan tersedia',
+                                  style: TextStyle(
+                                    color: Colors.red,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              )
+                              : Column(
+                                children: [
+                                  SingleChildScrollView(
+                                    scrollDirection: Axis.horizontal,
+                                    child: Wrap(
+                                      // Gunakan Wrap untuk layout yang lebih fleksibel
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children:
+                                          availableCourts.map((court) {
+                                            final isSelected = selectedCourts
+                                                .contains(court.courtId);
+
+                                            return FilterChip(
+                                              label: Text(
+                                                court.courtId,
+                                                style: TextStyle(
+                                                  color:
+                                                      isSelected
+                                                          ? Colors.white
+                                                          : Colors.black,
+                                                  fontWeight:
+                                                      isSelected
+                                                          ? FontWeight.bold
+                                                          : FontWeight.normal,
+                                                ),
+                                              ),
+                                              selected: isSelected,
+                                              selectedColor: primaryColor,
+                                              backgroundColor: Colors.grey[200],
+                                              checkmarkColor: Colors.white,
+                                              onSelected: (selected) {
+                                                setDialogState(() {
+                                                  if (selected) {
+                                                    selectedCourts.add(
+                                                      court.courtId,
+                                                    ); // MULTI-SELECT: Tidak clear yang lain
+                                                  } else {
+                                                    selectedCourts.remove(
+                                                      court.courtId,
+                                                    );
+                                                  }
+                                                });
+                                              },
+                                            );
+                                          }).toList(),
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      TextButton(
+                                        onPressed: () {
+                                          setDialogState(() {
+                                            // Select all available courts
+                                            selectedCourts.addAll(
+                                              availableCourts.map(
+                                                (court) => court.courtId,
+                                              ),
+                                            );
+                                          });
+                                        },
+                                        child: const Text(
+                                          'Pilih Semua',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          setDialogState(() {
+                                            selectedCourts.clear();
+                                          });
+                                        },
+                                        child: const Text(
+                                          'Batal Semua',
+                                          style: TextStyle(fontSize: 12),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+
+                          const SizedBox(height: 10),
+
+                          const Text(
+                            'Tanggal yang dipilih:',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+
+                          SizedBox(
+                            height: 120,
+                            child: ListView.builder(
+                              itemCount: selectedDates.length,
+                              itemBuilder: (context, index) {
+                                final date = selectedDates[index];
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 2,
+                                  ),
+                                  child: Text(
+                                    '${_getWeekdayName(date.weekday)}, ${DateFormat('dd MMM yyyy').format(date)}',
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        selectedCourts.clear(); // Clear selection saat cancel
+                        Navigator.of(context).pop();
+                      },
+                      child: const Text('Batal'),
+                    ),
+                    ElevatedButton(
+                      onPressed:
+                          selectedCourts.isNotEmpty
+                              ? () {
+                                Navigator.of(context).pop();
+                                _becomeMember(selectedCourts, selectedDates);
+                              }
+                              : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor:
+                            selectedCourts.isNotEmpty
+                                ? primaryColor
+                                : Colors.grey,
+                      ),
+                      child: Text(
+                        'Jadi member',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
           ),
     );
   }
@@ -293,7 +556,15 @@ class _HalamanMemberState extends State<HalamanMember> {
     setState(() => isLoading = true);
 
     try {
-      await _checkSlotAvailability();
+      // await _checkSlotAvailability();
+      await _findAvailableCourt();
+
+      if (!mounted) return;
+      if (availableCourts.isEmpty) {
+        showErrorSnackBar(context, 'Tidak ada lapangan yang tersedia');
+      } else {
+        _showBookingConfirmationDialog();
+      }
     } finally {
       if (mounted) {
         setState(() => isLoading = false);
@@ -301,28 +572,10 @@ class _HalamanMemberState extends State<HalamanMember> {
     }
   }
 
-  void _onWeekdaySelected(String day) {
-    final weekday = _weekdayMap[day];
-    if (weekday == null) return;
-
-    setState(() {
-      selectedWeekday = weekday;
-      selectedDates = _getWeekdaysInRange(weekday, DateTime.now());
-    });
-  }
-
-  void _onStartTimeSelected(String time) {
-    setState(() {
-      selectedStartTime = time;
-      startTimeController.text = time;
-    });
-  }
-
-  void _onEndTimeSelected(String time) {
-    setState(() {
-      selectedEndTime = time;
-      endTimeController.text = time;
-    });
+  bool isTimeValid() {
+    int startMinutes = jamMulai.hour * 60 + jamMulai.minute;
+    int endMinutes = jamSelesai.hour * 60 + jamSelesai.minute;
+    return startMinutes < endMinutes;
   }
 
   @override
@@ -335,102 +588,156 @@ class _HalamanMemberState extends State<HalamanMember> {
             padding: const EdgeInsets.all(16.0),
             child: ListView(
               children: [
-                _buildWeekdaySelector(),
-                const SizedBox(height: 20),
-                _buildTimeSelector(
-                  'Pilih Jam Mulai',
-                  'Pilih waktu mulai',
-                  _onStartTimeSelected,
+                // _buildWeekdaySelector(),
+                const Text(
+                  'Pilih Hari',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 40,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children:
+                        _weekdayMap.entries.map((entry) {
+                          final isSelected = entry.value == selectedWeekday;
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: ChoiceChip(
+                              label: Text(
+                                entry.key,
+                                style: TextStyle(
+                                  color:
+                                      isSelected ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              selected: isSelected,
+                              selectedColor: primaryColor,
+                              onSelected: (_) {
+                                setState(() {
+                                  selectedWeekday = entry.value;
+                                  selectedDates = _getWeekdaysInRange(
+                                    entry.value,
+                                    DateTime.now(),
+                                  );
+                                  // hasCheckedAvailability = false;
+                                });
+                              },
+                            ),
+                          );
+                        }).toList(),
+                  ),
+                ),
+
                 const SizedBox(height: 20),
-                _buildTimeSelector(
-                  'Pilih Jam Selesai',
-                  'Pilih waktu selesai',
-                  _onEndTimeSelected,
+
+                GestureDetector(
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: jamMulai,
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        jamMulai = picked;
+                        selectedStartTime = jamMulai.format(context);
+                      });
+                    }
+                  },
+                  child: AbsorbPointer(
+                    child: TextFormField(
+                      decoration: InputDecoration(
+                        labelText: "Jam Mulai",
+                        border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.access_time),
+                      ),
+                      controller: TextEditingController(
+                        text: jamMulai.format(context),
+                      ),
+                      validator: (value) {
+                        if (value!.isEmpty) {
+                          return 'Jam mulai harus diisi';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+
+                GestureDetector(
+                  onTap: () async {
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: jamSelesai,
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        jamSelesai = picked;
+                        selectedEndTime = jamSelesai.format(context);
+                      });
+                    }
+                  },
+                  child: AbsorbPointer(
+                    child: TextFormField(
+                      decoration: InputDecoration(
+                        labelText: "Jam Selesai",
+                        border: OutlineInputBorder(),
+                        suffixIcon: Icon(Icons.access_time),
+                      ),
+                      controller: TextEditingController(
+                        text: jamSelesai.format(context),
+                      ),
+                      validator: (value) {
+                        if (value!.isEmpty) {
+                          return 'Jam selesai harus diisi';
+                        }
+                        if (isTimeValid()) {
+                          return 'Jam selesai harus setelah jam mulai';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 30),
+
                 _buildCheckButton(),
+
+                const SizedBox(height: 20),
+                if (selectedDates.isNotEmpty) ...[
+                  const SizedBox(height: 20),
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Tanggal yang dipilih (${selectedDates.length} hari):',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ...selectedDates.map(
+                            (date) => Text(
+                              '${_getWeekdayName(date.weekday)}, ${DateFormat('dd MMM yyyy').format(date)}',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
           if (isLoading) _buildLoadingOverlay(),
         ],
       ),
-    );
-  }
-
-  Widget _buildWeekdaySelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Pilih Hari',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 40,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children:
-                _weekdayMap.keys.map((day) {
-                  final isSelected = _weekdayMap[day] == selectedWeekday;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: ChoiceChip(
-                      label: Text(
-                        day,
-                        style: TextStyle(
-                          color: isSelected ? Colors.white : Colors.black,
-                        ),
-                      ),
-                      selected: isSelected,
-                      selectedColor: Colors.blue,
-                      onSelected: (_) => _onWeekdaySelected(day),
-                    ),
-                  );
-                }).toList(),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTimeSelector(
-    String title,
-    String hint,
-    void Function(String) onSelected,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 10),
-        Autocomplete<String>(
-          optionsBuilder: (textEditingValue) {
-            if (textEditingValue.text.isEmpty) {
-              return const Iterable<String>.empty();
-            }
-            return _timeOptions.where(
-              (option) => option.contains(textEditingValue.text.toLowerCase()),
-            );
-          },
-          onSelected: onSelected,
-          fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
-            return TextField(
-              controller: controller,
-              focusNode: focusNode,
-              decoration: InputDecoration(
-                hintText: hint,
-                border: const OutlineInputBorder(),
-              ),
-            );
-          },
-        ),
-      ],
     );
   }
 
@@ -443,73 +750,8 @@ class _HalamanMemberState extends State<HalamanMember> {
 
   Widget _buildLoadingOverlay() {
     return Container(
-      color: Colors.black.withOpacity(0.3),
+      color: Colors.black.withValues(alpha: 0.3),
       child: const Center(child: CircularProgressIndicator()),
-    );
-  }
-}
-
-// Separate widget for better organization and performance
-class _ConfirmationDialog extends StatelessWidget {
-  final String courtId;
-  final String startTime;
-  final String endTime;
-  final List<DateTime> selectedDates;
-  final VoidCallback onConfirm;
-  final String Function(int) getWeekdayName;
-
-  const _ConfirmationDialog({
-    required this.courtId,
-    required this.startTime,
-    required this.endTime,
-    required this.selectedDates,
-    required this.onConfirm,
-    required this.getWeekdayName,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Detail Informasi'),
-      content: SizedBox(
-        width: double.maxFinite,
-        height: 300,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildInfoRow('Lapangan', courtId),
-            _buildInfoRow('Jam Mulai', startTime),
-            _buildInfoRow('Jam Selesai', endTime),
-            const SizedBox(height: 10),
-            const Text('Tanggal dipilih:', style: TextStyle(fontSize: 18)),
-            Expanded(
-              child: ListView.builder(
-                itemCount: selectedDates.length,
-                itemBuilder: (context, index) {
-                  final date = selectedDates[index];
-                  final weekdayName = getWeekdayName(date.weekday);
-                  final formattedDate = DateFormat('dd MMM yyyy').format(date);
-
-                  return ListTile(title: Text('$weekdayName, $formattedDate'));
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Batal'),
-        ),
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-            onConfirm();
-          },
-          child: const Text('Jadi Member'),
-        ),
-      ],
     );
   }
 

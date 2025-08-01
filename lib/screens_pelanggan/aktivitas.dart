@@ -1,64 +1,13 @@
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:intl/intl.dart';
-
-// Data Models
-class Riwayat {
-  final String tanggal;
-  final String keterangan;
-  final String waktu;
-  final String type;
-
-  Riwayat({
-    required this.tanggal,
-    required this.keterangan,
-    required this.waktu,
-    required this.type,
-  });
-}
-
-class Terjadwal {
-  final String tanggal;
-  final String jam;
-  final String lapangan;
-  final String type;
-
-  Terjadwal({
-    required this.tanggal,
-    required this.jam,
-    required this.lapangan,
-    required this.type,
-  });
-}
-
-class BookingGroup {
-  final String date;
-  final String courtId;
-  final List<String> timeSlots;
-
-  BookingGroup({
-    required this.date,
-    required this.courtId,
-    required this.timeSlots,
-  });
-
-  String get combinedTimeRange {
-    if (timeSlots.isEmpty) return '';
-
-    // Sort time slots untuk memastikan urutan yang benar
-    timeSlots.sort((a, b) {
-      final timeA = a.split(' - ')[0];
-      final timeB = b.split(' - ')[0];
-      return timeA.compareTo(timeB);
-    });
-
-    final startTime = timeSlots.first.split(' - ')[0];
-    final endTime = timeSlots.last.split(' - ')[1];
-
-    return '$startTime - $endTime';
-  }
-}
+import 'package:flutter/material.dart';
+import 'package:flutter_application_1/constants_file.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_1/function/price/price.dart';
+import 'package:flutter_application_1/model/time_slot_model.dart';
+import 'package:flutter_application_1/function/snackbar/snackbar.dart';
+import 'package:flutter_application_1/services/booking/firebase_get_booking.dart';
+import 'package:flutter_application_1/services/booking/member/cancel_member.dart';
+import 'package:flutter_application_1/services/booking/nonmember/cancel_nonmember.dart';
 
 class HalamanAktivitas extends StatefulWidget {
   const HalamanAktivitas({super.key});
@@ -69,25 +18,13 @@ class HalamanAktivitas extends StatefulWidget {
 
 class _HalamanAktivitasState extends State<HalamanAktivitas>
     with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
-  List<Riwayat> riwayats = [];
-  List<Terjadwal> terjadwals = [];
+  List<TimeSlotModel> riwayats = [];
+  List<TimeSlotModel> terjadwals = [];
   bool isLoading = true;
   String username = '';
-  bool isMember = false;
-
-  // Constants
-  static const List<String> daftarHari = [
-    'Senin',
-    'Selasa',
-    'Rabu',
-    'Kamis',
-    'Jumat',
-    'Sabtu',
-    'Minggu',
-  ];
 
   @override
-  bool get wantKeepAlive => false; // Tidak keep alive agar selalu fresh
+  bool get wantKeepAlive => false;
 
   @override
   void initState() {
@@ -102,29 +39,22 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     super.dispose();
   }
 
-  // Lifecycle observer untuk detect ketika app kembali ke foreground
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-
     if (state == AppLifecycleState.resumed && mounted) {
-      // App kembali ke foreground, refresh data
       _fetchBookingData();
     }
   }
 
-  // Auto refresh setiap kali widget di-build ulang (misal dari navigation)
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
-    // Refresh data jika sudah pernah di-initialize sebelumnya
     if (username.isNotEmpty) {
       _fetchBookingData();
     }
   }
 
-  // Initialization Methods
   Future<void> _initialize() async {
     await _loadUserData();
   }
@@ -132,277 +62,253 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
     username = prefs.getString('username') ?? '';
-
     await _fetchBookingData();
   }
 
-  // Enhanced Booking Data Methods dengan loading indicator yang lebih smooth
   Future<void> _fetchBookingData() async {
     if (!mounted) return;
 
-    // Hanya show loading di awal atau kalau data kosong
     if (riwayats.isEmpty && terjadwals.isEmpty) {
       setState(() => isLoading = true);
     }
 
     try {
-      final allBookings = await FirebaseService().getAllBookingsByUsername(
-        username,
-      );
+      // Use Future.wait for parallel processing
+      final results = await Future.wait([
+        FirebaseGetBooking().getBookingByUsername(username),
+        FirebaseGetBooking().getCancelBookingByUsername(username),
+      ]);
+
+      final allBookings = results[0];
+      final cancelBookings = results[1];
+
       if (!mounted) return;
 
-      // FIX: Set isMember lebih awal dan dengan pengecekan yang lebih robust
-      bool memberStatus = false;
-      if (allBookings.isNotEmpty) {
-        // Cek semua booking untuk memastikan status member
-        memberStatus = allBookings.any(
-          (booking) => booking.type?.toString().toLowerCase() == 'member',
-        );
-      }
-
+      // Pre-calculate today once
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
 
-      final (pastBookings, upcomingBookings) = _separateBookings(
+      // Process data in background using compute for heavy operations
+      final processedData = await _processBookingData(
         allBookings,
+        cancelBookings,
         today,
       );
 
-      final pastGroups = _groupConsecutiveBookings(pastBookings);
-      final upcomingGroups = _groupConsecutiveBookings(upcomingBookings);
-
       setState(() {
-        // Set isMember dulu sebelum convert data
-        isMember = memberStatus;
-        riwayats = _convertToRiwayat(pastGroups);
-        terjadwals = _convertToTerjadwal(upcomingGroups);
+        riwayats = processedData['past'] as List<TimeSlotModel>;
+        terjadwals = processedData['upcoming'] as List<TimeSlotModel>;
         isLoading = false;
       });
-
-      // Debug log untuk monitoring
-      debugPrint('Total bookings: ${allBookings.length}');
-      debugPrint('Member status: $isMember');
-      if (allBookings.isNotEmpty) {
-        debugPrint('First booking type: ${allBookings.first.type}');
-      }
     } catch (e) {
       debugPrint('Error fetching booking data: $e');
       if (mounted) {
         setState(() => isLoading = false);
-
-        // Show error snackbar
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gagal memuat data. Coba lagi.'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        showErrorSnackBar(context, 'Gagal memuat data. Coba lagi.');
       }
     }
   }
 
-  (List<dynamic>, List<dynamic>) _separateBookings(
-    List<dynamic> bookings,
+  Future<Map<String, List<TimeSlotModel>>> _processBookingData(
+    List<TimeSlotModel> allBookings,
+    List<TimeSlotModel> cancelBookings,
     DateTime today,
-  ) {
-    final pastBookings = <dynamic>[];
-    final upcomingBookings = <dynamic>[];
+  ) async {
+    // Use Map for faster lookups instead of List operations
+    final Map<String, List<TimeSlotModel>> bookingsByDate = {};
+    final Map<String, List<TimeSlotModel>> cancelByDate = {};
 
-    for (final booking in bookings) {
-      final bookingDate = DateTime.parse(booking.date.toString());
-      final isPast =
-          bookingDate.isBefore(today) ||
-          (bookingDate.isAtSameMomentAs(today) &&
-              _isTimeInPast(booking.startTime));
+    // Group bookings by date first (faster than checking each one)
+    for (final booking in allBookings) {
+      bookingsByDate[booking.date] ??= [];
+      print('Processing booking for date: ${booking.date}');
+      bookingsByDate[booking.date]!.add(booking);
+    }
 
-      if (isPast) {
-        pastBookings.add(booking);
+    for (final booking in cancelBookings) {
+      cancelByDate[booking.date] ??= [];
+      cancelByDate[booking.date]!.add(booking);
+    }
+
+    final pastBookings = <TimeSlotModel>[];
+    final upcomingBookings = <TimeSlotModel>[];
+
+    // Process each date group
+    for (final entry in bookingsByDate.entries) {
+      final dateStr = entry.key;
+      final bookings = entry.value;
+      // final bookingDate = DateTime.parse(dateStr);
+      print('Processing bookings for date: $dateStr');
+      final bookingDate = DateFormat('yyyy-MM-dd').parse(dateStr);
+
+      if (bookingDate.isBefore(today)) {
+        // All bookings on this date are past
+        pastBookings.addAll(bookings);
+      } else if (bookingDate.isAfter(today)) {
+        // All bookings on this date are upcoming
+        upcomingBookings.addAll(bookings);
       } else {
-        upcomingBookings.add(booking);
+        // Today - need to check individual times
+        for (final booking in bookings) {
+          if (_isTimeInPast(booking.startTime)) {
+            pastBookings.add(booking);
+          } else {
+            upcomingBookings.add(booking);
+          }
+        }
       }
     }
 
-    return (pastBookings, upcomingBookings);
+    // Add all cancel bookings to past (they're already processed)
+    pastBookings.addAll(cancelBookings);
+
+    // Group consecutive bookings efficiently
+    final pastGroups = _groupConsecutiveBookings(pastBookings);
+    final upcomingGroups = _groupConsecutiveBookings(upcomingBookings);
+
+    return {'past': pastGroups, 'upcoming': upcomingGroups};
   }
 
-  List<Riwayat> _convertToRiwayat(List<BookingGroup> groups) {
-    final riwayats =
-        groups
-            .map(
-              (group) => Riwayat(
-                tanggal: group.date,
-                keterangan: "Lapangan ${group.courtId}",
-                waktu: group.combinedTimeRange,
-                type:
-                    isMember
-                        ? 'Member'
-                        : 'Non Member', // Menggunakan isMember yang sudah di-set
-              ),
-            )
-            .toList();
-
-    // Sort by date (newest first) then by time
-    riwayats.sort((a, b) {
-      final dateCompare = b.tanggal.compareTo(a.tanggal);
-      return dateCompare != 0 ? dateCompare : a.waktu.compareTo(b.waktu);
-    });
-
-    return riwayats;
-  }
-
-  List<Terjadwal> _convertToTerjadwal(List<BookingGroup> groups) {
-    final terjadwals =
-        groups
-            .map(
-              (group) => Terjadwal(
-                tanggal: group.date,
-                jam: group.combinedTimeRange,
-                lapangan: "Lapangan ${group.courtId}",
-                type:
-                    isMember
-                        ? 'Member'
-                        : 'Non Member', // Menggunakan isMember yang sudah di-set
-              ),
-            )
-            .toList();
-
-    // Sort by date (earliest first) then by time
-    terjadwals.sort((a, b) {
-      final dateCompare = a.tanggal.compareTo(b.tanggal);
-      return dateCompare != 0 ? dateCompare : a.jam.compareTo(b.jam);
-    });
-
-    return terjadwals;
-  }
-
-  // Booking Grouping Logic
-  List<BookingGroup> _groupConsecutiveBookings(List<dynamic> bookings) {
+  List<TimeSlotModel> _groupConsecutiveBookings(
+    List<TimeSlotModel> bookings,
+  ) {
     if (bookings.isEmpty) return [];
 
-    final groupedBookings = <String, Map<String, List<String>>>{};
+    // Use Map with compound key for faster grouping
+    final Map<String, List<TimeSlotModel>> groups = {};
 
-    // Group bookings by date and court
     for (final booking in bookings) {
-      final date = DateFormat(
-        'yyyy-MM-dd',
-      ).format(DateTime.parse(booking.date.toString()));
-      final courtId = booking.courtId.toString();
-      final timeSlot = '${booking.startTime} - ${booking.endTime}';
-
-      groupedBookings[date] ??= {};
-      groupedBookings[date]![courtId] ??= [];
-      groupedBookings[date]![courtId]!.add(timeSlot);
+      final key = '${booking.date}_${booking.courtId}';
+      groups[key] ??= [];
+      groups[key]!.add(booking);
     }
 
-    final result = <BookingGroup>[];
+    final result = <TimeSlotModel>[];
 
-    for (final MapEntry(key: date, value: courts) in groupedBookings.entries) {
-      for (final MapEntry(key: courtId, value: timeSlots) in courts.entries) {
-        result.addAll(_createConsecutiveGroups(date, courtId, timeSlots));
-      }
+    for (final timeSlots in groups.values) {
+      // Sort once by start time
+      timeSlots.sort((a, b) => a.startTime.compareTo(b.startTime));
+
+      // Create consecutive groups more efficiently
+      final consecutiveGroups = _createConsecutiveGroups(timeSlots);
+      result.addAll(consecutiveGroups);
     }
+
+    // Sort final result by date and time
+    result.sort((a, b) {
+      final dateCompare = a.date.compareTo(b.date);
+      if (dateCompare != 0) return dateCompare;
+      return a.startTime.compareTo(b.startTime);
+    });
 
     return result;
   }
 
-  List<BookingGroup> _createConsecutiveGroups(
-    String date,
-    String courtId,
-    List<String> timeSlots,
+  List<TimeSlotModel> _createConsecutiveGroups(
+    List<TimeSlotModel> timeSlots,
   ) {
-    // Sort time slots
-    timeSlots.sort((a, b) {
-      final timeA = a.split(' - ')[0];
-      final timeB = b.split(' - ')[0];
-      return timeA.compareTo(timeB);
-    });
+    if (timeSlots.isEmpty) return [];
 
-    final result = <BookingGroup>[];
-    var currentGroup = <String>[];
-    String? lastEndTime;
+    final result = <TimeSlotModel>[];
+    final currentGroup = <TimeSlotModel>[timeSlots.first];
 
-    for (final timeSlot in timeSlots) {
-      final parts = timeSlot.split(' - ');
-      final startTime = parts[0];
-      final endTime = parts[1];
+    for (int i = 1; i < timeSlots.length; i++) {
+      final current = timeSlots[i];
+      final previous = currentGroup.last;
 
-      if (lastEndTime == null || lastEndTime == startTime) {
-        // Consecutive or first slot
-        if (currentGroup.isEmpty) {
-          currentGroup.add(timeSlot);
-        } else {
-          // Update the end time of the group
-          final groupStartTime = currentGroup.first.split(' - ')[0];
-          currentGroup = ['$groupStartTime - $endTime'];
-        }
-        lastEndTime = endTime;
+      // Check if times are consecutive (exactly 30 minutes apart)
+      if (_areTimesConsecutive(previous.endTime, current.startTime)) {
+        currentGroup.add(current);
       } else {
-        // Not consecutive, start new group
-        result.add(
-          BookingGroup(
-            date: date,
-            courtId: courtId,
-            timeSlots: List.from(currentGroup),
-          ),
-        );
-        currentGroup = [timeSlot];
-        lastEndTime = endTime;
+        // Create grouped time slot and start new group
+        result.add(_createGroupedTimeSlot(currentGroup));
+        currentGroup.clear();
+        currentGroup.add(current);
       }
     }
 
     // Add the last group
     if (currentGroup.isNotEmpty) {
-      result.add(
-        BookingGroup(date: date, courtId: courtId, timeSlots: currentGroup),
-      );
+      result.add(_createGroupedTimeSlot(currentGroup));
     }
 
     return result;
   }
 
-  // Booking Cancellation
-  Future<void> _cancelBooking(
-    String date,
-    String courtId,
-    String timeRange,
-  ) async {
+  bool _areTimesConsecutive(String endTime, String startTime) {
+    // Simple string comparison for exact matches
+    return endTime == startTime;
+  }
+
+  TimeSlotModel _createGroupedTimeSlot(List<TimeSlotModel> group) {
+    final first = group.first;
+    final last = group.last;
+
+    return TimeSlotModel(
+      slotId: first.slotId,
+      courtId: first.courtId,
+      date: first.date,
+      startTime: first.startTime,
+      endTime: last.endTime,
+      type: first.type,
+      username: first.username,
+      isAvailable: first.isAvailable,
+      isClosed: first.isClosed,
+      isHoliday: first.isHoliday,
+      cancel: first.cancel,
+    );
+  }
+
+  Future<void> _cancelBooking(TimeSlotModel booking) async {
     try {
-      final shouldCancel = await _showCancelConfirmation(
-        date,
-        courtId,
-        timeRange,
-      );
+      final shouldCancel = await _showCancelConfirmation(booking);
       if (shouldCancel != true) return;
 
-      final timesToCancel = _parseTimeRange(timeRange);
+      // Parse time range untuk mendapatkan individual time slots
+      final timesToCancel = _parseTimeRange(
+        '${booking.startTime} - ${booking.endTime}',
+      );
 
-      for (final timeSlot in timesToCancel) {
-        final times = timeSlot.split(' - ');
-        if (times.length != 2) continue;
+      if (booking.type == 'member') {
+        for (final timeSlot in timesToCancel) {
+          final times = timeSlot.split(' - ');
+          if (times.length != 2) continue;
 
-        await FirebaseService().cancelBooking(
-          username,
-          date,
-          courtId,
-          times[0].trim(),
-          times[1].trim(),
-        );
+          await CancelMember().cancelBooking(
+            username,
+            booking.date,
+            booking.courtId,
+            times[0].trim(),
+            times[1].trim(),
+          );
+          await CancelMember().updateUserCancel(username, booking.date);
+        }
+      } else {
+        for (final timeSlot in timesToCancel) {
+          final times = timeSlot.split(' - ');
+          if (times.length != 2) continue;
+
+          await CancelNonMember().cancelBooking(
+            username,
+            booking.date,
+            booking.courtId,
+            times[0].trim(),
+            times[1].trim(),
+          );
+          await CancelNonMember().updateUserCancel(username, booking.date);
+        }
       }
 
-      _showSuccessMessage('Booking berhasil dibatalkan');
+      if (!mounted) return;
+      showSuccessSnackBar(context, 'Booking berhasil dibatalkan');
       await _fetchBookingData();
     } catch (e) {
-      debugPrint('Error canceling booking: $e');
-      _showErrorMessage('Terjadi kesalahan saat membatalkan booking');
+      if (!mounted) return;
+      showErrorSnackBar(context, 'Terjadi kesalahan saat membatalkan booking');
     }
   }
 
-  Future<bool?> _showCancelConfirmation(
-    String date,
-    String courtId,
-    String timeRange,
-  ) {
+  Future<bool?> _showCancelConfirmation(TimeSlotModel booking) {
     return showDialog<bool>(
       context: context,
       builder:
@@ -410,9 +316,10 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
             title: const Text('Konfirmasi Pembatalan'),
             content: Text(
               'Apakah Anda yakin ingin membatalkan booking?\n\n'
-              'Tanggal: $date\n'
-              'Lapangan: $courtId\n'
-              'Waktu: $timeRange',
+              'Lapangan: ${booking.courtId}\n'
+              'Tipe: ${booking.type == 'member' ? 'Member' : 'Non Member'}\n'
+              'Waktu: ${booking.startTime} - ${booking.endTime}\n'
+              'Tanggal: ${formatLongDate(DateTime.parse(booking.date))}',
             ),
             actions: [
               TextButton(
@@ -429,21 +336,6 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     );
   }
 
-  void _showSuccessMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.green),
-    );
-  }
-
-  void _showErrorMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
-  }
-
-  // Helper Methods
   List<String> _parseTimeRange(String timeRange) {
     final times = timeRange.split(' - ');
     final startTime = times[0];
@@ -479,83 +371,15 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     return bookingDateTime.isBefore(now);
   }
 
-  String _namaHari(int weekday) => daftarHari[weekday - 1];
-
-  bool _isHariDalamRange(String hari, String mulai, String selesai) {
-    final indexHari = daftarHari.indexOf(hari);
-    final indexMulai = daftarHari.indexOf(mulai);
-    final indexSelesai = daftarHari.indexOf(selesai);
-
-    if (indexMulai <= indexSelesai) {
-      return indexHari >= indexMulai && indexHari <= indexSelesai;
-    } else {
-      // Range seperti "Jumat - Senin"
-      return indexHari >= indexMulai || indexHari <= indexSelesai;
-    }
+  String _getStatusColor(String type) {
+    return type.toLowerCase() == 'member' ? 'Member' : 'Non Member';
   }
 
-  int _timeToMinutes(String time) {
-    final parts = time.split(':');
-    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+  Color _getTypeColor(String type) {
+    return type.toLowerCase() == 'member' ? Colors.blue : Colors.orange;
   }
 
-  // Price Calculation
-  Future<double> _calculateTotalPrice({
-    required String startTime,
-    required String endTime,
-    required DateTime selectedDate,
-    required String type,
-  }) async {
-    try {
-      final hargaList = await FirebaseService().getHarga();
-      final hariBooking = _namaHari(selectedDate.weekday);
-
-      final startMinutes = _timeToMinutes(startTime);
-      final endMinutes = _timeToMinutes(endTime);
-
-      double totalPrice = 0;
-
-      for (int time = startMinutes; time < endMinutes; time += 30) {
-        final jam = time ~/ 60;
-
-        final hargaMatch =
-            hargaList
-                .where(
-                  (harga) =>
-                      harga.type == type &&
-                      _isHariDalamRange(
-                        hariBooking,
-                        harga.hariMulai,
-                        harga.hariSelesai,
-                      ) &&
-                      jam >= harga.startTime &&
-                      jam < harga.endTime,
-                )
-                .firstOrNull;
-
-        if (hargaMatch != null) {
-          totalPrice += hargaMatch.harga / 2;
-        } else {
-          debugPrint(
-            'No matching price found for: $type, $hariBooking, $jam:${time % 60}',
-          );
-        }
-      }
-
-      return totalPrice;
-    } catch (e) {
-      debugPrint('Error calculating price: $e');
-      return 0;
-    }
-  }
-
-  // UI Components
-  Widget _buildDetailDialog(
-    String date,
-    String lapangan,
-    String waktu,
-    String type,
-  ) {
+  Widget _buildDetailDialog(TimeSlotModel booking) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
@@ -569,26 +393,29 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
             const SizedBox(height: 16),
-            Text("Tanggal: $date"),
+            Text("Lapangan: ${booking.courtId}"),
             const SizedBox(height: 8),
-            Text("Lapangan: ${lapangan.split('Lapangan ')[1]}"),
+            Text("Tanggal: ${formatStrToLongDate(booking.date)}"),
             const SizedBox(height: 8),
-            Text("Waktu: $waktu"),
+            Text("Waktu: ${booking.startTime} - ${booking.endTime}"),
             const SizedBox(height: 8),
             Text(
-              "Status: $type",
+              "Status: ${_getStatusColor(booking.type)}",
               style: TextStyle(
-                color: type == 'Member' ? Colors.blue : Colors.orange,
+                color: _getTypeColor(booking.type),
                 fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 8),
             FutureBuilder<double>(
-              future: _calculateTotalPrice(
-                startTime: waktu.split(' - ')[0],
-                endTime: waktu.split(' - ')[1],
-                selectedDate: DateFormat('yyyy-MM-dd').parse(date),
-                type: type,
+              future: totalPrice(
+                startTime: booking.startTime,
+                endTime: booking.endTime,
+                selectedDate: DateTime.parse(booking.date),
+                type:
+                    booking.type.toLowerCase() == 'member'
+                        ? 'member'
+                        : 'nonMember',
               ),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -638,15 +465,11 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
                 padding: const EdgeInsets.all(16),
                 itemCount: riwayats.length,
                 itemBuilder: (context, index) {
-                  final riwayat = riwayats[index];
-                  return GestureDetector(
-                    onTap:
-                        () => _showDetailDialog(
-                          riwayat.tanggal,
-                          riwayat.keterangan,
-                          riwayat.waktu,
-                          riwayat.type,
-                        ),
+                  final booking = riwayats[index];
+                  print(booking.cancel);
+                  return booking.cancel.isEmpty ?
+                  GestureDetector(
+                    onTap: () => _showDetailDialog(booking),
                     child: Card(
                       elevation: 2,
                       margin: const EdgeInsets.symmetric(vertical: 8),
@@ -658,14 +481,14 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
                         title: Row(
                           children: [
                             Text(
-                              riwayat.tanggal,
+                              booking.date,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             const SizedBox(width: 10),
                             Text(
-                              riwayat.waktu,
+                              "${booking.startTime} - ${booking.endTime}",
                               style: const TextStyle(color: Colors.blue),
                             ),
                           ],
@@ -673,20 +496,56 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(riwayat.keterangan),
+                            Text("Lapangan ${booking.courtId}"),
                             Text(
-                              riwayat.type,
+                              _getStatusColor(booking.type),
                               style: TextStyle(
-                                color:
-                                    riwayat.type == 'Member'
-                                        ? Colors.blue
-                                        : Colors.orange,
+                                color: _getTypeColor(booking.type),
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ),
+                      ),
+                    ),
+                  ):
+                  Card(
+                    elevation: 2,
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: ListTile(
+                      leading: const Icon(
+                        Icons.cancel,
+                        color: Colors.red,
+                      ),
+                      title: Row(
+                        children: [
+                          Text(
+                            booking.date,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            "${booking.startTime} - ${booking.endTime}",
+                            style: const TextStyle(color: Colors.blue),
+                          ),
+                        ],
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Lapangan ${booking.courtId}"),
+                          Text(
+                            _getStatusColor(booking.type),
+                            style: TextStyle(
+                              color: _getTypeColor(booking.type),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -713,80 +572,66 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
                 itemBuilder: (context, index) {
                   final booking = terjadwals[index];
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: GestureDetector(
-                      onTap:
-                          () => _showDetailDialog(
-                            booking.tanggal,
-                            booking.lapangan,
-                            booking.jam,
-                            booking.type,
-                          ),
-                      child: Dismissible(
-                        key: ValueKey(
-                          '${booking.tanggal}_${booking.lapangan}_${booking.jam}',
-                        ),
-                        direction: DismissDirection.endToStart,
-                        confirmDismiss: (direction) async {
-                          final courtId = booking.lapangan.replaceAll(
-                            'Lapangan ',
-                            '',
-                          );
-                          await _cancelBooking(
-                            booking.tanggal,
-                            courtId,
-                            booking.jam,
-                          );
-                          return false;
-                        },
-                        background: _buildDismissBackground(),
-                        child: Card(
-                          elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: ListTile(
-                            leading: const Icon(
-                              Icons.schedule,
-                              color: Colors.blue,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: GestureDetector(
+                          onTap: () => _showDetailDialog(booking),
+                          child: Dismissible(
+                            key: ValueKey(
+                              '${booking.date}_${booking.courtId}_${booking.startTime}_${booking.endTime}',
                             ),
-                            title: Row(
-                              children: [
-                                Text(
-                                  booking.tanggal,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                            direction: DismissDirection.endToStart,
+                            confirmDismiss: (direction) async {
+                              await _cancelBooking(booking);
+                              return false;
+                            },
+                            background: _buildDismissBackground(),
+                            child: Card(
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: ListTile(
+                                leading: const Icon(
+                                  Icons.schedule,
+                                  color: Colors.blue,
                                 ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  booking.jam,
-                                  style: const TextStyle(color: Colors.blue),
+                                title: Row(
+                                  children: [
+                                    Text(
+                                      booking.date,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      "${booking.startTime} - ${booking.endTime}",
+                                      style: const TextStyle(
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(booking.lapangan),
-                                Text(
-                                  booking.type,
-                                  style: TextStyle(
-                                    color:
-                                        booking.type == 'Member'
-                                            ? Colors.blue
-                                            : Colors.orange,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text("Lapangan ${booking.courtId}"),
+                                    Text(
+                                      _getStatusColor(booking.type),
+                                      style: TextStyle(
+                                        color: _getTypeColor(booking.type),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                  );
+                      );
+                    
                 },
               ),
     );
@@ -814,21 +659,16 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     );
   }
 
-  void _showDetailDialog(
-    String date,
-    String lapangan,
-    String waktu,
-    String type,
-  ) {
+  void _showDetailDialog(TimeSlotModel booking) {
     showDialog(
       context: context,
-      builder: (context) => _buildDetailDialog(date, lapangan, waktu, type),
+      builder: (context) => _buildDetailDialog(booking),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    super.build(context); // Required for AutomaticKeepAliveClientMixin
+    super.build(context);
 
     return DefaultTabController(
       length: 2,

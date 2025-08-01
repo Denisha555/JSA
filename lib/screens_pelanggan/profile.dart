@@ -1,15 +1,24 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_application_1/constants_file.dart';
-import 'package:flutter_application_1/main.dart';
-import 'package:flutter_application_1/screens_pelanggan/edit_profil.dart';
-import 'package:flutter_application_1/screens_pelanggan/member.dart';
-import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
+
 import 'package:intl/intl.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_application_1/main.dart';
+import 'package:flutter_application_1/constants_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter_application_1/services/firestore_service.dart';
-import 'package:flutter_application_1/screens_pelanggan/halaman_utama_pelanggan.dart';
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
+import 'package:flutter_application_1/model/user_model.dart';
+import 'package:flutter_application_1/model/reward_model.dart';
+import 'package:flutter_application_1/function/price/price.dart';
+import 'package:flutter_application_1/model/time_slot_model.dart';
+import 'package:flutter_application_1/function/reward/reward.dart';
+import 'package:flutter_application_1/screens_pelanggan/member.dart';
+import 'package:flutter_application_1/function/snackbar/snackbar.dart';
+import 'package:flutter_application_1/screens_pelanggan/edit_profil.dart';
+import 'package:flutter_application_1/function/profil/edit_password.dart';
+import 'package:flutter_application_1/function/profil/edit_username.dart';
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
+import 'package:flutter_application_1/services/user/firebase_check_user.dart';
+import 'package:flutter_application_1/services/user/firebase_update_user.dart';
+import 'package:flutter_application_1/services/booking/firebase_get_booking.dart';
+import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
 
 class HalamanProfil extends StatefulWidget {
   const HalamanProfil({super.key});
@@ -21,18 +30,21 @@ class HalamanProfil extends StatefulWidget {
 class _HalamanProfilState extends State<HalamanProfil> {
   String? username;
   bool isLoading = true;
-  bool isMember = false;
-  List<LastActivity> activity = [];
-  List<UserData> data = [];
-  List<AllBookedUser> userbooked = [];
-  Reward currentReward = const Reward(currentHours: 0);
+  bool? isMemberDatabase;
+  bool? isMemberUI;
+  List<TimeSlotModel> activity = [];
+  List<UserModel> data = [];
+  List<TimeSlotModel> userbooked = [];
+  RewardModel currentReward = RewardModel(currentHours: 0);
   int? endTime;
 
   @override
   void initState() {
     super.initState();
     _init();
+    loadPrefs();
   }
+
 
   Future<void> _init() async {
     setState(() {
@@ -42,55 +54,82 @@ class _HalamanProfilState extends State<HalamanProfil> {
     try {
       await _loadData();
       if (username != null && username!.isNotEmpty) {
-        // Cek member status terlebih dahulu
-        final result = await FirebaseService().memberOrNonmember(username!);
+        await FirebaseCheckUser().checkRewardTime(username!);
+        final type = await FirebaseCheckUser().checkUserType(username!);
+        final result = type == 'member' ? true : false;
 
-        setState(() {
-          isMember = result;
-        });
+        SharedPreferences prefs = await SharedPreferences.getInstance();
 
-        // Setelah isMember diset, baru hitung endTime jika user adalah member
-        if (isMember && data.isNotEmpty && data[0].startTimeMember.isNotEmpty) {
+        // simpan status asli dari database (boleh atau tidak tergantung kebutuhan)
+        await prefs.setBool('isMember', result);
+
+        // hanya simpan isMemberUI jika member
+        if (result == true) {
+          // kalau member, ambil preferensi user
+          bool? userPreference = prefs.getBool('isMemberUI');
+
+          setState(() {
+            isMemberDatabase = true;
+            isMemberUI =
+                userPreference ??
+                true; // default ke true kalau belum pernah di-set
+          });
+        } else {
+          // kalau bukan member, tidak boleh ada UI member
+          await prefs.setBool('isMemberUI', false);
+
+          setState(() {
+            isMemberDatabase = false;
+            isMemberUI = false;
+          });
+        }
+        if (isMemberDatabase! &&
+            data.isNotEmpty &&
+            data[0].startTimeMember.isNotEmpty) {
           try {
-            // Parse startTime dengan penanganan error
             final startDate = DateTime.parse(data[0].startTimeMember);
 
-            // Tambahkan 1 bulan ke startTime
             final finishDate = DateTime(
               startDate.year,
               startDate.month + 1,
               startDate.day,
             );
 
-            // Hitung selisih hari dari sekarang
             final now = DateTime.now();
             final difference = finishDate.difference(now);
             final daysLeft = difference.inDays;
 
-            debugPrint(
-              'Start Date: $startDate, Finish Date: $finishDate, Days Left: $daysLeft',
-            );
-
             if (daysLeft <= 0) {
-              // Jika membership sudah expired
               setState(() {
                 endTime = 0;
-                userbooked = []; // Clear booking data
+                userbooked = [];
               });
-              debugPrint('Membership expired. Days left: $daysLeft');
-              await FirebaseService().memberToNonMember(username!);
+              await FirebaseUpdateUser().updateUser(
+                'role',
+                username!,
+                'nonMember',
+              );
+              await FirebaseUpdateUser().updateUser(
+                'startTimeMember',
+                username!,
+                '',
+              );
+
+              SharedPreferences prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('isMember', false);
+              await prefs.setBool('isMemberUI', false);
+
+              setState(() {
+                isMemberDatabase = false;
+                isMemberUI = false;
+              });
             } else {
-              // Jika masih ada waktu tersisa
               setState(() {
                 endTime = daysLeft;
               });
-              debugPrint('Membership active. Days left: $daysLeft');
-
-              // Load member bookings
               await _loadMemberBookings();
             }
           } catch (e) {
-            debugPrint('Error calculating endTime: $e');
             setState(() {
               endTime = null;
               userbooked = [];
@@ -106,9 +145,8 @@ class _HalamanProfilState extends State<HalamanProfil> {
         await getLastActivity();
       }
     } catch (e) {
-      debugPrint('Error initializing profil: $e');
       if (mounted) {
-        _showErrorSnackBar('Failed to load profil data');
+        showErrorSnackBar(context, 'Failed to load profil data');
       }
     } finally {
       if (mounted) {
@@ -119,134 +157,133 @@ class _HalamanProfilState extends State<HalamanProfil> {
     }
   }
 
+  Future<void> loadPrefs() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool? savedDB = prefs.getBool('isMember');
+    bool? savedUI = prefs.getBool('isMemberUI');
+
+    if (savedDB != null) {
+      setState(() {
+        isMemberDatabase = savedDB;
+        isMemberUI = savedDB ? (savedUI ?? true) : false;
+      });
+    }
+  }
+
   Future<void> _loadMemberBookings() async {
-  try {
-    if (username == null) return;
+    try {
+      if (username == null) return;
 
-    final now = DateTime.now();
-    final temp = await FirebaseService().getAllBookingsByUsername(username!);
+      final temp = await FirebaseGetBooking().getBookingByUsername(username!);
 
-    List<AllBookedUser> memberBookings = [];
+      List<TimeSlotModel> memberBookings = [];
 
-    for (var booking in temp) {
-      // Cek apakah booking masih aktif (belum berakhir)
-      if (booking.endTime != null) {
+      for (var booking in temp) {
         try {
-          final start = DateTime.parse(booking.date.toString());
-          
           // Cek apakah booking masih berlaku dan merupakan booking member
-          if (start.isAfter(now) && booking.type == 'member') {
+          if (booking.type == 'member' && booking.status != 'finish') {
             memberBookings.add(booking);
-            debugPrint(
-              'Found member booking: ${booking.courtId} at ${booking.startTime}',
-            );
           }
         } catch (e) {
-          debugPrint('Error parsing booking end time: $e');
+          if (!mounted) return;
+          showErrorSnackBar(context, 'Failed to load booking data');
         }
       }
-    }
 
-    // Sort bookings by date and time (ascending)
-    memberBookings.sort((a, b) {
-      try {
-        final dateA = DateTime.parse(a.date.toString());
-        final dateB = DateTime.parse(b.date.toString());
-        
-        int dateComparison = dateA.compareTo(dateB);
-        if (dateComparison != 0) {
-          return dateComparison;
-        }
-        
-        // Jika tanggal sama, sort berdasarkan startTime
-        return a.startTime.toString().compareTo(b.startTime.toString());
-      } catch (e) {
-        debugPrint('Error sorting bookings: $e');
-        return 0;
-      }
-    });
+      // Sort bookings by date and time (ascending)
+      memberBookings.sort((a, b) {
+        try {
+          final dateA = DateTime.parse(a.date.toString());
+          final dateB = DateTime.parse(b.date.toString());
 
-    // Group bookings by date dan combine jam
-    List<AllBookedUser> consolidatedBookings = [];
-    Map<String, List<AllBookedUser>> groupedByDate = {};
-    
-    // Group booking berdasarkan tanggal
-    for (var booking in memberBookings) {
-      try {
-        final dateKey = DateTime.parse(booking.date.toString()).toIso8601String().split('T')[0];
-        
-        if (!groupedByDate.containsKey(dateKey)) {
-          groupedByDate[dateKey] = [];
+          int dateComparison = dateA.compareTo(dateB);
+          if (dateComparison != 0) {
+            return dateComparison;
+          }
+
+          // Jika tanggal sama, sort berdasarkan startTime
+          return a.startTime.toString().compareTo(b.startTime.toString());
+        } catch (e) {
+          showErrorSnackBar(context, 'Failed to load booking data');
+          return 0;
         }
-        groupedByDate[dateKey]!.add(booking);
-      } catch (e) {
-        debugPrint('Error grouping bookings: $e');
+      });
+
+      // Group bookings by date dan combine jam
+      List<TimeSlotModel> consolidatedBookings = [];
+      Map<String, List<TimeSlotModel>> groupedByDate = {};
+
+      // Group booking berdasarkan tanggal
+      for (var booking in memberBookings) {
+        try {
+          final dateKey =
+              DateTime.parse(
+                booking.date.toString(),
+              ).toIso8601String().split('T')[0];
+
+          if (!groupedByDate.containsKey(dateKey)) {
+            groupedByDate[dateKey] = [];
+          }
+          groupedByDate[dateKey]!.add(booking);
+        } catch (e) {
+          debugPrint('Error grouping bookings: $e');
+        }
       }
-    }
-    
-    // Combine bookings untuk setiap tanggal
-    for (var dateEntry in groupedByDate.entries) {
-      List<AllBookedUser> dayBookings = dateEntry.value;
-      
-      if (dayBookings.isNotEmpty) {
-        // Sort berdasarkan startTime untuk hari ini
-        dayBookings.sort((a, b) => a.startTime.toString().compareTo(b.startTime.toString()));
-        
-        // Ambil booking pertama sebagai base
-        AllBookedUser consolidatedBooking = dayBookings.first;
-        
-        // Update endTime dengan endTime dari booking terakhir di hari yang sama
-        if (dayBookings.length > 1) {
-          consolidatedBooking = AllBookedUser(
-            // Copy semua properti dari booking pertama
-            username: consolidatedBooking.username,
-            courtId: consolidatedBooking.courtId,
-            date: consolidatedBooking.date,
-            startTime: consolidatedBooking.startTime, // Jam mulai dari yang pertama
-            endTime: dayBookings.last.endTime, // Jam selesai dari yang terakhir
-            type: consolidatedBooking.type,
-            // Tambahkan properti lain sesuai dengan struktur AllBookedUser Anda
+
+      // Combine bookings untuk setiap tanggal
+      for (var dateEntry in groupedByDate.entries) {
+        List<TimeSlotModel> dayBookings = dateEntry.value;
+
+        if (dayBookings.isNotEmpty) {
+          // Sort berdasarkan startTime untuk hari ini
+          dayBookings.sort(
+            (a, b) => a.startTime.toString().compareTo(b.startTime.toString()),
           );
+
+          // Ambil booking pertama sebagai base
+          TimeSlotModel consolidatedBooking = dayBookings.first;
+
+          // Update endTime dengan endTime dari booking terakhir di hari yang sama
+          if (dayBookings.length > 1) {
+            consolidatedBooking = TimeSlotModel(
+              // Copy semua properti dari booking pertama
+              username: consolidatedBooking.username,
+              courtId: consolidatedBooking.courtId,
+              date: consolidatedBooking.date,
+              startTime:
+                  consolidatedBooking.startTime, // Jam mulai dari yang pertama
+              endTime:
+                  dayBookings.last.endTime, // Jam selesai dari yang terakhir
+              type: consolidatedBooking.type,
+              // Tambahkan properti lain sesuai dengan struktur AllBookedUser Anda
+            );
+          }
+
+          consolidatedBookings.add(consolidatedBooking);
         }
-        
-        consolidatedBookings.add(consolidatedBooking);
-        
-        debugPrint(
-          'Consolidated booking for ${dateEntry.key}: Court ${consolidatedBooking.courtId}, '
-          'Start: ${consolidatedBooking.startTime}, End: ${consolidatedBooking.endTime}'
-        );
       }
+
+      // Sort consolidated bookings by date
+      consolidatedBookings.sort((a, b) {
+        try {
+          final dateA = DateTime.parse(a.date.toString());
+          final dateB = DateTime.parse(b.date.toString());
+          return dateA.compareTo(dateB);
+        } catch (e) {
+          debugPrint('Error sorting consolidated bookings: $e');
+          return 0;
+        }
+      });
+
+      setState(() {
+        userbooked = consolidatedBookings;
+      });
+    } catch (e) {
+      debugPrint('Error loading member bookings: $e');
+      setState(() {
+        userbooked = [];
+      });
     }
-
-    // Sort consolidated bookings by date
-    consolidatedBookings.sort((a, b) {
-      try {
-        final dateA = DateTime.parse(a.date.toString());
-        final dateB = DateTime.parse(b.date.toString());
-        return dateA.compareTo(dateB);
-      } catch (e) {
-        debugPrint('Error sorting consolidated bookings: $e');
-        return 0;
-      }
-    });
-
-    setState(() {
-      userbooked = consolidatedBookings;
-    });
-
-    debugPrint('Loaded ${consolidatedBookings.length} consolidated member bookings');
-  } catch (e) {
-    debugPrint('Error loading member bookings: $e');
-    setState(() {
-      userbooked = [];
-    });
-  }
-}
-
-  String hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    final digest = sha256.convert(bytes);
-    return digest.toString(); // ini hasil hash-nya
   }
 
   Future<void> _loadData() async {
@@ -255,11 +292,12 @@ class _HalamanProfilState extends State<HalamanProfil> {
       String? loadedUsername = prefs.getString('username');
 
       if (loadedUsername == null || loadedUsername.isEmpty) {
-        debugPrint('Username belum tersedia');
         return;
       }
 
-      List<UserData> temp = await FirebaseService().getUserData(loadedUsername);
+      List<UserModel> temp = await FirebaseGetUser().getUserByUsername(
+        loadedUsername,
+      );
 
       if (!mounted) return;
 
@@ -268,540 +306,18 @@ class _HalamanProfilState extends State<HalamanProfil> {
         data = temp;
 
         // Update currentReward with actual user data
-        final hours = (data.isNotEmpty) ? data[0].totalHour.toDouble() : 0.0;
-        currentReward = Reward(currentHours: hours);
+        final hours = (data.isNotEmpty) ? data[0].point.toDouble() : 0.0;
+        currentReward = RewardModel(currentHours: hours);
       });
     } catch (e) {
-      debugPrint('Error in _loadData: $e');
       throw Exception('Error loading user data : $e');
     }
-  }
-
-  void _showErrorSnackBar(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  void _showSuccessSnackBar(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
-
-  Widget _buildRewardSection(BuildContext context) {
-    final progress = (currentReward.currentHours / currentReward.requiredHours)
-        .clamp(0.0, 1.0);
-
-    final isRewardAvailable1 = currentReward.currentHours >= 10;
-    final isRewardAvailable2 = currentReward.currentHours >= 20;
-
-    final nextStageHours = ((currentReward.currentHours / 10).floor() + 1) * 10;
-    final hoursToNext = (nextStageHours - currentReward.currentHours).clamp(
-      0,
-      double.infinity,
-    );
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [primaryColor, primaryColor.withValues(alpha: 0.8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: primaryColor.withOpacity(0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Your Reward Progress',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Progress bar with markers
-          _buildProgressBar(progress, isRewardAvailable1, isRewardAvailable2),
-          const SizedBox(height: 16),
-
-          // Progress text
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${currentReward.currentHours.toInt()}h dimainkan',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                '${hoursToNext.toInt()}h lagi untuk reward',
-                style: const TextStyle(color: Colors.white70),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProgressBar(
-    double progress,
-    bool isRewardAvailable1,
-    bool isRewardAvailable2,
-  ) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        const markerSize = 32.0;
-        final barWidth = constraints.maxWidth;
-        final firstMarkerPos = (barWidth * 0.5) - (markerSize / 2);
-        final secondMarkerPos = barWidth - markerSize;
-
-        return SizedBox(
-          height: 40,
-          child: Stack(
-            children: [
-              // Background bar
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 16,
-                child: Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.3),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-
-              // Progress bar with animation
-              Positioned(
-                left: 0,
-                top: 16,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 500),
-                  width: barWidth * progress,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              ),
-
-              // First reward marker (10 hours)
-              Positioned(
-                left: firstMarkerPos,
-                top: 4,
-                child: _buildRewardMarker(
-                  isAvailable: isRewardAvailable1,
-                  rewardText: '1 jam gratis',
-                  hoursRequired: '10 jam',
-                ),
-              ),
-
-              // Second reward marker (20 hours)
-              Positioned(
-                left: secondMarkerPos,
-                top: 4,
-                child: _buildRewardMarker(
-                  isAvailable: isRewardAvailable2,
-                  rewardText: '2 jam gratis',
-                  hoursRequired: '20 jam',
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildRewardMarker({
-    required bool isAvailable,
-    required String rewardText,
-    required String hoursRequired,
-  }) {
-    return GestureDetector(
-      onTap:
-          isAvailable
-              ? () => _showRewardDialog(rewardText)
-              : () => _showRewardRequirementDialog(hoursRequired),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: isAvailable ? Colors.amber : Colors.white.withOpacity(0.5),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 2),
-          boxShadow:
-              isAvailable
-                  ? [
-                    BoxShadow(
-                      color: Colors.amber.withOpacity(0.5),
-                      blurRadius: 8,
-                      spreadRadius: 2,
-                    ),
-                  ]
-                  : null,
-        ),
-        child: Icon(
-          isAvailable ? Icons.card_giftcard : Icons.lock,
-          color: isAvailable ? Colors.white : Colors.grey[600],
-          size: 18,
-        ),
-      ),
-    );
-  }
-
-  void _showRewardDialog(String rewardText) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('🎉 Selamat!'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Kamu mendapatkan $rewardText!'),
-                const SizedBox(height: 12),
-                const Text(
-                  'Catatan: Reward ini dapat digunakan pada booking selanjutnya dengan konfirmasi admin.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Tutup'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  void _showRewardRequirementDialog(String hoursRequired) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Row(
-              children: [
-                Icon(Icons.lock_outline, color: Colors.grey),
-                SizedBox(width: 8),
-                Text('Reward Terkunci'),
-              ],
-            ),
-            content: Text(
-              'Mainkan hingga $hoursRequired untuk membuka reward ini.',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Tutup'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  Future<void> _updatePassword(String newPassword) async {
-    if (newPassword.trim().isEmpty) {
-      _showErrorSnackBar('Password tidak boleh kosong');
-      return;
-    }
-
-    if (newPassword.trim().length < 6) {
-      _showErrorSnackBar('Password minimal 6 karakter');
-      return;
-    }
-
-    try {
-      if (username != null) {
-        await FirebaseService().editPassword(username!, newPassword.trim());
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('password', newPassword.trim());
-
-        if (!mounted) return;
-        _showSuccessSnackBar('Password berhasil diperbarui!');
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      _showErrorSnackBar('Error updating password: $e');
-    }
-  }
-
-  Future<void> _updateUsername(String newUsername) async {
-    if (newUsername.trim().isEmpty) {
-      _showErrorSnackBar('Username tidak boleh kosong');
-      return;
-    }
-
-    try {
-      if (username != null) {
-        await FirebaseService().editUsername(username!, newUsername.trim());
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.setString('username', newUsername.trim());
-        if (!mounted) return;
-        _showSuccessSnackBar('Username berhasil diperbarui!');
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      _showErrorSnackBar('Error updating username: $e');
-    }
-  }
-
-  Widget editPassword(BuildContext context) {
-    final TextEditingController passwordController = TextEditingController();
-    final TextEditingController passwordController2 = TextEditingController();
-    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-
-    bool obscureText = true;
-    bool obscureText2 = true;
-
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
-      child: StatefulBuilder(
-        builder: (context, setState) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Ubah Password',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Password baru
-                  TextFormField(
-                    controller: passwordController,
-                    obscureText: obscureText,
-                    decoration: InputDecoration(
-                      hintText: 'Masukkan password baru',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      prefixIcon: const Icon(Icons.lock),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          obscureText ? Icons.visibility : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            obscureText = !obscureText;
-                          });
-                        },
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Password tidak boleh kosong';
-                      }
-                      if (value.trim().length < 6) {
-                        return 'Password minimal 6 karakter';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Konfirmasi password
-                  TextFormField(
-                    controller: passwordController2,
-                    obscureText: obscureText2,
-                    decoration: InputDecoration(
-                      hintText: 'Konfirmasi password baru',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          obscureText2
-                              ? Icons.visibility
-                              : Icons.visibility_off,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            obscureText2 = !obscureText2;
-                          });
-                        },
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Konfirmasi password tidak boleh kosong';
-                      }
-                      if (value != passwordController.text) {
-                        return 'Password tidak sama';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  // Tombol aksi
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Batal'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          if (formKey.currentState!.validate()) {
-                            _updatePassword(passwordController.text);
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(120, 45),
-                        ),
-                        child: const Text('Perbarui'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget editUsername(BuildContext context) {
-    final TextEditingController usernameController = TextEditingController();
-    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
-
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
-      child: StatefulBuilder(
-        builder: (context, setState) {
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(20),
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Ubah Username',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Password baru
-                  TextFormField(
-                    controller: usernameController,
-                    decoration: InputDecoration(
-                      hintText: 'Masukkan Username Baru',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      prefixIcon: const Icon(Icons.person),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Username tidak boleh kosong';
-                      }
-                      return null;
-                    },
-                  ),
-
-                  const SizedBox(height: 15),
-
-                  // Tombol aksi
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: const Text('Batal'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () async {
-                          if (formKey.currentState!.validate()) {
-                            bool usernameUsed = await FirebaseService()
-                                .checkUser(usernameController.text);
-                            if (!usernameUsed) {
-                              _updateUsername(usernameController.text);
-                              SharedPreferences prefs =
-                                  await SharedPreferences.getInstance();
-                              prefs.setString(
-                                'username',
-                                usernameController.text,
-                              );
-                            } else {
-                              if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Username sudah digunakan'),
-                                  ),
-                                );
-                              }
-                            }
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          minimumSize: const Size(120, 45),
-                        ),
-                        child: const Text('Perbarui'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
   }
 
   Future<void> getLastActivity() async {
     try {
       if (username != null) {
-        final temp = await FirebaseService().getLastActivity(username!);
+        final temp = await FirebaseGetBooking().getBookingByUsername(username!);
         if (temp.isNotEmpty && mounted) {
           setState(() {
             activity = temp;
@@ -830,13 +346,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
                 onPressed: () => Navigator.pop(context, false),
                 child: const Text('Batal'),
               ),
-              ElevatedButton(
+              TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text(
-                  'Keluar',
-                  style: TextStyle(color: Colors.white),
-                ),
+                child: const Text('Keluar'),
               ),
             ],
           ),
@@ -846,6 +358,8 @@ class _HalamanProfilState extends State<HalamanProfil> {
       try {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         await prefs.remove('username');
+        await prefs.remove('isMember');
+        await prefs.remove('isMemberUI');
 
         if (!mounted) return;
         Navigator.pushReplacement(
@@ -853,7 +367,8 @@ class _HalamanProfilState extends State<HalamanProfil> {
           MaterialPageRoute(builder: (context) => const MainApp()),
         );
       } catch (e) {
-        _showErrorSnackBar('Error logging out: $e');
+        if (!mounted) return;
+        showErrorSnackBar(context, 'Error logging out: $e');
       }
     }
   }
@@ -896,142 +411,187 @@ class _HalamanProfilState extends State<HalamanProfil> {
   }
 
   Widget _memberSchedule() {
-  return Dialog(
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-    child: SingleChildScrollView(
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                Icon(Icons.schedule, color: primaryColor, size: 24),
-                const SizedBox(width: 8),
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: SingleChildScrollView(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Icon(Icons.schedule, color: primaryColor, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    "Jadwal Member",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: primaryColor,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Content berdasarkan kondisi
+              if (userbooked.isEmpty) ...[
+                // Jika tidak ada booking
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Column(
+                    children: [
+                      Icon(Icons.event_busy, size: 48, color: Colors.grey),
+                      SizedBox(height: 8),
+                      Text(
+                        "Belum ada jadwal booking",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        "Silakan lakukan booking terlebih dahulu",
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
+              ] else ...[
+                FutureBuilder<double>(
+                  future: totalPrice(
+                    startTime: userbooked[0].startTime,
+                    endTime: userbooked[0].endTime,
+                    selectedDate: DateTime.parse(userbooked[0].date),
+                    type: 'member',
+                  ),
+
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Text(
+                        'Menghitung harga...',
+                        style: TextStyle(fontSize: 16),
+                      );
+                    } else if (snapshot.hasError) {
+                      return Text(
+                        'Gagal menghitung harga: ${snapshot.error}',
+                        style: TextStyle(fontSize: 16),
+                      );
+                    } else {
+                      final price = snapshot.data ?? 0;
+                      final total = price * userbooked.length;
+
+                      return Text(
+                        'Total Harga: Rp ${price == 0 ? '0.00' : total.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.green,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                // Jika ada booking - tampilkan semua jadwal yang sudah dikonsolidasi
                 Text(
-                  "Jadwal Member",
+                  "Jadwal Booking Anda:",
                   style: TextStyle(
-                    fontSize: 20,
                     fontWeight: FontWeight.bold,
                     color: primaryColor,
+                    fontSize: 16,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
-            // Content berdasarkan kondisi
-            if (userbooked.isEmpty) ...[
-              // Jika tidak ada booking
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Column(
-                  children: [
-                    Icon(Icons.event_busy, size: 48, color: Colors.grey),
-                    SizedBox(height: 8),
-                    Text(
-                      "Belum ada jadwal booking",
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      "Silakan lakukan booking terlebih dahulu",
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-            ] else ...[
-              // Jika ada booking - tampilkan semua jadwal yang sudah dikonsolidasi
-              Text(
-                "Jadwal Booking Anda:",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 12),
-              
-              ...userbooked.map((booking) => Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: primaryColor.withOpacity(0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Tanggal
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 16, color: primaryColor),
-                        const SizedBox(width: 8),
-                        Text(
-                          _formatDate(booking.date),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
-                            fontSize: 15,
+                ...userbooked
+                    .map(
+                      (booking) => Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: primaryColor.withValues(alpha: 0.3),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    
-                    // Info lapangan
-                    _buildScheduleItem(
-                      icon: Icons.sports_tennis,
-                      label: "Lapangan",
-                      value: booking.courtId.toString(),
-                    ),
-                    const SizedBox(height: 4),
-                    
-                    // Waktu (sudah dikonsolidasi)
-                    _buildScheduleItem(
-                      icon: Icons.access_time,
-                      label: "Waktu",
-                      value: "${_formatTime(booking.startTime)} - ${_formatTime(booking.endTime)}",
-                    ),
-                  ],
-                ),
-              )).toList(),
-            ],
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Tanggal
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.calendar_today,
+                                  size: 16,
+                                  color: primaryColor,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _formatDate(booking.date),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: primaryColor,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
 
-            const SizedBox(height: 20),
+                            // Info lapangan
+                            _buildScheduleItem(
+                              icon: Icons.sports_tennis,
+                              label: "Lapangan",
+                              value: booking.courtId.toString(),
+                            ),
+                            const SizedBox(height: 4),
 
-            // Tombol aksi
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: primaryColor,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: const Text("Tutup"),
-                ),
+                            // Waktu (sudah dikonsolidasi)
+                            _buildScheduleItem(
+                              icon: Icons.access_time,
+                              label: "Waktu",
+                              value:
+                                  "${_formatTime(booking.startTime)} - ${_formatTime(booking.endTime)}",
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                    .toList(),
               ],
-            ),
-          ],
+
+              const SizedBox(height: 20),
+
+              // Tombol aksi
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text("Tutup"),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildScheduleItem({
     required IconData icon,
@@ -1099,7 +659,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1133,6 +693,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               // Profile header with avatar
               Stack(
@@ -1162,7 +723,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                           child: CircleAvatar(
                             radius: 40,
                             backgroundColor:
-                                isMember
+                                isMemberUI!
                                     ? Colors.blueAccent
                                     : Colors.grey[400]!,
                             child: Text(
@@ -1198,7 +759,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                       fontSize: 13,
                                     ),
                                   ),
-                                  if (isMember)
+                                  if (isMemberUI!)
                                     Container(
                                       margin: const EdgeInsets.only(left: 8),
                                       padding: const EdgeInsets.symmetric(
@@ -1206,7 +767,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                         vertical: 2,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.2),
+                                        color: Colors.white.withValues(
+                                          alpha: 0.2,
+                                        ),
                                         borderRadius: BorderRadius.circular(12),
                                       ),
                                       child: const Text(
@@ -1222,6 +785,21 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             ],
                           ),
                         ),
+                        isMemberDatabase == true
+                            ? Switch(
+                              value: isMemberUI!,
+                              onChanged: (value) async {
+                                setState(() {
+                                  isMemberUI = value;
+                                });
+                                SharedPreferences prefs =
+                                    await SharedPreferences.getInstance();
+                                await prefs.setBool('isMember', value);
+                                await prefs.setBool('isMemberUI', value);
+                              },
+                              activeColor: Colors.white,
+                            )
+                            : Text(''),
                       ],
                     ),
                   ),
@@ -1236,66 +814,91 @@ class _HalamanProfilState extends State<HalamanProfil> {
 
               const SizedBox(height: 55),
 
-              // Membership status
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Card(
-                  elevation: 2,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: ListTile(
-                    leading: Text(
-                      isMember ? '💎' : '🪨',
-                      style: const TextStyle(fontSize: 30),
-                    ),
-                    title: Text(
-                      isMember ? 'Member' : 'Non Member',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+              isMemberDatabase == true
+                  ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        leading: Text(
+                          isMemberUI! ? '💎' : '🪨',
+                          style: const TextStyle(fontSize: 30),
+                        ),
+                        title: Text(
+                          isMemberUI! ? 'Member' : 'Non Member',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle:
+                            isMemberUI!
+                                ? Text(
+                                  // 'Berakhir dalam ${endTime.toString()} hari',
+                                  'Tap untuk lihat jadwal',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                )
+                                : const Text(
+                                  'Anda sekarang sedang menggunakan mode Non Member',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                        onTap:
+                            isMemberUI!
+                                ? () {
+                                  // Navigate to member schedule or details
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => _memberSchedule(),
+                                  ).then((_) => _init());
+                                }
+                                : null,
                       ),
                     ),
-                    subtitle:
-                        isMember
-                            ? Text(
-                              'Berakhir dalam ${endTime.toString()} hari',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            )
-                            : const Text(
-                              'Upgrade untuk mendapatkan benefit lebih',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
+                  )
+                  : Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ListTile(
+                        leading: Text(
+                          '🪨',
+                          style: const TextStyle(fontSize: 30),
+                        ),
+                        title: Text(
+                          'Non Member',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: const Text(
+                          'Upgrade untuk mendapatkan benefit lebih',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HalamanMember(),
                             ),
-                    trailing:
-                        isMember
-                            ? null
-                            : const Icon(Icons.arrow_forward_ios, size: 16),
-                    onTap:
-                        isMember
-                            ? () {
-                              // Navigate to member schedule or details
-                              showDialog(
-                                context: context,
-                                builder: (context) => _memberSchedule(),
-                              ).then((_) => _init());
-                            }
-                            : () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const HalamanMember(),
-                                ),
-                              ).then((_) => _init());
-                            },
+                          ).then((_) => _init());
+                        },
+                      ),
+                    ),
                   ),
-                ),
-              ),
 
               const SizedBox(height: 20),
 
@@ -1365,7 +968,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _buildRewardSection(context),
+                    Reward(currentReward: currentReward),
                   ],
                 ),
               ),
@@ -1432,7 +1035,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             onTap: () {
                               showDialog(
                                 context: context,
-                                builder: (context) => editUsername(context),
+                                builder: (context) => EditUsername(),
                               );
                             },
                           ),
@@ -1454,7 +1057,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             onTap: () {
                               showDialog(
                                 context: context,
-                                builder: (context) => editPassword(context),
+                                builder: (context) => EditPassword(),
                               );
                             },
                           ),

@@ -1,11 +1,15 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
-import 'package:flutter_application_1/services/firestore_service.dart';
-import 'package:flutter_application_1/screens_admin/halaman_utama_admin.dart';
-import 'package:flutter_application_1/constants_file.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:crypto/crypto.dart';
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_application_1/constants_file.dart';
+import 'package:flutter_application_1/screens_pelanggan/lupa_password.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_1/function/snackbar/snackbar.dart';
+import 'package:flutter_application_1/services/user/firebase_add_user.dart';
+import 'package:flutter_application_1/services/user/firebase_check_user.dart';
+import 'package:flutter_application_1/screens_admin/halaman_utama_admin.dart';
+import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.dart';
+
 
 class HalamanMasuk extends StatefulWidget {
   const HalamanMasuk({super.key});
@@ -62,7 +66,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
   String hashPassword(String password) {
     final bytes = utf8.encode(password);
     final digest = sha256.convert(bytes);
-    return digest.toString(); 
+    return digest.toString();
   }
 
   void _login() async {
@@ -79,14 +83,14 @@ class _HalamanMasukState extends State<HalamanMasuk>
       });
       return;
     }
-    
+
     if (passwordController.text.isEmpty) {
       setState(() {
         errorTextPassword = "Password tidak boleh kosong";
       });
       return;
     }
-    
+
     if (passwordController.text.length < 6) {
       setState(() {
         errorTextPassword = "Password minimal 6 karakter";
@@ -104,25 +108,24 @@ class _HalamanMasukState extends State<HalamanMasuk>
       debugPrint('Starting login process for: ${usernameController.text}');
 
       // Handle admin login
-      if (usernameController.text == "admin_1" && passwordController.text == "admin_1") {
+      if (usernameController.text == "admin_1" &&
+          passwordController.text == "admin_1") {
         await _handleAdminLogin();
         return;
       }
 
       // Handle owner login
-      if (usernameController.text == "owner_1" && passwordController.text == "owner_1") {
+      if (usernameController.text == "owner_1" &&
+          passwordController.text == "owner_1") {
         await _handleOwnerLogin();
         return;
       }
 
       // Handle customer login
       await _handleCustomerLogin();
-
     } catch (e) {
-      debugPrint('Login error: $e');
-      if (mounted) {
-        _showErrorSnackBar('Terjadi kesalahan: $e');
-      }
+      if (!mounted) return;
+      showErrorSnackBar(context, 'Terjadi kesalahan: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -134,14 +137,16 @@ class _HalamanMasukState extends State<HalamanMasuk>
 
   Future<void> _handleAdminLogin() async {
     try {
-      debugPrint('Processing admin login...');
-      
-      bool registered = await FirebaseService().checkUser(usernameController.text);
-      
+      bool registered = await FirebaseCheckUser().checkExistence(
+        'username',
+        usernameController.text,
+      );
+
       if (!registered) {
-        await FirebaseService().addAdminOwner(
-          usernameController.text,
-          passwordController.text,
+        await FirebaseAddUser().addUser(
+          userName: usernameController.text,
+          password: passwordController.text,
+          role: 'admin',
         );
         debugPrint('Admin account created');
       }
@@ -149,109 +154,94 @@ class _HalamanMasukState extends State<HalamanMasuk>
       // Save to shared preferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('username', usernameController.text);
-      
+
       debugPrint('Navigating to admin page...');
-      
+
       if (mounted) {
-        Navigator.pushReplacement(
+        Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(
-            builder: (context) => const HalamanUtamaAdmin(),
-          ),
+          MaterialPageRoute(builder: (context) => const HalamanUtamaAdmin()),
+          (route) => false,
         );
       }
     } catch (e) {
-      debugPrint('Admin login error: $e');
-      if (mounted) {
-        _showErrorSnackBar('Gagal login admin: $e');
-      }
+      if (!mounted) return;
+      showErrorSnackBar(context, 'Gagal login admin: $e');
     }
   }
 
   Future<void> _handleOwnerLogin() async {
     try {
-      debugPrint('Processing owner login...');
-      
-      bool registered = await FirebaseService().checkUser(usernameController.text);
-      
+      bool registered = await FirebaseCheckUser().checkExistence(
+        'username',
+        usernameController.text,
+      );
+
       if (!registered) {
-        await FirebaseService().addAdminOwner(
-          usernameController.text,
-          passwordController.text,
+        await FirebaseAddUser().addUser(
+          userName: usernameController.text,
+          password: passwordController.text,
+          role: 'owner',
         );
-        debugPrint('Owner account created');
       }
     } catch (e) {
-      debugPrint('Owner login error: $e');
-      if (mounted) {
-        _showErrorSnackBar('Gagal login owner: $e');
-      }
+      if (!mounted) return;
+      showErrorSnackBar(context, 'Gagal login owner: $e');
     }
   }
 
   Future<void> _handleCustomerLogin() async {
     try {
-      debugPrint('Processing customer login...');
-      
       // Check if user is registered
-      bool registered = await FirebaseService().checkUser(usernameController.text);
-      debugPrint('User registered: $registered');
+      bool registered = await FirebaseCheckUser().checkExistence(
+        'username',
+        usernameController.text,
+      );
 
       if (!registered) {
-        if (mounted) {
-          _showErrorSnackBar('Username belum terdaftar, silahkan daftar terlebih dahulu.');
-        }
+        if (!mounted) return;
+        showErrorSnackBar(
+          context,
+          'Username belum terdaftar, silahkan daftar terlebih dahulu.',
+        );
+
         return;
       }
 
       // Check password
-      debugPrint('Checking password...');
-      bool validPassword = await FirebaseService().checkPassword(
+      bool validPassword = await FirebaseCheckUser().checkPassword(
         usernameController.text,
         hashPassword(passwordController.text),
       );
-      debugPrint('Password valid: $validPassword');
 
       if (!validPassword) {
-        if (mounted) {
-          _showErrorSnackBar('Password tidak sesuai.');
-        }
+        if (!mounted) return;
+        showErrorSnackBar(context, 'Password tidak sesuai.');
         return;
       }
 
       // Save to shared preferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('username', usernameController.text);
-      
-      debugPrint('Login successful, navigating to customer page...');
 
       if (mounted) {
         // Add a small delay to ensure all async operations complete
         await Future.delayed(const Duration(milliseconds: 100));
-        
-        Navigator.pushReplacement(
+
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(
             builder: (context) => const PilihHalamanPelanggan(),
           ),
+          (route) => false,
         );
       }
     } catch (e) {
       debugPrint('Customer login error: $e');
-      if (mounted) {
-        _showErrorSnackBar('Gagal login: $e');
-      }
+      if (!mounted) return;
+        showErrorSnackBar(context, 'Gagal login: $e');
     }
-  }
-
-  void _showErrorSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-      ),
-    );
   }
 
   @override
@@ -283,10 +273,12 @@ class _HalamanMasukState extends State<HalamanMasuk>
                         padding: EdgeInsets.only(
                           top: screenHeight * 0.01,
                           bottom: screenHeight * 0.03,
+                          right: screenWidth * 0.1,
+                          left: screenWidth * 0.1,
                         ),
                         child: Image.asset(
                           'assets/image/LogoJSA.jpg',
-                          width: 150, 
+                          width: 150,
                           height: 150,
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
@@ -385,7 +377,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
                             borderRadius: BorderRadius.circular(borderRadius),
                             borderSide: const BorderSide(
                               color: Colors.grey,
-                              width: 1.0
+                              width: 1.0,
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(
@@ -438,46 +430,65 @@ class _HalamanMasukState extends State<HalamanMasuk>
                           onPressed: _isLoading ? null : _login,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryColor,
-                            disabledBackgroundColor: primaryColor.withOpacity(0.6),
+                            disabledBackgroundColor: primaryColor.withValues(
+                              alpha: 0.6,
+                            ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(borderRadius),
                             ),
                             elevation: 3,
                           ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      Colors.white,
+                          child:
+                              _isLoading
+                                  ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                      strokeWidth: 3,
                                     ),
-                                    strokeWidth: 3,
+                                  )
+                                  : const Text(
+                                    "Masuk",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
                                   ),
-                                )
-                              : const Text(
-                                  "Masuk",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                  ),
-                                ),
                         ),
                       ),
-                      
+
                       // Debug info (remove in production)
                       if (_isLoading)
                         const Padding(
                           padding: EdgeInsets.only(top: 16.0),
                           child: Text(
                             "Sedang memproses login...",
+                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                          ),
+                        ),
+                        
+                      GestureDetector(
+                        onTap: () {
+                          // Navigator.push(context, MaterialPageRoute(
+                          //   builder: (context) => HalamanLupaPassword(),
+                          // ));
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.only(top: 16.0),
+                          child: Text(
+                            "Lupa password?",
                             style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 12,
+                              color: primaryColor,
+                              fontSize: 14,
+                              decoration: TextDecoration.underline,
                             ),
                           ),
                         ),
+                      )
                     ],
                   ),
                 ),

@@ -1,18 +1,18 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_application_1/constants_file.dart';
-import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter_application_1/constants_file.dart';
+import 'package:flutter_application_1/model/jadwal_khusus_model.dart';
+import 'package:flutter_application_1/function/snackbar/snackbar.dart';
+import 'package:flutter_application_1/function/schedule/holiday/add_holiday.dart';
+import 'package:flutter_application_1/function/schedule/holiday/get_holiday.dart';
+import 'package:flutter_application_1/function/schedule/close/add_close_day.dart';
+import 'package:flutter_application_1/function/schedule/close/get_close_day.dart';
+import 'package:flutter_application_1/function/schedule/holiday/delete_holiday.dart';
+import 'package:flutter_application_1/function/schedule/close/delete_close_day.dart';
+import 'package:flutter_application_1/services/time_slot/firebase_add_time_slot.dart';
+import 'package:flutter_application_1/services/time_slot/firebase_get_time_slot.dart';
 
-extension StringToDateTime on String {
-  DateTime toDate() {
-    final parts = split(':');
-    final hour = int.tryParse(parts[0]) ?? 0;
-    final minute = int.tryParse(parts[1]) ?? 0;
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day, hour, minute);
-  }
-}
 
 class HalamanJadwal extends StatefulWidget {
   const HalamanJadwal({super.key});
@@ -25,11 +25,14 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _formKey = GlobalKey<FormState>();
-  List<AllCloseDay> jadwalKhusus = [];
-  DateTime tanggalKhusus = DateTime.now().add(Duration(days: 1)); // Default tomorrow
+  List<JadwalKhususModel> jadwalKhusus = [];
+  DateTime tanggalKhusus = DateTime.now().add(
+    Duration(days: 1),
+  ); // Default tomorrow
   TimeOfDay jamMulaiKhusus = TimeOfDay(hour: 9, minute: 0);
   TimeOfDay jamSelesaiKhusus = TimeOfDay(hour: 18, minute: 0);
   bool isClose = false;
+  bool isHoliday = false;
   String? editingDocId;
 
   // Loading state variables
@@ -55,18 +58,25 @@ class _HalamanJadwalState extends State<HalamanJadwal>
 
     try {
       await Future.delayed(Duration(seconds: 1)); // Simulate network delay
-      final hasil = await FirebaseService().getAllCloseDay();
+      final closeList = await GetCloseDay().getAllCloseDays();
+      final weekendList = await GetHoliday().getAllHolidays();
+
+      final hasil = <JadwalKhususModel>[];
+      hasil.addAll(closeList);
+      hasil.addAll(weekendList);
+      hasil.sort(
+        (a, b) => DateTime.parse(b.date).compareTo(DateTime.parse(a.date)),
+      ); // Sort by date descending
+
+      print("Jadwal Khusus: ${hasil.map((e) => e.date).toList()}");
 
       setState(() {
         jadwalKhusus = hasil;
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat jadwal: ${e.toString()}')),
-        );
+        showErrorSnackBar(context, 'Gagal memuat jadwal: ${e.toString()}');
       }
-      debugPrint('Error fetching jadwal: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -89,18 +99,6 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     return TimeOfDay(hour: hour, minute: minute);
   }
 
-  String _formatDate(DateTime date) {
-    List<String> months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-    ];
-    List<String> days = [
-      'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu',
-    ];
-
-    return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
-  }
-
   bool isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
@@ -116,13 +114,9 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     return formatter.format(date);
   }
 
-  String formatDateForStorage(DateTime date) {
-    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-  }
-
   // Check if a date already has a schedule
   bool hasScheduleForDate(DateTime date) {
-    String formattedDate = formatDateForStorage(date);
+    String formattedDate = DateFormat('yyyy-MM-dd').format(date);
     return jadwalKhusus.any((jadwal) => jadwal.date == formattedDate);
   }
 
@@ -131,7 +125,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     DateTime today = DateTime.now();
     DateTime startOfToday = DateTime(today.year, today.month, today.day);
     DateTime tomorrow = startOfToday.add(Duration(days: 1));
-    
+
     return date.isAfter(startOfToday) || isSameDay(date, tomorrow);
   }
 
@@ -155,10 +149,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildInputJadwalTab(),
-          _buildDaftarJadwalTab(),
-        ],
+        children: [_buildInputJadwalTab(), _buildDaftarJadwalTab()],
       ),
     );
   }
@@ -192,7 +183,9 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                     final picked = await showDatePicker(
                       context: context,
                       initialDate: tanggalKhusus,
-                      firstDate: DateTime.now().add(Duration(days: 1)), // Start from tomorrow
+                      firstDate: DateTime.now().add(
+                        Duration(days: 1),
+                      ), // Start from tomorrow
                       lastDate: DateTime(2101),
                     );
                     if (picked != null) {
@@ -224,24 +217,53 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                     ),
                   ),
                 ),
-                SizedBox(height: 16),
-                Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: CheckboxListTile(
-                    title: Text("Tutup Sepanjang Hari"),
-                    value: isClose,
-                    onChanged: (val) => setState(() => isClose = val ?? false),
-                    controlAffinity: ListTileControlAffinity.leading,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12),
-                  ),
-                ),
-                SizedBox(height: 16),
+
                 if (!isClose)
                   Column(
                     children: [
+                      SizedBox(height: 16),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: CheckboxListTile(
+                          title: Text("Hari Libur"),
+                          value: isHoliday,
+                          onChanged:
+                              (val) => setState(() => isHoliday = val ?? false),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                if (!isHoliday)
+                  Column(
+                    children: [
+                      SizedBox(height: 16),
+                      Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: CheckboxListTile(
+                          title: Text("Tutup Sepanjang Hari"),
+                          value: isClose,
+                          onChanged:
+                              (val) => setState(() => isClose = val ?? false),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                if (!isClose && !isHoliday)
+                  Column(
+                    children: [
+                      SizedBox(height: 16),
                       GestureDetector(
                         onTap: () async {
                           final picked = await showTimePicker(
@@ -334,18 +356,19 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: _isLoading
-                            ? SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
+                        child:
+                            _isLoading
+                                ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : Text(
+                                  editingDocId != null ? "Perbarui" : "Simpan",
                                 ),
-                              )
-                            : Text(
-                                editingDocId != null ? "Perbarui" : "Simpan",
-                              ),
                       ),
                     ),
                   ],
@@ -369,9 +392,9 @@ class _HalamanJadwalState extends State<HalamanJadwal>
   }
 
   void _showAlreadyExistsDialog(DateTime date) {
-    String formattedDate = formatDateForStorage(date);
-    AllCloseDay? existingSchedule;
-    
+    String formattedDate = DateFormat('yyyy-MM-dd').format(date);
+    JadwalKhususModel? existingSchedule;
+
     try {
       existingSchedule = jadwalKhusus.firstWhere(
         (jadwal) => jadwal.date == formattedDate,
@@ -383,40 +406,38 @@ class _HalamanJadwalState extends State<HalamanJadwal>
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Jadwal Sudah Ada"),
-        content: Text(
-          "Jadwal untuk tanggal ini sudah ada. Apakah Anda ingin mengedit jadwal tersebut?",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Batal"),
+      builder:
+          (context) => AlertDialog(
+            title: Text("Jadwal Sudah Ada"),
+            content: Text(
+              "Jadwal untuk tanggal ini sudah ada. Apakah Anda ingin mengedit jadwal tersebut?",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text("Batal"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _editJadwal(existingSchedule!);
+                },
+                style: TextButton.styleFrom(foregroundColor: primaryColor),
+                child: Text("Edit Jadwal"),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _editJadwal(existingSchedule!);
-            },
-            style: TextButton.styleFrom(foregroundColor: primaryColor),
-            child: Text("Edit Jadwal"),
-          ),
-        ],
-      ),
     );
   }
 
   Future<void> _loadOrCreateSlots(DateTime selectedDate) async {
-    final dateStr = formatDateForStorage(selectedDate);
-    final slots = await FirebaseService().getTimeSlotsByDate(dateStr);
+    final slots = await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
 
     if (slots.isEmpty) {
-      debugPrint('Slots not exist, generating...');
-      await FirebaseService().generateSlotsOneDay(selectedDate);
+      await FirebaseAddTimeSlot().addTimeSlot(selectedDate);
     }
-    
-    debugPrint('Closing time range slots...');
-    await FirebaseService().closeUseTimeRange(
+
+    await AddCloseDay().closeUseTimeRange(
       selectedDate, // Pass DateTime instead of tanggalKhusus
       formatTime(jamMulaiKhusus),
       formatTime(jamSelesaiKhusus),
@@ -434,11 +455,9 @@ class _HalamanJadwalState extends State<HalamanJadwal>
 
     // Additional validation
     if (!isDateValid(tanggalKhusus)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Hanya dapat membuat jadwal untuk besok dan seterusnya'),
-          backgroundColor: Colors.red,
-        ),
+      showErrorSnackBar(
+        context,
+        'Hanya dapat membuat jadwal untuk besok dan seterusnya',
       );
       return;
     }
@@ -451,12 +470,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
 
     // Time validation for time range mode
     if (!isClose && !isTimeValid()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Jam selesai harus setelah jam mulai'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showErrorSnackBar(context, 'Jam selesai harus setelah jam mulai');
       return;
     }
 
@@ -464,14 +478,23 @@ class _HalamanJadwalState extends State<HalamanJadwal>
       setState(() => _isLoading = true);
 
       if (editingDocId != null) {
-        debugPrint('Deleting existing schedule with ID: $editingDocId');
-        await FirebaseService().deleteCloseDay(editingDocId!);
+        await DeleteCloseDay().deleteCloseDay(editingDocId!);
       }
 
-      if (isClose) {
+      if (isHoliday) {
+        // Set as weekend/holiday
+        await AddHoliday().addHoliday(tanggalKhusus);
+        debugPrint('Added holiday for ${formatTanggal(tanggalKhusus)}');
+      } else if (isClose) {
         // Close all day
-        await FirebaseService().closeAllDay(tanggalKhusus);
+        await AddCloseDay().closeAllDay(tanggalKhusus);
+        // await FirebaseService().closeAllDay(tanggalKhusus);
+        debugPrint('Closed all day close for ${formatTanggal(tanggalKhusus)}');
       } else {
+        debugPrint(
+          'Closing time range close for ${formatTanggal(tanggalKhusus)}: '
+          '${formatTime(jamMulaiKhusus)} - ${formatTime(jamSelesaiKhusus)}',
+        );
         // Close specific time range
         await _loadOrCreateSlots(tanggalKhusus);
       }
@@ -480,31 +503,20 @@ class _HalamanJadwalState extends State<HalamanJadwal>
       _resetForm();
 
       if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            editingDocId != null
-                ? 'Jadwal berhasil diperbarui'
-                : 'Jadwal berhasil disimpan',
-          ),
-          backgroundColor: Colors.green,
-        ),
+
+      showSuccessSnackBar(
+        context,
+        editingDocId != null
+            ? 'Jadwal berhasil diperbarui'
+            : 'Jadwal berhasil disimpan',
       );
 
       // Refresh and switch to list tab
       await _fetchJadwalKhusus();
       _tabController.animateTo(1);
-      
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menyimpan jadwal: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        debugPrint('Error saving jadwal: $e');
+        showErrorSnackBar(context, 'Gagal menyimpan jadwal: ${e.toString()}');
       }
     } finally {
       if (mounted) {
@@ -532,97 +544,102 @@ class _HalamanJadwalState extends State<HalamanJadwal>
 
     return jadwalKhusus.isEmpty
         ? RefreshIndicator(
-            onRefresh: _fetchJadwalKhusus,
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [
-                SizedBox(height: 200),
-                Column(
-                  children: [Center(child: Text("Belum ada jadwal khusus"))],
-                ),
-              ],
-            ),
-          )
+          onRefresh: _fetchJadwalKhusus,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: const [
+              SizedBox(height: 200),
+              Column(
+                children: [Center(child: Text("Belum ada jadwal khusus"))],
+              ),
+            ],
+          ),
+        )
         : RefreshIndicator(
-            onRefresh: _fetchJadwalKhusus,
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: jadwalKhusus.length,
-              itemBuilder: (context, index) {
-                final jadwal = jadwalKhusus[index];
-                return Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+          onRefresh: _fetchJadwalKhusus,
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: jadwalKhusus.length,
+            itemBuilder: (context, index) {
+              final jadwal = jadwalKhusus[index];
+              return Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                margin: const EdgeInsets.only(bottom: 12),
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              formatLongDate(DateTime.parse(jadwal.date)),
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: primaryColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        jadwal.type == 'holiday'
+                            ? 'Hari Libur'
+                            : (jadwal.description == 'all day'
+                                ? 'Tutup Sepanjang Hari'
+                                : 'Jam Tutup: ${jadwal.startTime} - ${jadwal.endTime}'),
+                        style: TextStyle(fontSize: 15, color: Colors.grey[700]),
+                      ),
+                      Divider(height: 24),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton.icon(
+                            icon: Icon(Icons.edit, size: 18),
+                            label: Text("Edit"),
+                            onPressed:
+                                _isLoading ? null : () => _editJadwal(jadwal),
+                            style: TextButton.styleFrom(
+                              foregroundColor: primaryColor,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          TextButton.icon(
+                            icon: Icon(Icons.delete, size: 18),
+                            label: Text("Hapus"),
+                            onPressed:
+                                _isLoading
+                                    ? null
+                                    : () => _showDeleteConfirmation(jadwal),
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.red,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  margin: const EdgeInsets.only(bottom: 12),
-                  elevation: 2,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                _formatDate(DateTime.parse(jadwal.date)),
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: primaryColor,
-                                ),
-                              ),
-                            ),
-                            
-                          ],
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          jadwal.isClose == 'all day'
-                              ? 'Tutup Sepanjang Hari'
-                              : 'Jam Tutup: ${jadwal.startTime} - ${jadwal.endTime}',
-                          style: TextStyle(fontSize: 15, color: Colors.grey[700]),
-                        ),
-                        Divider(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton.icon(
-                              icon: Icon(Icons.edit, size: 18),
-                              label: Text("Edit"),
-                              onPressed: _isLoading ? null : () => _editJadwal(jadwal),
-                              style: TextButton.styleFrom(
-                                foregroundColor: primaryColor,
-                              ),
-                            ),
-                            SizedBox(width: 8),
-                            TextButton.icon(
-                              icon: Icon(Icons.delete, size: 18),
-                              label: Text("Hapus"),
-                              onPressed: _isLoading ? null : () => _showDeleteConfirmation(jadwal),
-                              style: TextButton.styleFrom(
-                                foregroundColor: Colors.red,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          );
+                ),
+              );
+            },
+          ),
+        );
   }
 
-  void _editJadwal(AllCloseDay jadwal) {
+  void _editJadwal(JadwalKhususModel jadwal) {
     setState(() {
       tanggalKhusus = DateTime.parse(jadwal.date);
-      if (jadwal.isClose == 'time range') {
+      if (jadwal.type == 'time range') {
         isClose = false;
         jamMulaiKhusus = parseTime(jadwal.startTime);
         jamSelesaiKhusus = parseTime(jadwal.endTime);
-      } else if (jadwal.isClose == 'all day') {
+      } else if (jadwal.type == 'all day') {
         isClose = true;
       }
       editingDocId = jadwal.date;
@@ -633,56 +650,51 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     }
   }
 
-  void _showDeleteConfirmation(AllCloseDay jadwal) {
+  void _showDeleteConfirmation(JadwalKhususModel jadwal) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text("Konfirmasi Hapus"),
-        content: Text(
-          "Anda yakin ingin menghapus jadwal untuk ${_formatDate(DateTime.parse(jadwal.date))}?",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text("Batal"),
+      builder:
+          (context) => AlertDialog(
+            title: Text("Konfirmasi Hapus"),
+            content: Text(
+              "Anda yakin ingin menghapus jadwal untuk ${formatLongDate(DateTime.parse(jadwal.date))}?",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text("Batal"),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await _deleteJadwal(jadwal);
+                },
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text("Hapus"),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _deleteJadwal(jadwal);
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: Text("Hapus"),
-          ),
-        ],
-      ),
     );
   }
 
-  Future<void> _deleteJadwal(AllCloseDay jadwal) async {
+  Future<void> _deleteJadwal(JadwalKhususModel jadwal) async {
     try {
       setState(() => _isLoading = true);
 
-      await FirebaseService().deleteCloseDay(jadwal.date);
+      if (jadwal.type == 'holiday') {
+        await DeleteHoliday().deleteHoliday(jadwal.date);
+      } else {
+        await DeleteCloseDay().deleteCloseDay(jadwal.date);
+      }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Jadwal berhasil dihapus'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showSuccessSnackBar(context, 'Jadwal berhasil dihapus');
       }
 
       await _fetchJadwalKhusus();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menghapus jadwal: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showErrorSnackBar(context, 'Gagal menghapus jadwal: ${e.toString()}');
         debugPrint('Error deleting jadwal: $e');
       }
     } finally {

@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_application_1/screens_admin/customers.dart';
-import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:flutter_application_1/constants_file.dart';
-import 'package:crypto/crypto.dart';
-import 'dart:convert';
+import 'package:flutter_application_1/screens_admin/customers.dart';
+import 'package:flutter_application_1/function/snackbar/snackbar.dart';
+import 'package:flutter_application_1/services/user/firebase_check_user.dart';
+import 'package:flutter_application_1/services/user/firebase_add_user.dart';
+
 
 class HalamanNonMemberAdmin extends StatefulWidget {
   const HalamanNonMemberAdmin({super.key});
@@ -70,12 +71,6 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
     clubController.dispose();
     _animationController.dispose();
     super.dispose();
-  }
-
-  String hashPassword(String password) {
-    final bytes = utf8.encode(password);
-    final digest = sha256.convert(bytes);
-    return digest.toString(); 
   }
 
   void _daftar() async {
@@ -157,75 +152,100 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
       final club = clubController.text;
       final noTelp = noTelpController.text;
 
-      final registed = await FirebaseService().checkUser(username);
+      final registed = await FirebaseCheckUser().checkExistence(
+        'username',
+        username,
+      );
       if (registed) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Username sudah terdaftar, silahkan gunakan username lain',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showErrorSnackBar(context, 'Username sudah terdaftar');
         return;
       }
 
-      final namaUsed = await FirebaseService().checknama(nama);
+      final namaUsed = await FirebaseCheckUser().checkExistence('name', nama);
       if (namaUsed) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Nama sudah digunakan'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showErrorSnackBar(context, 'Nama sudah digunakan');
         return;
       }
 
-      final clubUsed = await FirebaseService().checkclub(club);
+      final clubUsed = await FirebaseCheckUser().checkExistence('club', club);
       if (clubUsed) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Club sudah digunakan'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showErrorSnackBar(context, 'Club sudah digunakan');
         return;
       }
 
-      final telpUsed = await FirebaseService().checkphoneNumber(noTelp);
+      final telpUsed = await FirebaseCheckUser().checkExistence(
+        'phoneNumber',
+        noTelp,
+      );
       if (telpUsed) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Nomor telepon sudah digunakan'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showErrorSnackBar(context, 'Nomor telepon sudah digunakan');
         return;
       }
 
       // Check if username is already registered
-      await FirebaseService().addUser(username, hashPassword(password), nama, club, noTelp);
+      await FirebaseAddUser().addUser(
+        userName: username,
+        password: hashPassword(password),
+        role: 'nonMember',
+        name: nama,
+        club: club,
+        phoneNumber: noTelp,
+      );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Akun berhasil didaftarkan')));
-      
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HalamanCustomers()));
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Terjadi kesalahan: $e'),
-          backgroundColor: Colors.red,
-        ),
+      showSuccessSnackBar(context, 'Akun berhasil didaftarkan');
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HalamanCustomers()),
       );
+    } catch (e) {
+      showErrorSnackBar(context, 'Terjadi kesalahan: $e');
     } finally {
       setState(() {
         _isLoading = false;
       });
     }
+  }
+
+  Widget buildTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required IconData prefixIcon,
+    String? errorText,
+    Function(String)? onChanged,
+  }) {
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(borderRadius),
+          borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(borderRadius),
+          borderSide: const BorderSide(color: Colors.grey, width: 1.0),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(borderRadius),
+          borderSide: const BorderSide(color: primaryColor, width: 2.0),
+        ),
+        prefixIcon: Icon(prefixIcon, color: primaryColor),
+        labelText: labelText,
+        labelStyle: const TextStyle(color: Colors.grey),
+        errorText: errorText,
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 15.0,
+          horizontal: 20.0,
+        ),
+      ),
+      onChanged: onChanged,
+    );
   }
 
   @override
@@ -250,197 +270,53 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const SizedBox(height: 20),
-                      // Username field
-                      TextField(
+                      buildTextField(
                         controller: usernameController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 1.0,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 1.0,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: primaryColor,
-                              width: 2.0,
-                            ),
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.person,
-                            color: primaryColor,
-                          ),
-                          labelText: "Username",
-                          labelStyle: const TextStyle(color: Colors.grey),
-                          errorText: errorTextUsername,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 15.0,
-                            horizontal: 20.0,
-                          ),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            errorTextUsername = null;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 15),
-
-                      // Full Name field
-                      TextField(
-                        controller: namaController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 1.0,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 1.0,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: primaryColor,
-                              width: 2.0,
-                            ),
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.person_outline,
-                            color: primaryColor,
-                          ),
-                          labelText: "Nama Lengkap",
-                          labelStyle: const TextStyle(color: Colors.grey),
-                          errorText: errorTextNama,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 15.0,
-                            horizontal: 20.0,
-                          ),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            errorTextNama = null;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 15),
-
-                      // Club Name field
-                      TextField(
-                        controller: clubController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 1.0,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 1.0,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: primaryColor,
-                              width: 2.0,
-                            ),
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.groups,
-                            color: primaryColor,
-                          ),
-                          labelText: "Nama Club (tidak wajib)",
-                          labelStyle: const TextStyle(color: Colors.grey),
-                          errorText: errorTextClub,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 15.0,
-                            horizontal: 20.0,
-                          ),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            errorTextClub = null;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 15),
-
-                      // Phone Number field
-                      TextField(
-                        controller: noTelpController,
-                        keyboardType: TextInputType.phone,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 1.0,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 1.0,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: primaryColor,
-                              width: 2.0,
-                            ),
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.phone,
-                            color: primaryColor,
-                          ),
-                          labelText: "Nomor Telepon",
-                          labelStyle: const TextStyle(color: Colors.grey),
-                          errorText: errorTextNoTelp,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 15.0,
-                            horizontal: 20.0,
-                          ),
-                        ),
+                        labelText: "Username",
+                        prefixIcon: Icons.person,
+                        errorText: errorTextUsername,
                         onChanged: (value) {
                           setState(() {
                             errorTextNoTelp = null;
                           });
                         },
                       ),
-
+                      const SizedBox(height: 15),
+                      buildTextField(
+                        controller: namaController,
+                        labelText: 'Nama Lengkap',
+                        prefixIcon: Icons.person_outline,
+                        errorText: errorTextNama,
+                        onChanged: (value) {
+                          setState(() {
+                            errorTextNama = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      buildTextField(
+                        controller: clubController,
+                        labelText: 'Nama Club (tidak wajib)',
+                        prefixIcon: Icons.groups,
+                        errorText: errorTextClub,
+                        onChanged: (value) {
+                          setState(() {
+                            errorTextClub = null;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      buildTextField(
+                        controller: noTelpController,
+                        labelText: 'Nomor Telepon',
+                        prefixIcon: Icons.phone,
+                        errorText: errorTextNoTelp,
+                        onChanged: (value) {
+                          setState(() {
+                            errorTextNoTelp = null;
+                          });
+                        },
+                      ),
                       const SizedBox(height: 15),
 
                       // Password field
@@ -577,8 +453,8 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
                           onPressed: _isLoading ? null : _daftar,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: primaryColor,
-                            disabledBackgroundColor: primaryColor.withOpacity(
-                              0.6,
+                            disabledBackgroundColor: primaryColor.withValues(
+                              alpha: 0.6,
                             ),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(borderRadius),

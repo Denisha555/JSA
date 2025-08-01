@@ -1,8 +1,19 @@
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter_application_1/services/firestore_service.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter_application_1/function/price/price.dart';
+import 'package:flutter_application_1/model/time_slot_model.dart';
+import 'package:flutter_application_1/function/snackbar/snackbar.dart';
+import 'package:flutter_application_1/function/calender/legend_item.dart';
+import 'package:flutter_application_1/services/court/firebase_get_court.dart';
+import 'package:flutter_application_1/services/user/firebase_check_user.dart';
+import 'package:flutter_application_1/services/booking/member/cancel_member.dart';
+import 'package:flutter_application_1/services/booking/member/booking_member.dart';
+import 'package:flutter_application_1/services/time_slot/firebase_add_time_slot.dart';
+import 'package:flutter_application_1/services/time_slot/firebase_get_time_slot.dart';
+import 'package:flutter_application_1/services/booking/nonmember/cancel_nonmember.dart';
+import 'package:flutter_application_1/services/booking/nonmember/booking_nonmember.dart';
 
 class HalamanKalender extends StatefulWidget {
   const HalamanKalender({super.key});
@@ -21,62 +32,15 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   Set<String> loadingCells = {}; // Track which cells are loading
   bool isBookingInProgress = false; // Global booking state
 
-  Map<String, Map<String, Map<String, dynamic>>> bookingData = {};
+  List<TimeSlotModel> timeSlot = [];
   List<String> courtIds = [];
-  String _formatDate(DateTime date) {
-    List<String> months = [
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
-    ];
-    List<String> days = [
-      'Senin',
-      'Selasa',
-      'Rabu',
-      'Kamis',
-      'Jumat',
-      'Sabtu',
-      'Minggu',
-    ];
-
-    return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
-  }
+  List<String> timeRanges = [];
 
   void _changeDate(DateTime date) {
     setState(() {
       selectedDate = date;
     });
     _loadOrCreateSlots(date);
-  }
-
-  String _formatDateString(DateTime date) {
-    return "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-  }
-
-  int _timeToMinutes(String time) {
-    final parts = time.split(':');
-    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
-  }
-
-  String _minutesToFormattedTime(int minutes) {
-    final hour = minutes ~/ 60;
-    final minute = minutes % 60;
-    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
-  }
-
-  String _calculateEndTime(String startTime, int durationSlots) {
-    final startTotalMinutes = _timeToMinutes(startTime);
-    final endTotalMinutes = startTotalMinutes + (durationSlots * 30);
-    return _minutesToFormattedTime(endTotalMinutes);
   }
 
   void _safeNavigatorPop(BuildContext context) {
@@ -106,70 +70,65 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     );
   }
 
+  Future<int> _calculateMaxConsecutiveSlots(
+    String time,
+    String court,
+    DateTime selectedDate,
+  ) async {
+    try {
+      final startTime = time.split(' - ')[0];
+      final startIndex = timeSlots.indexOf(startTime);
+
+      if (startIndex == -1) return 1;
+
+      final currentHour = int.parse(startTime.split(':')[0]);
+      final currentMinute = int.parse(startTime.split(':')[1]);
+      final startTotalMinutes = currentHour * 60 + currentMinute;
+      final remainingMinutes = (23 * 60) - startTotalMinutes;
+      final maxPossibleSlots = remainingMinutes ~/ 30;
+
+      final slotStatuses = await FirebaseGetTimeSlot().getSlotRangeAvailability(
+        startTime: startTime,
+        court: court,
+        date: selectedDate,
+        maxSlots: maxPossibleSlots,
+      );
+
+      int consecutiveSlots = 0;
+      for (int i = 0; i < slotStatuses.length; i++) {
+        final slot = slotStatuses[i];
+        if (slot.isAvailable && !slot.isClosed) {
+          consecutiveSlots++;
+        } else {
+          break;
+        }
+      }
+
+      return consecutiveSlots;
+    } catch (e) {
+      debugPrint('Error calculating consecutive slots: $e');
+      return 1;
+    }
+  }
+
   // Show dialog to add a new booking
-  void _showAddBookingDialog(String time, String court) async {
+  Future<void> _showAddBookingDialog(String time, String court) async {
     // Cek jika sudah ada proses booking yang berjalan
     if (isBookingInProgress) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Sedang memproses booking lain, mohon tunggu...'),
-          backgroundColor: Colors.orange,
-        ),
+      showCustomSnackBar(
+        context,
+        'Sedang memproses booking lain, mohon tunggu...',
       );
       return;
     }
 
     final TextEditingController usernameController = TextEditingController();
     String startTime = time.split(' - ')[0];
-    int maxConsecutiveSlots = 1;
-
-    // [Existing code untuk calculate maxConsecutiveSlots...]
-    bool isWithinOperatingHours(int hour, int minute) {
-      int totalMinutes = hour * 60 + minute;
-      return totalMinutes >= 7 * 60 && totalMinutes < 23 * 60;
-    }
-
-    int currentHour = int.parse(time.split(':')[0]);
-    int currentMinute = int.parse(time.split(':')[1].split(' ')[0]);
-    int startTotalMinutes = currentHour * 60 + currentMinute;
-    int remainingMinutes = (23 * 60) - startTotalMinutes;
-    int maxPossibleSlots = remainingMinutes ~/ 30;
-
-    for (int i = 1; i <= maxPossibleSlots; i++) {
-      int nextTotalMinutes = startTotalMinutes + (i * 30);
-      int nextSlotHour = nextTotalMinutes ~/ 60;
-      int nextSlotMinute = nextTotalMinutes % 60;
-
-      if (!isWithinOperatingHours(nextSlotHour, nextSlotMinute)) {
-        break;
-      }
-
-      String nextTimeSlot =
-          '${nextSlotHour.toString().padLeft(2, '0')}:${nextSlotMinute.toString().padLeft(2, '0')}';
-
-      try {
-        bool isNextSlotAvailable = await FirebaseService().isSlotAvailable(
-          nextTimeSlot,
-          court,
-          selectedDate,
-        );
-
-        bool isNextSlotClosed = await FirebaseService().isSlotClosed(
-          nextTimeSlot,
-          court,
-          selectedDate,
-        );
-
-        if (isNextSlotAvailable && !isNextSlotClosed) {
-          maxConsecutiveSlots = i + 1;
-        } else {
-          break;
-        }
-      } catch (e) {
-        debugPrint('Error checking slot availability: $e');
-        break;
-      }
-    }
+    int maxConsecutiveSlots = await _calculateMaxConsecutiveSlots(
+      time,
+      court,
+      selectedDate,
+    );
 
     // Show dialog dengan context yang proper
     if (!mounted) return;
@@ -178,7 +137,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       context: context,
       builder: (BuildContext dialogContext) {
         int selectedDuration = 1;
-        String endTime = _calculateEndTime(startTime, selectedDuration);
+        String endTime = calculateEndTime(startTime, selectedDuration);
+        final formKey = GlobalKey<FormState>();
 
         void updateEndTime() {
           int startHour = int.parse(startTime.split(':')[0]);
@@ -191,118 +151,131 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               '${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}';
         }
 
-        return StatefulBuilder(
-          builder:
-              (BuildContext context, StateSetter setDialogState) => AlertDialog(
-                title: Text('Tambah Data Booking'),
-                content: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Lapangan $court'),
-                      Text('Jam Mulai: $startTime'),
-                      Text('Jam Selesai: $endTime'),
-                      SizedBox(height: 10),
-                      Text(
-                        'Durasi:',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      DropdownButton<int>(
-                        value: selectedDuration,
-                        isExpanded: true,
-                        underline: Container(),
-                        onChanged: (value) {
-                          setDialogState(() {
-                            selectedDuration = value!;
-                            updateEndTime();
-                          });
-                        },
-                        items:
-                            List.generate(
-                              maxConsecutiveSlots,
-                              (i) => i + 1,
-                            ).map((e) {
-                              int startHour = int.parse(
-                                startTime.split(':')[0],
-                              );
-                              int startMinute = int.parse(
-                                startTime.split(':')[1],
-                              );
-                              int totalMinutes =
-                                  startHour * 60 + startMinute + (e * 30);
-                              int endHour = totalMinutes ~/ 60;
-                              int endMinute = totalMinutes % 60;
-                              String formattedEndTime =
-                                  '${endHour.toString().padLeft(2, '0')}:${endMinute.toString().padLeft(2, '0')}';
+        return Form(
+          key: formKey,
+          child: StatefulBuilder(
+            builder:
+                (
+                  BuildContext context,
+                  StateSetter setDialogState,
+                ) => AlertDialog(
+                  title: Text('Tambah Data Booking'),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Lapangan $court'),
+                        Text('Jam Mulai: $startTime'),
+                        Text('Jam Selesai: $endTime'),
+                        SizedBox(height: 10),
+                        Text(
+                          'Durasi:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        DropdownButton<int>(
+                          value: selectedDuration,
+                          isExpanded: true,
+                          underline: Container(),
+                          onChanged: (value) {
+                            setDialogState(() {
+                              selectedDuration = value!;
+                              updateEndTime();
+                            });
+                          },
+                          items:
+                              List.generate(
+                                maxConsecutiveSlots,
+                                (i) => i + 1,
+                              ).map((e) {
+                                int startHour = int.parse(
+                                  startTime.split(':')[0],
+                                );
+                                int startMinute = int.parse(
+                                  startTime.split(':')[1],
+                                );
+                                int totalMinutes =
+                                    startHour * 60 + startMinute + (e * 30);
 
-                              return DropdownMenuItem(
-                                value: e,
-                                child: Text(formattedEndTime),
-                              );
-                            }).toList(),
-                      ),
-                      SizedBox(height: 15),
-                      TextField(
-                        controller: usernameController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 1.0,
+                                String formattedEndTime =
+                                    minutesToFormattedTime(totalMinutes);
+
+                                return DropdownMenuItem(
+                                  value: e,
+                                  child: Text(formattedEndTime),
+                                );
+                              }).toList(),
+                        ),
+                        SizedBox(height: 15),
+                        TextFormField(
+                          controller: usernameController,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(borderRadius),
+                              borderSide: const BorderSide(
+                                color: Colors.grey,
+                                width: 1.0,
+                              ),
                             ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 1.0,
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(borderRadius),
+                              borderSide: const BorderSide(
+                                color: Colors.grey,
+                                width: 1.0,
+                              ),
                             ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(borderRadius),
+                              borderSide: const BorderSide(
+                                color: primaryColor,
+                                width: 2.0,
+                              ),
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.person,
                               color: primaryColor,
-                              width: 2.0,
+                            ),
+                            labelText: "Username",
+                            labelStyle: const TextStyle(color: Colors.grey),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 15.0,
+                              horizontal: 20.0,
                             ),
                           ),
-                          prefixIcon: const Icon(
-                            Icons.person,
-                            color: primaryColor,
-                          ),
-                          labelText: "Username",
-                          labelStyle: const TextStyle(color: Colors.grey),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 15.0,
-                            horizontal: 20.0,
-                          ),
+                          validator: (value) {
+                            return value!.isEmpty
+                                ? 'Silahkan masukkan username'
+                                : null;
+                          },
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => _safeNavigatorPop(dialogContext),
+                      child: Text('Batal'),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        if (formKey.currentState!.validate()) {
+                          _confirmationDialog(
+                            dialogContext,
+                            usernameController.text.trim(),
+                            startTime,
+                            endTime,
+                            court,
+                            selectedDuration,
+                          );
+                        }
+                      },
+                      child: Text('Lanjut'),
+                    ),
+                  ],
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: () => _safeNavigatorPop(dialogContext),
-                    child: Text('Batal'),
-                  ),
-                  TextButton(
-                    onPressed:
-                        () => _processBooking(
-                          dialogContext,
-                          usernameController.text.trim(),
-                          startTime,
-                          endTime,
-                          court,
-                          selectedDuration,
-                        ),
-                    child: Text('Simpan'),
-                  ),
-                ],
-              ),
+          ),
         );
       },
     );
@@ -316,105 +289,131 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     String court,
     int duration,
   ) async {
-    if (username.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Silahkan inputkan nama customer'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    // Set booking in progress
     setState(() {
       isBookingInProgress = true;
     });
 
-    // Close dialog first
-    _safeNavigatorPop(dialogContext);
+    _safeNavigatorPop(dialogContext); // Tutup dialog input
 
-    // Show loading dengan context yang benar
     if (!mounted) return;
     _showLoadingDialog(context, 'Processing booking...');
 
     try {
-      // Check user exists
-      bool userExists = await FirebaseService().checkUser(username);
+      bool userExists = await FirebaseCheckUser().checkExistence(
+        'username',
+        username,
+      );
 
       if (!userExists) {
-        _safeNavigatorPop(context); // Close loading dialog
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Username tidak ditemukan, silahkan lakukan pendaftaran terlebih dahulu',
-              ),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        if (!mounted) return;
+        _safeNavigatorPop(context); // Tutup loading
+        showErrorSnackBar(
+          context,
+          'Username tidak ditemukan, silahkan lakukan pendaftaran terlebih dahulu',
+        );
         return;
       }
 
-      // Process booking
-      final dateStr = _formatDateString(selectedDate);
-      final startTotalMinutes = _timeToMinutes(startTime);
-      final endTotalMinutes = _timeToMinutes(endTime);
+      final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
+      final startTotalMinutes = timeToMinutes(startTime);
+      final endTotalMinutes = timeToMinutes(endTime);
       double totalHours = (endTotalMinutes - startTotalMinutes) / 60.0;
 
       List<String> bookedSlots = [];
 
-      // Book all required slots
-      for (
-        int minutes = startTotalMinutes;
-        minutes < endTotalMinutes;
-        minutes += 30
-      ) {
-        final formattedTime = _minutesToFormattedTime(minutes);
-        final formatStartTime = formattedTime.replaceAll(':', '');
-        final slotId = '${court}_${dateStr}_$formatStartTime';
+      if (await FirebaseCheckUser().checkUserType(username) != 'member') {
+        for (
+          int minutes = startTotalMinutes;
+          minutes < endTotalMinutes;
+          minutes += 30
+        ) {
+          final formattedTime = minutesToFormattedTime(minutes);
 
-        await FirebaseService().bookSlotForNonMember(
-          slotId,
+          await BookingNonMember().bookSlotForNonMember(
+            court,
+            dateStr,
+            formattedTime,
+            username,
+            minutes == startTotalMinutes ? totalHours : 0,
+          );
+
+          bookedSlots.add(formattedTime);
+        }
+
+        await BookingNonMember().addTotalBooking(username);
+      } else {
+        final bookingDates = await FirebaseGetUser().getUserData(
           username,
-          minutes == startTotalMinutes ? totalHours : 0,
+          'memberTotalBooking',
+        );
+        final currentBookingDates = await FirebaseGetUser().getUserData(
+          username,
+          'memberCurrentTotalBooking',
+        );
+        final bookingLength = await FirebaseGetUser().getUserData(
+          username,
+          'memberBookingLength',
         );
 
-        bookedSlots.add(formattedTime);
+        if (currentBookingDates.length >= bookingDates.length) {
+          // Jika melebihi jumlah hari
+          for (
+            int minutes = startTotalMinutes;
+            minutes < endTotalMinutes;
+            minutes += 30
+          ) {
+            final formattedTime = minutesToFormattedTime(minutes);
+            await BookingNonMember().bookSlotForNonMember(
+              court,
+              dateStr,
+              formattedTime,
+              username,
+              minutes == startTotalMinutes ? totalHours : 0,
+            );
+            bookedSlots.add(formattedTime);
+          }
+        } else {
+          // Hitung jumlah slot
+          int length = ((endTotalMinutes - startTotalMinutes) ~/ 30);
+          if (length > bookingLength) {
+            if (!mounted) return;
+            _safeNavigatorPop(context);
+            showErrorSnackBar(
+              context,
+              'Anda hanya bisa booking maksimal $bookingLength slot',
+            );
+            return;
+          }
+
+          for (
+            int minutes = startTotalMinutes;
+            minutes < endTotalMinutes;
+            minutes += 30
+          ) {
+            final formattedTime = minutesToFormattedTime(minutes);
+            await BookingMember().bookSlotForMember(
+              court,
+              dateStr,
+              formattedTime,
+              username,
+            );
+            bookedSlots.add(formattedTime);
+          }
+
+          await BookingMember().addTotalBooking(username);
+          await BookingMember().addBookingDates(username, dateStr);
+        }
       }
 
-      // Update total booking count
-      await FirebaseService().addTotalBooking(username);
-
-      // Close loading dialog
-      _safeNavigatorPop(context);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Berhasil booking untuk $username'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Refresh data
-        await _loadOrCreateSlots(selectedDate);
-      }
+      if (!mounted) return;
+      _safeNavigatorPop(context); // Tutup loading
+      showSuccessSnackBar(context, 'Berhasil booking untuk $username');
+      await _loadOrCreateSlots(selectedDate);
     } catch (e) {
-      _safeNavigatorPop(context); // Close loading dialog
-      debugPrint('Error creating booking: $e');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error saat membuat booking: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      _safeNavigatorPop(context); // Tutup loading jika error
+      showErrorSnackBar(context, 'Error saat membuat booking: $e');
     } finally {
-      // Reset booking state
       if (mounted) {
         setState(() {
           isBookingInProgress = false;
@@ -433,12 +432,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     }
 
     try {
-      await _loadCourts();
       final courts =
-          await FirebaseService().getAllLapangan(); // ambil semua lapangan
-      final slots = await FirebaseService().getTimeSlotsByDateForAdmin(
-        selectedDate,
-      );
+          await FirebaseGetCourt().getCourts(); // ambil semua lapangan
+      final slots = await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
 
       final expectedSlotCount =
           courts.length * ((22 - 7 + 1) * 2); // 30 menit per jam
@@ -446,173 +442,170 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       bool isComplete = slots.length >= expectedSlotCount;
 
       if (!isComplete) {
-        print(
-          'Slot tidak lengkap (${slots.length}/$expectedSlotCount), regenerating...',
-        );
-        await FirebaseService().generateSlotsOneDay(selectedDate);
-        final newSlots = await FirebaseService().getTimeSlotsByDateForAdmin(
-          selectedDate,
-        );
+        await FirebaseAddTimeSlot().addTimeSlot(selectedDate);
+        final newSlots = await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
         _processBookingData(newSlots);
       } else {
-        print(
-          'Slot lengkap (${slots.length}/$expectedSlotCount), processing data...',
-        );
         _processBookingData(slots);
       }
     } catch (e) {
-      debugPrint('Error loading slots: $e');
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error loading slots: $e')));
-      if (mounted) {
-        setState(() {
-          hasError = true;
-          errorMessage = e.toString();
-          isLoading = false;
-        });
-      }
-    }
-  }
-
-  void _processBookingData(List<TimeSlotForAdmin> slots) {
-    try {
-      Map<String, Map<String, Map<String, dynamic>>> tempdata = {};
-
-      for (var slot in slots) {
-        final timeRange = '${slot.startTime} - ${slot.endTime}';
-
-        // Inisialisasi timeRange jika belum ada
-        if (!tempdata.containsKey(timeRange)) {
-          tempdata[timeRange] = {};
-        }
-
-        // Isi data per lapangan dengan informasi konfirmasi
-        tempdata[timeRange]![slot.courtId] = {
-          'isAvailable': slot.isAvailable,
-          'username': slot.username,
-          'isClosed': slot.isClosed,
-          'isConfirmed':
-              slot.isConfirmed ?? false, // Tambahkan status konfirmasi
-        };
-
-        debugPrint(
-          'Processing slot: $timeRange, Court: ${slot.courtId}, Available: ${slot.isAvailable}, Username: ${slot.username}, Closed: ${slot.isClosed}, Confirmed: ${slot.isConfirmed}',
-        );
-      }
-
-      if (mounted) {
-        setState(() {
-          bookingData = tempdata;
-          isLoading = false;
-        });
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error processing booking data: $e')),
-      );
-      if (mounted) {
-        setState(() {
-          hasError = true;
-          errorMessage = e.toString();
-          isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _loadCourts() async {
-    try {
-      final courtsSnapshot =
-          await FirebaseFirestore.instance.collection('lapangan').get();
-      courtIds =
-          courtsSnapshot.docs.map((doc) => doc['nomor'].toString()).toList();
-    } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error loading courts: $e')));
-      throw Exception('Failed to load courts: $e');
+      showErrorSnackBar(context, 'Error loading slots: $e');
+
+      setState(() {
+        hasError = true;
+        errorMessage = e.toString();
+        isLoading = false;
+      });
     }
   }
 
-  String _namaHari(int weekday) {
-    const hari = [
-      'Senin',
-      'Selasa',
-      'Rabu',
-      'Kamis',
-      'Jumat',
-      'Sabtu',
-      'Minggu',
-    ];
-    return hari[weekday - 1];
-  }
+  void _processBookingData(List<TimeSlotModel> slots) {
+    try {
+      timeSlot = slots;
 
-  bool _isHariDalamRange(String hari, String mulai, String selesai) {
-    const daftarHari = [
-      'Senin',
-      'Selasa',
-      'Rabu',
-      'Kamis',
-      'Jumat',
-      'Sabtu',
-      'Minggu',
-    ];
+      courtIds = slots.map((slot) => slot.courtId).toSet().toList()..sort();
 
-    int indexHari = daftarHari.indexOf(hari);
-    int indexMulai = daftarHari.indexOf(mulai);
-    int indexSelesai = daftarHari.indexOf(selesai);
+      timeRanges =
+          slots
+              .map((slot) => '${slot.startTime} - ${slot.endTime}')
+              .toSet()
+              .toList()
+            ..sort((a, b) {
+              // Sort by start time
+              String timeA = a.split(' - ')[0];
+              String timeB = b.split(' - ')[0];
+              return timeToMinutes(timeA).compareTo(timeToMinutes(timeB));
+            });
 
-    if (indexMulai <= indexSelesai) {
-      return indexHari >= indexMulai && indexHari <= indexSelesai;
-    } else {
-      // untuk range seperti "Jumat - Senin"
-      return indexHari >= indexMulai || indexHari <= indexSelesai;
+      if (mounted) {
+        setState(() {
+          courtIds = courtIds;
+          timeRanges = timeRanges;
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      showErrorSnackBar(context, 'Error processing booking data: $e');
+      if (mounted) {
+        setState(() {
+          hasError = true;
+          errorMessage = e.toString();
+          isLoading = false;
+        });
+      }
     }
   }
 
-  Future<double> _totalPrice({
-    required String startTime,
-    required String endTime,
-    required DateTime selectedDate,
-    required String type, // "Non Member" / "Member"
-  }) async {
-    final hargaList = await FirebaseService().getHarga();
-    final hariBooking = _namaHari(selectedDate.weekday); // Misal "Senin"
-
-    int startMinutes = _timeToMinutes(startTime);
-    int endMinutes = _timeToMinutes(endTime);
-
-    double totalPrice = 0;
-
-    for (int time = startMinutes; time < endMinutes; time += 30) {
-      final jam = time ~/ 60;
-
-      // Cari harga yang cocok untuk slot saat ini
-      final hargaMatch = hargaList.firstWhere(
-        (harga) =>
-            harga.type == type &&
-            _isHariDalamRange(
-              hariBooking,
-              harga.hariMulai,
-              harga.hariSelesai,
-            ) &&
-            jam >= harga.startTime &&
-            jam < harga.endTime,
+  TimeSlotModel? _findSlot(String timeRange, String courtId) {
+    try {
+      return timeSlot.firstWhere(
+        (slot) =>
+            '${slot.startTime} - ${slot.endTime}' == timeRange &&
+            slot.courtId == courtId,
       );
-
-      totalPrice += hargaMatch.harga / 2; // Karena 30 menit = 0.5 jam
+    } catch (e) {
+      return null;
     }
+  }
 
-    return totalPrice;
+  Future<void> _confirmationDialog(
+    BuildContext context,
+    String username,
+    String startTime,
+    String endTime,
+    String court,
+    int selectedDuration,
+  ) async {
+    bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext confirmContext)  {
+        return AlertDialog(
+          title: Text('Konfirmasi Booking'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+                Text('Customer: $username'),
+                Text('Lapangan: $court'),
+                Text('Jam Mulai: $startTime'),
+                Text('Jam Selesai: $endTime'),
+                FutureBuilder<double>(
+                  future: totalPrice(
+                    startTime: startTime,
+                    endTime: endTime,
+                    selectedDate: selectedDate,
+                    type: _memberOrNonMember(username),
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Text('Menghitung harga...');
+                    } else if (snapshot.hasError) {
+                      return Text('Gagal menghitung harga');
+                    } else {
+                      final price = snapshot.data ?? 0;
+                      return Text(
+                        'Total Harga: Rp ${price.toStringAsFixed(0)}',
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(confirmContext).pop(false),
+                child: Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(confirmContext).pop(true),
+                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                child: Text('Konfirmasi'),
+              ),
+            ],
+          );
+  }
+    );
+    if (confirm == true && mounted) {
+      _processBooking(
+        context,
+        username,
+        startTime,
+        endTime,
+        court,
+        selectedDuration,
+      );
+    }
+  }
+
+  Future<String> _memberOrNonMember(String username) async {
+    final user = await FirebaseCheckUser().checkUserType(username);
+    if (user != 'member') {
+      return 'nonMember';
+    } else {
+      final bookingDates = await FirebaseGetUser().getUserData(
+        username,
+        'bookingDates',
+      );
+      final currentBookingDates = await FirebaseGetUser().getUserData(
+        username,
+        'currentBookingDates',
+      );
+      if (currentBookingDates.length >= bookingDates.length) {
+        return 'nonMember';
+      } else {
+        return 'member';
+      }
+    }
   }
 
   // Show booking details
-  void _showBookingDetails(String time, String court, String username) async {
-    if (!mounted) return;
-
-    // Find consecutive bookings for better display
+  Future<void> _showBookingDetails(
+    String time,
+    String court,
+    String type,
+    String username,
+  ) async {
     List<String> consecutiveSlots = _findConsecutiveBookings(
       time,
       court,
@@ -621,24 +614,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     String startTime = consecutiveSlots.first.split(' - ')[0];
     String endTime = consecutiveSlots.last.split(' - ')[1];
 
-    // Check if booking is confirmed - perbaiki bagian ini
     try {
-      String docId =
-          '${court}_${_formatDateString(selectedDate)}_${startTime.replaceAll(':', '')}';
-      DocumentSnapshot snapshot =
-          await FirebaseFirestore.instance
-              .collection('time_slots')
-              .doc(docId)
-              .get();
-
-      bool isConfirmed = false;
-      if (snapshot.exists) {
-        final data = snapshot.data() as Map<String, dynamic>?;
-        isConfirmed = data?['isConfirmed'] ?? false;
-      }
-
-      if (!mounted) return;
-
       await showDialog(
         context: context,
         builder:
@@ -657,13 +633,16 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     Text('Lapangan: $court'),
                     Text('Jam Mulai: $startTime'),
                     Text('Jam Selesai: $endTime'),
+                    Text(
+                      'Status: ${type == "member" ? "Member" : "Non Member"}',
+                    ),
                     Text('Total Durasi: ${consecutiveSlots.length * 30} menit'),
                     FutureBuilder<double>(
-                      future: _totalPrice(
+                      future: totalPrice(
                         startTime: startTime,
                         endTime: endTime,
                         selectedDate: selectedDate,
-                        type: 'Non Member',
+                        type: type,
                       ),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
@@ -680,43 +659,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                       },
                     ),
                     SizedBox(height: 8),
-                    // Status konfirmasi
-                    Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color:
-                            isConfirmed
-                                ? Colors.green.shade100
-                                : Colors.orange.shade100,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        isConfirmed
-                            ? '✓ Sudah Konfirmasi Kedatangan'
-                            : '⏳ Belum Konfirmasi Kedatangan',
-                        style: TextStyle(
-                          color:
-                              isConfirmed
-                                  ? Colors.green.shade700
-                                  : Colors.orange.shade700,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    if (consecutiveSlots.length > 1) ...[
-                      Text(
-                        'Slot yang dibooking:',
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      ...consecutiveSlots.map(
-                        (slot) => Padding(
-                          padding: EdgeInsets.only(left: 16),
-                          child: Text('• $slot'),
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -727,26 +669,14 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 ),
                 TextButton(
                   onPressed:
-                      () => _handleCancelBooking(dialogContext, time, court),
+                      () async => await _handleCancelBooking(
+                        dialogContext,
+                        time,
+                        court,
+                      ),
                   style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: Text(
-                    consecutiveSlots.length > 1
-                        ? 'Batalkan Semua'
-                        : 'Batalkan Booking',
-                  ),
+                  child: Text('Batalkan Booking'),
                 ),
-                if (!isConfirmed)
-                  TextButton(
-                    onPressed:
-                        () => _handleConfirmArrival(
-                          dialogContext,
-                          time,
-                          court,
-                          username,
-                        ),
-                    style: TextButton.styleFrom(foregroundColor: Colors.green),
-                    child: Text('Konfirmasi Kedatangan'),
-                  ),
               ],
             ),
       );
@@ -775,7 +705,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     Text('Jam Selesai: $endTime'),
                     Text('Total Durasi: ${consecutiveSlots.length * 30} menit'),
                     FutureBuilder<double>(
-                      future: _totalPrice(
+                      future: totalPrice(
                         startTime: startTime,
                         endTime: endTime,
                         selectedDate: selectedDate,
@@ -826,143 +756,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                         : 'Batalkan Booking',
                   ),
                 ),
-                TextButton(
-                  onPressed:
-                      () => _handleConfirmArrival(
-                        dialogContext,
-                        time,
-                        court,
-                        username,
-                      ),
-                  style: TextButton.styleFrom(foregroundColor: Colors.green),
-                  child: Text('Konfirmasi Kedatangan'),
-                ),
               ],
             ),
       );
-    }
-  }
-
-  Future<void> _handleConfirmArrival(
-    BuildContext dialogContext,
-    String time,
-    String court,
-    String username, // Parameter username sudah ada, jangan buat lagi
-  ) async {
-    _safeNavigatorPop(dialogContext);
-
-    // Hapus bagian yang mengambil username dari bookingData karena sudah ada di parameter
-    if (username.isEmpty) return;
-
-    // Find all consecutive bookings for this user
-    List<String> consecutiveSlots = _findConsecutiveBookings(
-      time,
-      court,
-      username,
-    );
-
-    // Calculate start and end time for display
-    String startTime = consecutiveSlots.first.split(' - ')[0];
-    String endTime = consecutiveSlots.last.split(' - ')[1];
-
-    // Show confirmation dialog
-    bool? confirm = await showDialog<bool>(
-      context: context,
-      builder:
-          (BuildContext confirmContext) => AlertDialog(
-            title: Text('Konfirmasi Kedatangan'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Customer: $username'),
-                Text('Lapangan: $court'),
-                Text('Waktu: $startTime - $endTime'),
-                FutureBuilder<double>(
-                  future: _totalPrice(
-                    startTime: startTime,
-                    endTime: endTime,
-                    selectedDate: selectedDate,
-                    type: 'Non Member',
-                  ),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Text('Menghitung harga...');
-                    } else if (snapshot.hasError) {
-                      return Text('Gagal menghitung harga');
-                    } else {
-                      final price = snapshot.data ?? 0;
-                      return Text(
-                        'Total Harga: Rp ${price.toStringAsFixed(0)}',
-                      );
-                    }
-                  },
-                ), // Tampilkan range waktu lengkap
-                SizedBox(height: 10),
-                Text(
-                  'Konfirmasi bahwa customer sudah datang?',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(confirmContext).pop(false),
-                child: Text('Tidak'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(confirmContext).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.green),
-                child: Text('Ya, Konfirmasi'),
-              ),
-            ],
-          ),
-    );
-
-    if (confirm == true && mounted) {
-      _showLoadingDialog(context, 'Mengkonfirmasi kedatangan...');
-
-      try {
-        final dateStr = _formatDateString(selectedDate);
-
-        // Update semua slot berturut-turut sebagai terkonfirmasi
-        for (String slot in consecutiveSlots) {
-          String slotStartTime = slot.split(' - ')[0];
-          await FirebaseService().confirmBookingArrival(
-            username,
-            dateStr,
-            court,
-            slotStartTime,
-          );
-        }
-
-        _safeNavigatorPop(context); // Close loading dialog
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Kedatangan $username berhasil dikonfirmasi'),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 2),
-            ),
-          );
-
-          // Refresh data untuk update tampilan
-          await _loadOrCreateSlots(selectedDate);
-        }
-      } catch (e) {
-        _safeNavigatorPop(context); // Close loading dialog
-        debugPrint('Error confirming arrival: $e');
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error saat konfirmasi kedatangan: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
     }
   }
 
@@ -973,29 +769,17 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   ) {
     List<String> consecutiveSlots = [];
 
-    // Get all time slots and sort them
-    List<String> allTimeSlots = bookingData.keys.toList();
-    allTimeSlots.sort((a, b) {
-      String timeA = a.split(' - ')[0];
-      String timeB = b.split(' - ')[0];
-      int minutesA = _timeToMinutes(timeA);
-      int minutesB = _timeToMinutes(timeB);
-      return minutesA.compareTo(minutesB);
-    });
-
-    // Find target slot index
-    int targetIndex = allTimeSlots.indexWhere((slot) => slot == targetTime);
-    if (targetIndex == -1) return [targetTime]; // fallback
+    // Find target index in sorted time ranges
+    int targetIndex = timeRanges.indexWhere((slot) => slot == targetTime);
+    if (targetIndex == -1) return [targetTime];
 
     // Check backwards for consecutive bookings
     int startIndex = targetIndex;
     for (int i = targetIndex - 1; i >= 0; i--) {
-      String timeSlot = allTimeSlots[i];
-      var courtData = bookingData[timeSlot]?[court];
+      String timeRange = timeRanges[i];
+      TimeSlotModel? slot = _findSlot(timeRange, court);
 
-      if (courtData != null &&
-          !courtData['isAvailable'] &&
-          courtData['username'] == username) {
+      if (slot != null && !slot.isAvailable && !slot.isClosed) {
         startIndex = i;
       } else {
         break;
@@ -1004,22 +788,20 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
     // Check forwards for consecutive bookings
     int endIndex = targetIndex;
-    for (int i = targetIndex + 1; i < allTimeSlots.length; i++) {
-      String timeSlot = allTimeSlots[i];
-      var courtData = bookingData[timeSlot]?[court];
+    for (int i = targetIndex + 1; i < timeRanges.length; i++) {
+      String timeRange = timeRanges[i];
+      TimeSlotModel? slot = _findSlot(timeRange, court);
 
-      if (courtData != null &&
-          !courtData['isAvailable'] &&
-          courtData['username'] == username) {
+      if (slot != null && !slot.isAvailable && !slot.isClosed) {
         endIndex = i;
       } else {
         break;
       }
     }
 
-    // Collect all consecutive slots
+    // Collect consecutive slots
     for (int i = startIndex; i <= endIndex; i++) {
-      consecutiveSlots.add(allTimeSlots[i]);
+      consecutiveSlots.add(timeRanges[i]);
     }
 
     return consecutiveSlots;
@@ -1033,10 +815,17 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     _safeNavigatorPop(dialogContext);
 
     // Get booking info first
-    var courtData = bookingData[time]?[court];
-    if (courtData == null) return;
+    final timeSlotData = timeSlot.firstWhere(
+      (slot) =>
+          slot.courtId == court &&
+          '${slot.startTime} - ${slot.endTime}' == time &&
+          slot.username.isNotEmpty,
+      orElse: () => TimeSlotModel(), // fallback jika tidak ditemukan
+    );
 
-    String username = courtData['username'] ?? '';
+    if (timeSlotData.username.isEmpty) return;
+
+    String username = timeSlotData.username;
     if (username.isEmpty) return;
 
     // Find all consecutive bookings for this user
@@ -1066,7 +855,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 Text('Jam Selesai: $endTime'),
                 SizedBox(height: 10),
                 Text(
-                  'Apakah Anda yakin ingin membatalkan semua booking ini?',
+                  'Apakah Anda yakin ingin membatalkan booking ini?',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
@@ -1079,7 +868,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               TextButton(
                 onPressed: () => Navigator.of(confirmContext).pop(true),
                 style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: Text('Ya, Batalkan Semua'),
+                child: Text('Ya, Batalkan'),
               ),
             ],
           ),
@@ -1093,49 +882,56 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       _showLoadingDialog(context, 'Membatalkan booking...');
 
       try {
-        final dateStr = _formatDateString(selectedDate);
+        final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
 
-        // Cancel all consecutive slots
-        for (String timeSlot in consecutiveSlots) {
-          await FirebaseService().cancelBooking(
-            username,
-            dateStr,
-            court,
-            timeSlot.split(' - ')[0],
-            timeSlot.split(' - ')[1],
-          );
+        if (timeSlotData.type == 'member') {
+          for (String timeSlot in consecutiveSlots) {
+            await CancelMember().cancelBooking(
+              username,
+              dateStr,
+              court,
+              timeSlot.split(' - ')[0],
+              timeSlot.split(' - ')[1],
+            );
+          }
+
+          await CancelMember().updateUserCancel(username, dateStr);
+
+          if (!mounted) return;
+          _safeNavigatorPop(context); // Close loading dialog
+        } else {
+          for (String timeSlot in consecutiveSlots) {
+            await CancelNonMember().cancelBooking(
+              username,
+              dateStr,
+              court,
+              timeSlot.split(' - ')[0],
+              timeSlot.split(' - ')[1],
+            );
+          }
+
+          await CancelNonMember().updateUserCancel(username, dateStr);
+
+          if (!mounted) return;
+          _safeNavigatorPop(context); // Close loading dialog
         }
 
-        await FirebaseService().subBooking(username);
-
-        _safeNavigatorPop(context); // Close loading dialog
-
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Berhasil membatalkan bookingan untuk $username, hari ${DateFormat('EEEE, d MMMM yyyy').format(selectedDate)}, pukul $startTime - $endTime',
-              ),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
-            ),
+          showSuccessSnackBar(
+            context,
+            'Berhasil membatalkan bookingan untuk $username, hari ${DateFormat('EEEE, d MMMM yyyy').format(selectedDate)}, pukul $startTime - $endTime',
           );
 
           // Refresh data
           await _loadOrCreateSlots(selectedDate);
         }
       } catch (e) {
+        if (!mounted) return;
         _safeNavigatorPop(context); // Close loading dialog
         debugPrint('Error canceling booking: $e');
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error saat membatalkan booking: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+        if (!mounted) return;
+        showErrorSnackBar(context, 'Error saat membatalkan booking: $e');
       } finally {
         if (mounted) {
           setState(() {
@@ -1196,8 +992,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         minute,
       );
 
-      debugPrint("Now: $now | Slot: $slotDateTime"); // debug
-
       return slotDateTime.isBefore(now);
     } catch (e) {
       debugPrint("Error parsing timeSlot: $e");
@@ -1214,57 +1008,47 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   Widget _buildCourtCell(
     String time,
     String court,
+    String type,
     bool isAvailable,
     String username,
     bool isClosed,
+    bool isHoliday,
   ) {
     bool isPast = _isTimePast(time, selectedDate);
     String cellKey = _getCellKey(time, court);
-    bool isCellLoading = loadingCells.contains(cellKey);
 
     void handleTap() async {
-      // Cek jika cell sedang loading atau ada booking global yang berjalan
-      if (isCellLoading || isBookingInProgress) {
+      if (loadingCells.contains(cellKey) || isBookingInProgress) {
+        showCustomSnackBar(context, 'Mohon tunggu, sedang memproses...');
         return;
       }
 
-      if (isPast) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Waktu ini sudah lewat, tidak bisa dibooking'),
-            backgroundColor: Colors.grey,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
-
-      if (isClosed) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Lapangan ditutup pada waktu ini'),
-            backgroundColor: Colors.grey,
-            duration: Duration(seconds: 2),
-          ),
-        );
-        return;
-      }
-
-      // Set cell loading state
-      setState(() {
-        loadingCells.add(cellKey);
-      });
+      debugPrint('Cell key: $cellKey'); // debug
 
       try {
-        // Add small delay to show loading indicator
-        await Future.delayed(Duration(milliseconds: 300));
+        if (isPast) {
+          showCustomSnackBar(
+            context,
+            'Waktu ini sudah lewat, tidak bisa dibooking',
+          );
+          return;
+        }
 
-        if (!mounted) return;
+        if (isClosed) {
+          showCustomSnackBar(context, 'Lapangan ditutup pada waktu ini');
+          return;
+        }
+
+        setState(() {
+          loadingCells.add(cellKey);
+        });
+
+        debugPrint('Loading cells: $loadingCells'); // debug
 
         if (!isAvailable) {
-          _showBookingDetails(time, court, username);
+          await _showBookingDetails(time, court, type, username);
         } else {
-          _showAddBookingDialog(time, court);
+          await _showAddBookingDialog(time, court);
         }
       } finally {
         // Remove loading state
@@ -1277,7 +1061,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     }
 
     return GestureDetector(
-      onTap: handleTap,
+      onTap: loadingCells.contains(cellKey) ? null : handleTap,
       child: Container(
         width: 120,
         height: 50,
@@ -1285,19 +1069,18 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         decoration: BoxDecoration(
           color:
               isClosed
-                  ? Colors.grey
-                  : (isAvailable ? availableColor : bookedColor),
+                  ? closedColor
+                  : (isHoliday
+                      ? (isAvailable ? holidayColor : bookedColor)
+                      : (isAvailable ? availableColor : bookedColor)),
           border: Border.all(color: Colors.grey.shade300),
         ),
         child:
-            isCellLoading
+            loadingCells.contains(cellKey)
                 ? SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 )
                 : Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -1305,26 +1088,45 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     Text(
                       isClosed
                           ? 'Tutup'
-                          : (isAvailable ? 'Tersedia' : 'Telah Dibooking'),
+                          : (isHoliday
+                              ? (isAvailable ? 'Hari Libur' : username)
+                              : (isAvailable ? 'Tersedia' : username)),
                       style: TextStyle(
                         color:
                             isClosed
-                                ? Colors.white
-                                : (isAvailable
-                                    ? Colors.green.shade700
-                                    : Colors.red.shade700),
+                                ? Colors.black
+                                : (isHoliday
+                                    ? (isAvailable
+                                        ? Colors.black
+                                        : type == 'member'
+                                        ? Colors.blue
+                                        : Colors.red)
+                                    : (isAvailable
+                                        ? Colors.black
+                                        : type == 'member'
+                                        ? Colors.blue
+                                        : Colors.red)),
                         fontWeight: FontWeight.w500,
                         fontSize: 12,
                       ),
                     ),
-                    if (!isAvailable && !isClosed)
-                      Text(
-                        username,
-                        style: TextStyle(fontSize: 11),
-                        overflow: TextOverflow.ellipsis,
-                      ),
                   ],
                 ),
+      ),
+    );
+  }
+
+  Widget _buildStatusLegend() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          LegendItem(label: 'Tersedia', color: availableColor),
+          LegendItem(label: 'Tidak Tersedia', color: bookedColor),
+          LegendItem(label: 'Hari Libur', color: holidayColor),
+          LegendItem(label: 'Tutup', color: closedColor),
+        ],
       ),
     );
   }
@@ -1340,16 +1142,30 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
   @override
   Widget build(BuildContext context) {
-    final sortedCourtIds =
-        courtIds.toList()..sort((a, b) {
-          final aNumber =
-              int.tryParse(RegExp(r'\d+').stringMatch(a) ?? '') ?? 0;
-          final bNumber =
-              int.tryParse(RegExp(r'\d+').stringMatch(b) ?? '') ?? 0;
-          return aNumber.compareTo(bNumber);
-        });
+    final sortedCourtIds = courtIds.toList()..sort((a, b) => a.compareTo(b));
     return Scaffold(
-      appBar: AppBar(title: Text("Kalender")),
+      appBar: AppBar(title: Text("Kalender"),
+        actions: [
+          IconButton(
+            onPressed: () async {
+              try {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: selectedDate,
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime(2101),
+                );
+                if (picked != null) {
+                  setState(() => selectedDate = picked);
+                }
+              } catch (e) {
+                print('DatePicker error: $e');
+              }
+            },
+            icon: const Icon(Icons.calendar_month),
+          ),
+        ],
+      ),
       body: Column(
         children: [
           // Date selector
@@ -1359,7 +1175,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             child: Column(
               children: [
                 Text(
-                  _formatDate(selectedDate),
+                  formatLongDate(selectedDate),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -1419,38 +1235,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             ),
           ),
 
-          // Legenda status
-          Padding(
-            padding: const EdgeInsets.only(top: 15),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 16,
-                  height: 16,
-                  color: availableColor,
-                  margin: const EdgeInsets.only(right: 4),
-                ),
-                const Text('Tersedia'),
-                const SizedBox(width: 16),
-                Container(
-                  width: 16,
-                  height: 16,
-                  color: bookedColor,
-                  margin: const EdgeInsets.only(right: 4),
-                ),
-                const Text('Telah Dibooking'),
-                const SizedBox(width: 16),
-                Container(
-                  width: 16,
-                  height: 16,
-                  color: closedColor,
-                  margin: const EdgeInsets.only(right: 4),
-                ),
-                const Text('Tutup'),
-              ],
-            ),
-          ),
+          _buildStatusLegend(),
+
           Expanded(
             child:
                 isLoading
@@ -1487,39 +1273,32 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                                   child: Row(
                                     children: [
                                       _buildHeaderCell('Jam', width: 110),
-                                      ...sortedCourtIds
-                                          .map(
-                                            (id) => _buildHeaderCell(
-                                              'Lapangan $id',
-                                            ),
-                                          )
-                                          ,
+                                      ...sortedCourtIds.map(
+                                        (id) =>
+                                            _buildHeaderCell('Lapangan $id'),
+                                      ),
                                     ],
                                   ),
                                 ),
 
                                 // Data rows
-                                ...bookingData.entries.map((entry) {
-                                  final time = entry.key;
-                                  final courts = entry.value;
-
+                                ...timeRanges.map((timeRange) {
                                   return Row(
                                     children: [
-                                      _buildTimeCell(time),
-                                      ...sortedCourtIds.map((id) {
-                                        final cellData =
-                                            courts[id] ??
-                                            {
-                                              'isAvailable': true,
-                                              'username': '',
-                                              'isClosed': false,
-                                            };
+                                      _buildTimeCell(timeRange),
+                                      ...sortedCourtIds.map((courtId) {
+                                        final slot = _findSlot(
+                                          timeRange,
+                                          courtId,
+                                        );
                                         return _buildCourtCell(
-                                          time,
-                                          id,
-                                          cellData['isAvailable'] ?? true,
-                                          cellData['username'] ?? '',
-                                          cellData['isClosed'] ?? false,
+                                          timeRange,
+                                          courtId,
+                                          slot?.type ?? 'nonMember',
+                                          slot?.isAvailable ?? true,
+                                          slot?.username ?? '',
+                                          slot?.isClosed ?? false,
+                                          slot?.isHoliday ?? false,
                                         );
                                       }),
                                     ],

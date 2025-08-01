@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_application_1/constants_file.dart';
-import 'package:flutter_application_1/services/firestore_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_1/model/user_model.dart';
+import 'package:flutter_application_1/function/snackbar/snackbar.dart';
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
+import 'package:flutter_application_1/services/user/firebase_check_user.dart';
+import 'package:flutter_application_1/services/user/firebase_update_user.dart';
+
 
 class HalamanEditProfil extends StatefulWidget {
   const HalamanEditProfil({super.key});
@@ -18,7 +23,7 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
   final TextEditingController clubController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   
-  List<UserProfil> profil = [];
+  List<UserModel> profil = [];
   
   // Error texts for form validation
   String? errorTextNama;
@@ -54,11 +59,10 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
 
       if (storedUsername == null || !mounted) return;
 
-      bool check = await FirebaseService().memberOrNonmember(storedUsername);
-
-      if (mounted) {
+      String type = await FirebaseCheckUser().checkUserType(storedUsername);
+      if (type == 'member') {
         setState(() {
-          isMember = check;
+          isMember = true;
         });
       }
     } catch (e) {
@@ -78,19 +82,18 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
       String? storedUsername = prefs.getString('username');
 
       if (storedUsername == null) {
-        _showErrorSnackBar('Username tidak ditemukan');
+        if (!mounted) return;
+        showErrorSnackBar(context, 'Username tidak ditemukan');
         return;
       }
 
-      profil = await FirebaseService().getProfilData(storedUsername);
-
-      if (!mounted) return;
+      profil = await FirebaseGetUser().getUserByUsername(storedUsername);
 
       if (profil.isNotEmpty) {
         setState(() {
           username = profil[0].username;
           namaController.text = profil[0].name;
-          noTelpController.text = profil[0].phoneNumber;
+          noTelpController.text = profil[0].noTelp;
           clubController.text = profil[0].club;
         });
       } else {
@@ -99,7 +102,8 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
         });
       }
     } catch (e) {
-      _showErrorSnackBar('Gagal memuat data: $e');
+      if (!mounted) return;
+      showErrorSnackBar(context, 'Gagal memuat data: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -181,19 +185,20 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
     });
 
     try {
-      await FirebaseService().editProfil(
+      await FirebaseUpdateUser().updateProfil(
         username!,
         namaController.text.trim(),
-        clubController.text.trim() ?? '',
+        clubController.text.trim(),
         noTelpController.text.trim(),
       );
 
       if (mounted) {
-        _showSuccessSnackBar('Profil berhasil disimpan');
+        showSuccessSnackBar(context, 'Profil berhasil disimpan');
         Navigator.pop(context, true);
       }
     } catch (e) {
-      _showErrorSnackBar('Gagal menyimpan profil: $e');
+      if (!mounted) return;
+      showErrorSnackBar(context, 'Gagal menyimpan profil: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -201,42 +206,6 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
         });
       }
     }
-  }
-
-  void _showSuccessSnackBar(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  void _showErrorSnackBar(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error, color: Colors.white),
-            const SizedBox(width: 8),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   Widget _buildTextField({
@@ -341,7 +310,7 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
               vertical: 4,
             ),
             decoration: BoxDecoration(
-              color: isMember ? Colors.green.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
+              color: isMember ? Colors.green.withValues(alpha:0.2) : Colors.grey.withValues(alpha:0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(

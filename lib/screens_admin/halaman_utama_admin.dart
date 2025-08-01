@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/main.dart';
-import 'package:flutter_application_1/screens_admin/customers.dart';
-import 'price.dart';
-import 'kalender.dart';
-import 'promo_event.dart';
 import 'package:flutter_application_1/constants_file.dart';
-import 'package:flutter_application_1/screens_admin/jadwal.dart';
-import 'package:flutter_application_1/services/firestore_service.dart';
-import 'lapangan.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_application_1/model/court_model.dart';
+import 'package:flutter_application_1/screens_admin/price.dart';
+import 'package:flutter_application_1/screens_admin/jadwal.dart';
+import 'package:flutter_application_1/model/time_slot_model.dart';
+import 'package:flutter_application_1/screens_admin/kalender.dart';
+import 'package:flutter_application_1/screens_admin/lapangan.dart';
+import 'package:flutter_application_1/screens_admin/customers.dart';
+import 'package:flutter_application_1/screens_admin/promo_event.dart';
+import 'package:flutter_application_1/function/calender/legend_item.dart';
+import 'package:flutter_application_1/services/court/firebase_get_court.dart';
+import 'package:flutter_application_1/services/time_slot/firebase_add_time_slot.dart';
+import 'package:flutter_application_1/services/time_slot/firebase_get_time_slot.dart';
+
 
 class HalamanUtamaAdmin extends StatefulWidget {
   const HalamanUtamaAdmin({super.key});
@@ -25,45 +30,10 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   String errorMessage = '';
 
   Map<String, Map<String, Map<String, dynamic>>> bookingData = {};
-  List<String> courtIds = [];
-
-  String _formatDate(DateTime date) {
-    List<String> months = [
-      'Januari',
-      'Februari',
-      'Maret',
-      'April',
-      'Mei',
-      'Juni',
-      'Juli',
-      'Agustus',
-      'September',
-      'Oktober',
-      'November',
-      'Desember',
-    ];
-    List<String> days = [
-      'Senin',
-      'Selasa',
-      'Rabu',
-      'Kamis',
-      'Jumat',
-      'Sabtu',
-      'Minggu',
-    ];
-
-    return '${days[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
-  }
+  List<CourtModel> courtIds = [];
 
   Widget _buildCalendar(DateTime time) {
-    final sortedCourtIds =
-        courtIds.toList()..sort((a, b) {
-          final aNumber =
-              int.tryParse(RegExp(r'\d+').stringMatch(a) ?? '') ?? 0;
-          final bNumber =
-              int.tryParse(RegExp(r'\d+').stringMatch(b) ?? '') ?? 0;
-          return aNumber.compareTo(bNumber);
-        });
+    final sortedCourtIds = courtIds.toList()..sort((a, b) => a.courtId.compareTo(b.courtId));
 
     if (isLoading) {
       return const SizedBox(
@@ -109,57 +79,62 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
 
     return Column(
       children: [
-        Expanded(
-          child: SingleChildScrollView(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Column(
-                  children: [
-                    // Header row
-                    Container(
-                      decoration: const BoxDecoration(
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(8),
-                          topRight: Radius.circular(8),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          _buildHeaderCell('Jam', width: 110),
-                          ...sortedCourtIds
-                              .map((id) => _buildHeaderCell('Lapangan $id'))
-                              ,
-                        ],
-                      ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              children: [
+                // Header row
+                Container(
+                  decoration: const BoxDecoration(
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(8),
+                      topRight: Radius.circular(8),
                     ),
-        
-                    // Data rows
-                    ...bookingData.entries.map((entry) {
-                      final time = entry.key;
-                      final courts = entry.value;
-        
-                      return Row(
-                        children: [
-                          _buildTimeCell(time),
-                          ...sortedCourtIds.map((id) {
-                            final cellData =
-                                courts[id] ?? {'isAvailable': true, 'username': '', 'isClosed': false};
-                            return _buildCourtCell(
-                              time,
-                              id,
-                              cellData['isAvailable'] ?? true,
-                              cellData['username'] ?? '',
-                              cellData['isClosed'] ?? false,
-                            );
-                          }),
-                        ],
-                      );
-                    }),
-                  ],
+                  ),
+                  child: Row(
+                    children: [
+                      _buildHeaderCell('Jam', width: 110),
+                      ...sortedCourtIds.map(
+                        (id) => _buildHeaderCell('Lapangan ${id.courtId}'),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+
+                // Data rows
+                ...bookingData.entries.map((entry) {
+                  final time = entry.key;
+                  final courts = entry.value;
+
+                  return Row(
+                    children: [
+                      _buildTimeCell(time),
+                      ...sortedCourtIds.map((id) {
+                        final cellData =
+                            courts[id.courtId] ??
+                            {
+                              'isAvailable': true,
+                              'username': '',
+                              'isClosed': false,
+                              'isHoliday': false,
+                            };
+
+                        return _buildCourtCell(
+                          time,
+                          id.courtId.toString(),
+                          cellData['isAvailable'] ?? true,
+                          cellData['username'] ?? '',
+                          cellData['type'] ?? '',
+                          cellData['isClosed'] ?? false,
+                          cellData['isHoliday'] ?? false,
+                        );
+                      }),
+                    ],
+                  );
+                }),
+              ],
             ),
           ),
         ),
@@ -178,18 +153,18 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     }
 
     try {
-      await _loadCourts(); // Load courts first
+      courtIds = await FirebaseGetCourt().getCourts(); // Load courts first
 
-      final slots = await FirebaseService().getTimeSlotsByDateForAdmin(
+      final slots = await FirebaseGetTimeSlot().getTimeSlot(
         selectedDate,
       );
 
       if (slots.isEmpty) {
         // Belum ada data -> generate
-        await FirebaseService().generateSlotsOneDay(selectedDate);
+        await FirebaseAddTimeSlot().addTimeSlot(selectedDate);
 
         // Setelah generate, ambil lagi datanya
-        final newSlots = await FirebaseService().getTimeSlotsByDateForAdmin(
+        final newSlots = await FirebaseGetTimeSlot().getTimeSlot(
           selectedDate,
         );
         _processBookingData(newSlots);
@@ -209,7 +184,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     }
   }
 
-  void _processBookingData(List<TimeSlotForAdmin> slots) {
+  void _processBookingData(List<TimeSlotModel> slots) {
     try {
       Map<String, Map<String, Map<String, dynamic>>> tempdata = {};
 
@@ -226,6 +201,8 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
           'isAvailable': slot.isAvailable,
           'username': slot.username,
           'isClosed': slot.isClosed,
+          'isHoliday': slot.isHoliday,
+          'type': slot.type
         };
       }
 
@@ -244,18 +221,6 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
           isLoading = false;
         });
       }
-    }
-  }
-
-  Future<void> _loadCourts() async {
-    try {
-      final courtsSnapshot =
-          await FirebaseFirestore.instance.collection('lapangan').get();
-      courtIds =
-          courtsSnapshot.docs.map((doc) => doc['nomor'].toString()).toList();
-    } catch (e) {
-      debugPrint('Error loading courts: $e');
-      throw Exception('Failed to load courts: $e');
     }
   }
 
@@ -299,41 +264,42 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     String court,
     bool isAvailable,
     String username,
-    bool isClosed
+    String type,
+    bool isClosed,
+    bool isHoliday,
   ) {
     return Container(
       width: 120,
       height: 50,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: isClosed 
-              ? Colors.grey 
-              : (isAvailable ? availableColor : bookedColor),
-          border: Border.all(color: Colors.grey.shade300),
+        color:
+            isClosed
+                ? closedColor
+                // : (isAvailable ? availableColor : bookedColor),
+                : (isAvailable ? (isHoliday ? holidayColor : availableColor) : bookedColor),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-              isClosed 
-                  ? 'Tutup' 
-                  : (isAvailable ? 'Tersedia' : 'Telah Dibooking'),
-              style: TextStyle(
-                color: isClosed 
-                    ? Colors.white
-                    : (isAvailable ? Colors.green.shade700 : Colors.red.shade700),
+            isClosed ? 'Tutup' : (isAvailable ? (isHoliday ? 'Hari Libur' : 'Tersedia') : username),
+            style: TextStyle(
+              color: !isAvailable ? type == 'member' ? Colors.blue : Colors.red : Colors.black,
               fontWeight: FontWeight.w500,
               fontSize: 12,
             ),
           ),
-          if (!isAvailable && !isClosed)
-            Text(
-              username,
-              style: const TextStyle(fontSize: 11),
-              overflow: TextOverflow.ellipsis,
-            ),
         ],
       ),
+    );
+  }
+
+  Future<void> _navigateToScreen(Widget screen) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
     );
   }
 
@@ -352,73 +318,40 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
               _buildQuickAccessButton(
                 icon: 'jadwal',
                 label: "Jadwal",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => HalamanJadwal(),
-                    ),
-                  );
-                },
+                onTap: () => _navigateToScreen(HalamanJadwal()),
               ),
               SizedBox(width: 5),
 
               _buildQuickAccessButton(
                 icon: 'user',
                 label: 'Customers',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => HalamanCustomers()),
-                  );
-                },
+                onTap: () => _navigateToScreen(HalamanCustomers()),
               ),
               _buildQuickAccessButton(
                 icon: 'lapangan',
                 label: "Lapangan",
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => HalamanLapangan()),
-                  );
-                },
+                onTap: () => _navigateToScreen(HalamanLapangan()),
               ),
 
               SizedBox(width: 6),
               _buildQuickAccessButton(
                 icon: 'booking',
                 label: "Booking",
-                onTap:
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => HalamanKalender(),
-                      ),
-                    ),
+                onTap: () => _navigateToScreen(HalamanKalender()),
               ),
 
               SizedBox(width: 12),
               _buildQuickAccessButton(
                 icon: 'harga',
                 label: "Harga",
-                onTap:
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => HalamanPrice()),
-                    ),
+                onTap: () => _navigateToScreen(HalamanPrice()),
               ),
               SizedBox(width: 12),
 
               _buildQuickAccessButton(
                 icon: 'promo_event',
                 label: "Promo & Event",
-                onTap:
-                    () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const HalamanPromoEvent(),
-                      ),
-                    ),
+                onTap: () => _navigateToScreen(HalamanPromoEvent()),
               ),
             ],
           ),
@@ -495,43 +428,57 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
 
   Future<void> _handleLogout() async {
     final shouldLogout = await showDialog<bool>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Konfirmasi Logout'),
-      content: const Text('Apakah kamu yakin ingin logout?'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false), 
-          child: const Text('Batal'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context, true), 
-          child: const Text('Logout'),
-        ),
-      ],
-    ),
-  );
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Konfirmasi Logout'),
+            content: const Text('Apakah kamu yakin ingin logout?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Logout'),
+              ),
+            ],
+          ),
+    );
 
-  // Kalau pengguna setuju untuk logout
-  if (shouldLogout == true) {
-    try {
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.remove('username');
+    // Kalau pengguna setuju untuk logout
+    if (shouldLogout == true) {
+      try {
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        await prefs.remove('username');
 
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const MainApp(),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error logging out: $e')),
-      );
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainApp()),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error logging out: $e')));
+      }
     }
   }
+
+  Widget _buildStatusLegend() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          LegendItem(label: 'Tersedia', color: availableColor),
+          LegendItem(label: 'Tidak Tersedia', color: bookedColor),
+          LegendItem(label: 'Hari Libur', color: holidayColor),
+          LegendItem(label: 'Tutup', color: closedColor),
+        ],
+      ),
+    );
   }
 
   @override
@@ -549,61 +496,28 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
           ),
         ],
       ),
-      body: 
-      RefreshIndicator(
+      body: RefreshIndicator(
         onRefresh: () async {
           await _loadOrCreateSlots(selectedDate);
         },
-        child: 
-        ListView(
-          padding: const EdgeInsets.all(8),
-          children: [
-            _buildQuickAccessMenu(context),
-            const SizedBox(height: 15),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildQuickAccessMenu(context),
 
-            Column(
-              children: [
-                Text(
-                  _formatDate(selectedDate),
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+              const SizedBox(height: 15),
+
+              Text(
+                formatLongDate(selectedDate),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      width: 16,
-                      height: 16,
-                      color: availableColor,
-                      margin: const EdgeInsets.only(right: 4),
-                    ),
-                    const Text('Tersedia'),
-                    const SizedBox(width: 16),
-                    Container(
-                      width: 16,
-                      height: 16,
-                      color: bookedColor,
-                      margin: const EdgeInsets.only(right: 4),
-                    ),
-                    const Text('Telah Dibooking'),
-                    const SizedBox(width: 16),
-                    Container(
-                      width: 16,
-                      height: 16,
-                      color: closedColor,
-                      margin: const EdgeInsets.only(right: 4),
-                    ),
-                    const Text('Tutup'),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            _buildCalendar(selectedDate),
-          ],
+              ),
+              _buildStatusLegend(),
+              _buildCalendar(selectedDate),
+            ],
+          ),
         ),
       ),
     );
