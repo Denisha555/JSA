@@ -86,14 +86,14 @@ class _RewardState extends State<Reward> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${currentReward.currentHours.toDouble()} h dimainkan',
+                '${currentReward.currentHours.toDouble()} h played',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               Text(
-                '${hoursToNext.toDouble()} h lagi untuk reward',
+                '${hoursToNext.toDouble()} h left',
                 style: const TextStyle(color: Colors.white70),
               ),
             ],

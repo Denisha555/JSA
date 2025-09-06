@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/main.dart';
 import 'package:flutter_application_1/constants_file.dart';
+import 'package:flutter_application_1/services/notification/onesignal_delete_notification.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/model/court_model.dart';
 import 'package:flutter_application_1/screens_admin/price.dart';
@@ -15,7 +17,6 @@ import 'package:flutter_application_1/services/court/firebase_get_court.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_add_time_slot.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_get_time_slot.dart';
 
-
 class HalamanUtamaAdmin extends StatefulWidget {
   const HalamanUtamaAdmin({super.key});
 
@@ -28,12 +29,14 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   bool isLoading = true;
   bool hasError = false;
   String errorMessage = '';
+  String? id;
 
   Map<String, Map<String, Map<String, dynamic>>> bookingData = {};
   List<CourtModel> courtIds = [];
 
   Widget _buildCalendar(DateTime time) {
-    final sortedCourtIds = courtIds.toList()..sort((a, b) => a.courtId.compareTo(b.courtId));
+    final sortedCourtIds =
+        courtIds.toList()..sort((a, b) => a.courtId.compareTo(b.courtId));
 
     if (isLoading) {
       return const SizedBox(
@@ -155,18 +158,14 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     try {
       courtIds = await FirebaseGetCourt().getCourts(); // Load courts first
 
-      final slots = await FirebaseGetTimeSlot().getTimeSlot(
-        selectedDate,
-      );
+      final slots = await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
 
       if (slots.isEmpty) {
         // Belum ada data -> generate
         await FirebaseAddTimeSlot().addTimeSlot(selectedDate);
 
         // Setelah generate, ambil lagi datanya
-        final newSlots = await FirebaseGetTimeSlot().getTimeSlot(
-          selectedDate,
-        );
+        final newSlots = await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
         _processBookingData(newSlots);
       } else {
         // Sudah ada data
@@ -202,7 +201,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
           'username': slot.username,
           'isClosed': slot.isClosed,
           'isHoliday': slot.isHoliday,
-          'type': slot.type
+          'type': slot.type,
         };
       }
 
@@ -277,16 +276,27 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
             isClosed
                 ? closedColor
                 // : (isAvailable ? availableColor : bookedColor),
-                : (isAvailable ? (isHoliday ? holidayColor : availableColor) : bookedColor),
+                : (isAvailable
+                    ? (isHoliday ? holidayColor : availableColor)
+                    : bookedColor),
         border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            isClosed ? 'Tutup' : (isAvailable ? (isHoliday ? 'Hari Libur' : 'Tersedia') : username),
+            isClosed
+                ? 'Tutup'
+                : (isAvailable
+                    ? (isHoliday ? 'Hari Libur' : 'Tersedia')
+                    : username),
             style: TextStyle(
-              color: !isAvailable ? type == 'member' ? Colors.blue : Colors.red : Colors.black,
+              color:
+                  !isAvailable
+                      ? type == 'member'
+                          ? Colors.blue
+                          : Colors.red
+                      : Colors.black,
               fontWeight: FontWeight.w500,
               fontSize: 12,
             ),
@@ -420,9 +430,19 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   @override
   void initState() {
     super.initState();
-    // Load data after widget is built
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadOrCreateSlots(selectedDate);
+    });
+
+    _loadPrefs();
+  }
+
+  Future<void> _loadPrefs() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? adminId = prefs.getString('admin_id');
+    setState(() {
+      id = adminId;
     });
   }
 
@@ -439,7 +459,15 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                 child: const Text('Batal'),
               ),
               TextButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () async {
+                  await OnesignalDeleteNotification().deleteNotification(id!);
+                  SharedPreferences prefs =
+                      await SharedPreferences.getInstance();
+                  await prefs.remove('admin_id');
+
+                  if (!context.mounted) return;
+                  Navigator.pop(context, true);
+                },
                 child: const Text('Logout'),
               ),
             ],

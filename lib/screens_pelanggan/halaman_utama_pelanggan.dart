@@ -280,20 +280,20 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
 
       if (!mounted) return;
 
-      if (timeSlots.isNotEmpty) {
-        final timeSlot = timeSlots.first;
-        setState(() {
-          currentBookingCard = _buildCurrentBookingCard(
-            timeSlot.courtId,
-            timeSlot.startTime,
-            timeSlot.date.toString(),
-          );
-        });
-      } else {
-        setState(() {
-          currentBookingCard = null;
-        });
-      }
+      // if (timeSlots.isNotEmpty) {
+      //   final timeSlot = timeSlots.first;
+      //   setState(() {
+      //     currentBookingCard = _buildCurrentBookingCard(
+      //       timeSlot.courtId,
+      //       timeSlot.startTime,
+      //       timeSlot.date.toString(),
+      //     );
+      //   });
+      // } else {
+      //   setState(() {
+      //     currentBookingCard = null;
+      //   });
+      // }
     } catch (e) {
       debugPrint('Failed to load booking: $e');
     }

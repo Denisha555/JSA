@@ -11,6 +11,7 @@ class TimeSlotModel {
   final String username;
   final String courtId;
   final String date;
+  final double price;
 
   TimeSlotModel({
     this.slotId = '',
@@ -25,9 +26,10 @@ class TimeSlotModel {
     this.username = '',
     this.courtId = '',
     this.date = '',
+    this.price = 0.0,
   });
 
-  factory TimeSlotModel.fromJson(Map<String, dynamic> json, {int? index, String? courtId, String? date}) {
+  factory TimeSlotModel.fromJson(Map<String, dynamic> json, {int? index, String? courtId, String? date, double? price}) {
     return TimeSlotModel(
       slotId: json['slotId'] ?? '',
       startTime: json['startTime'] ?? '',
@@ -41,6 +43,7 @@ class TimeSlotModel {
       username: json['username'] ?? '',
       courtId: courtId ?? '',
       date: date ?? '',
+      price: price ?? 0.0,
     );
   }
 
@@ -58,6 +61,7 @@ class TimeSlotModel {
       'username': username,
       'courtId': courtId,
       'date': date,
+      'price': price,
     };
   }
 }

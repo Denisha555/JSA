@@ -29,6 +29,7 @@ class HalamanProfil extends StatefulWidget {
 
 class _HalamanProfilState extends State<HalamanProfil> {
   String? username;
+  int memberTotalBooking = 0;
   bool isLoading = true;
   bool? isMemberDatabase;
   bool? isMemberUI;
@@ -67,9 +68,11 @@ class _HalamanProfilState extends State<HalamanProfil> {
         if (result == true) {
           // kalau member, ambil preferensi user
           bool? userPreference = prefs.getBool('isMemberUI');
+          int memberTotalBooking = await FirebaseGetUser().getUserData(username!, 'memberTotalBooking');
 
           setState(() {
             isMemberDatabase = true;
+            memberTotalBooking = memberTotalBooking;
             isMemberUI =
                 userPreference ??
                 true; // default ke true kalau belum pernah di-set
@@ -217,9 +220,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
       for (var booking in memberBookings) {
         try {
           final dateKey =
-              DateTime.parse(
+              '${DateTime.parse(
                 booking.date.toString(),
-              ).toIso8601String().split('T')[0];
+              ).toIso8601String().split('T')[0]}_${booking.courtId}';
 
           if (!groupedByDate.containsKey(dateKey)) {
             groupedByDate[dateKey] = [];
@@ -390,7 +393,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
             Container(height: 40, width: 1, color: Colors.grey[300]),
             _buildStatItem(
               '${data.isNotEmpty ? data[0].totalHour.toStringAsFixed(1) : 0}',
-              'Poin',
+              'Point',
             ),
           ],
         ),
@@ -487,6 +490,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                         style: TextStyle(fontSize: 16),
                       );
                     } else {
+                      
                       final price = snapshot.data ?? 0;
                       final total = price * userbooked.length;
 
@@ -541,7 +545,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     color: primaryColor,
-                                    fontSize: 15,
+                                    fontSize: 13,
                                   ),
                                 ),
                               ],
@@ -721,7 +725,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                         Hero(
                           tag: 'profile_avatar',
                           child: CircleAvatar(
-                            radius: 40,
+                            radius: 38,
                             backgroundColor:
                                 isMemberUI!
                                     ? Colors.blueAccent
@@ -745,7 +749,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                               Text(
                                 username!,
                                 style: const TextStyle(
-                                  fontSize: 25,
+                                  fontSize: 24,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.white,
                                 ),
@@ -756,7 +760,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                     '${data.isNotEmpty ? data[0].totalHour.toStringAsFixed(1) : 0} Poin',
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 13,
+                                      fontSize: 12,
                                     ),
                                   ),
                                   if (isMemberUI!)
@@ -776,7 +780,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                         '💎 Member',
                                         style: TextStyle(
                                           color: Colors.white,
-                                          fontSize: 12,
+                                          fontSize: 11,
                                         ),
                                       ),
                                     ),

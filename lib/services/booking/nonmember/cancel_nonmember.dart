@@ -43,19 +43,22 @@ class CancelNonMember {
 
       var updatedSlot = List<Map<String, dynamic>>.from(slots);
 
+      List<String> cancelList = List<String>.from(
+        updatedSlot[slotIndex]['cancel'] ?? [],
+      );
+      cancelList.add(username);
+
       updatedSlot[slotIndex]['isAvailable'] = true;
       updatedSlot[slotIndex]['username'] = null;
       updatedSlot[slotIndex]['type'] = null;
-      updatedSlot[slotIndex]['cancel'] = [
-        updatedSlot[slotIndex]['cancel']..add(username),
-      ];
+      updatedSlot[slotIndex]['cancel'] = cancelList;
 
       batch.set(firestore.collection('time_slots').doc(docId), {
         'slots': updatedSlot,
       }, SetOptions(merge: true));
 
       batch.set(userRef, {
-        'totalHours': FieldValue.increment(-0.5),
+        'totalHour': FieldValue.increment(-0.5),
         'point': FieldValue.increment(-0.5),
       }, SetOptions(merge: true));
 
@@ -69,16 +72,25 @@ class CancelNonMember {
 
   Future<void> updateUserCancel(String username, String dateStr) async {
     try {
-      final exist = await FirebaseCheckUser().checkExistence(
-        'username',
-        username,
-      );
-      if (exist) {
-        await firestore.collection('users').doc(username).set({
+      final docRef = firestore.collection('users').doc(username);
+      final docSnapshot = await docRef.get();
+
+      if (docSnapshot.exists) {
+        final data = docSnapshot.data();
+        final List<dynamic> currentDates = data?['bookingDates'] ?? [];
+
+        // Salin dan hapus SATU kemunculan dateStr
+        final List<String> updatedDates = List<String>.from(currentDates);
+        final index = updatedDates.indexOf(dateStr);
+        if (index != -1) {
+          updatedDates.removeAt(index);
+        }
+
+        await docRef.set({
           'cancel': FieldValue.increment(1),
           'totalBooking': FieldValue.increment(-1),
-          'cancelDate': FieldValue.arrayUnion([]),
-          'bookingDates': FieldValue.arrayRemove([dateStr]),
+          'cancelDate': FieldValue.arrayUnion([dateStr]),
+          'bookingDates': updatedDates,
         }, SetOptions(merge: true));
       }
     } catch (e) {

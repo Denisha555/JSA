@@ -1,9 +1,12 @@
+import 'package:flutter_application_1/screen_owner/halaman_utama_owner.dart';
+
 import 'firebase_options.dart';
 import 'screens_pelanggan/masuk.dart';
 import 'screens_pelanggan/daftar.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/function/navigator/navigator.dart';
@@ -13,18 +16,31 @@ import 'package:flutter_application_1/screens_pelanggan/pilih_halaman_pelanggan.
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await initializeDateFormatting('id_ID', null);
+
   try {
-    WidgetsFlutterBinding.ensureInitialized();
+    // Init Firebase
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Debug log untuk OneSignal (opsional, khusus debug mode)
+    OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+
+    // Init OneSignal
+    OneSignal.initialize("c8e16b1c-cee5-46f2-972e-4e4a190af032");
+
+    // Minta izin notifikasi (bisa dipindah ke initState di halaman awal)
+    OneSignal.Notifications.requestPermission(true);
+
     runApp(const MyApp());
-  } catch (e) {
-    debugPrint('Error initializing Firebase: $e');
+  } catch (e, stack) {
+    debugPrint('Error initializing app: $e\n$stack');
     runApp(const MyAppError());
   }
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -115,6 +131,9 @@ class _SplashScreenState extends State<SplashScreen> {
       if (username == 'admin_1') {
         if (!mounted) return;
         navigateToReplace(context, HalamanUtamaAdmin());
+      } if (username == 'owner_1') {
+        if (!mounted) return;
+        navigateToReplace(context, HalamanUtamaOwner());
       } else {
         if (!mounted) return;
         navigateToReplace(context, PilihHalamanPelanggan());

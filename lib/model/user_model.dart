@@ -46,7 +46,7 @@ class UserModel {
       startTimePoint: json['startTimePoint'] ?? '',
       startTimeMember: json['startTimeMember'] ?? '',
       point: (json['point'] ?? 0).toDouble(),
-      totalHour: (json['totalHours'] ?? 0).toDouble(),
+      totalHour: (json['totalHour'] ?? 0).toDouble(),
       totalBooking: (json['totalBooking'] ?? 0).toInt(),
       memberTotalBooking: (json['memberTotalBooking'] ?? 0).toInt(),
       memberCurrentTotalBooking: (json['memberCurrentTotalBooking'] ?? 0).toInt(),

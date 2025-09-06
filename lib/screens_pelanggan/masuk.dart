@@ -2,7 +2,10 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
+import 'package:flutter_application_1/screen_owner/halaman_utama_owner.dart';
 import 'package:flutter_application_1/screens_pelanggan/lupa_password.dart';
+import 'package:flutter_application_1/services/notification/onesignal_add_notification.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/services/user/firebase_add_user.dart';
@@ -155,7 +158,11 @@ class _HalamanMasukState extends State<HalamanMasuk>
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('username', usernameController.text);
 
-      debugPrint('Navigating to admin page...');
+      var id = await OneSignal.User.getOnesignalId();
+      await prefs.setString('admin_id', id!);
+
+      OneSignal.User.addTagWithKey("role", "admin");
+      await OneSignalAddNotification().addNotification(id);
 
       if (mounted) {
         Navigator.pushAndRemoveUntil(
@@ -182,6 +189,17 @@ class _HalamanMasukState extends State<HalamanMasuk>
           userName: usernameController.text,
           password: passwordController.text,
           role: 'owner',
+        );
+      }
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('username', usernameController.text);
+
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HalamanUtamaOwner()),
+          (route) => false,
         );
       }
     } catch (e) {

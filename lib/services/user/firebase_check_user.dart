@@ -54,22 +54,38 @@ class FirebaseCheckUser {
         final userData = await FirebaseGetUser().getUserByUsername(username);
         if (userData[0].role == 'member') {
           final startDate = DateTime.parse(userData[0].startTimeMember);
-          final finishDate = DateTime(
-            startDate.year,
-            startDate.month + 1,
-            startDate.day,
-          );
+          final finishDate = DateTime(startDate.year, startDate.month + 1, 0);
 
           final now = DateTime.now();
           final difference = finishDate.difference(now);
           final daysLeft = difference.inDays;
 
           if (daysLeft <= 0) {
-            await FirebaseUpdateUser().updateUser('role', username, 'nonMember');
-            await FirebaseUpdateUser().updateUser('startTimeMember', username, FieldValue.delete());
-            await FirebaseUpdateUser().updateUser('memberTotalBooking', username, FieldValue.delete());
-            await FirebaseUpdateUser().updateUser('memberCurrentTotalBooking', username, FieldValue.delete());
-            await FirebaseUpdateUser().updateUser('memberBookingLength', username, FieldValue.delete());
+            await FirebaseUpdateUser().updateUser(
+              'role',
+              username,
+              'nonMember',
+            );
+            await FirebaseUpdateUser().updateUser(
+              'startTimeMember',
+              username,
+              FieldValue.delete(),
+            );
+            await FirebaseUpdateUser().updateUser(
+              'memberTotalBooking',
+              username,
+              FieldValue.delete(),
+            );
+            await FirebaseUpdateUser().updateUser(
+              'memberCurrentTotalBooking',
+              username,
+              FieldValue.delete(),
+            );
+            await FirebaseUpdateUser().updateUser(
+              'memberBookingLength',
+              username,
+              FieldValue.delete(),
+            );
             await FirebaseUpdateTimeSlot().updateMemberTimeSlots(username);
           }
         }
@@ -79,7 +95,7 @@ class FirebaseCheckUser {
     }
   }
 
-  Future<void> checkRewardTime (String username) async {
+  Future<void> checkRewardTime(String username) async {
     try {
       if (await checkExistence('username', username)) {
         final userData = await FirebaseGetUser().getUserByUsername(username);
@@ -96,7 +112,11 @@ class FirebaseCheckUser {
           final daysLeft = difference.inDays;
 
           if (daysLeft <= 0) {
-            await FirebaseUpdateUser().updateUser('startTimePoint', username, '');
+            await FirebaseUpdateUser().updateUser(
+              'startTimePoint',
+              username,
+              '',
+            );
             await FirebaseUpdateUser().updateUser('point', username, 0);
           }
         }

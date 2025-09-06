@@ -1,4 +1,3 @@
-import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
@@ -6,6 +5,7 @@ import 'package:flutter_application_1/function/price/price.dart';
 import 'package:flutter_application_1/model/time_slot_model.dart';
 import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/function/calender/legend_item.dart';
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:flutter_application_1/services/court/firebase_get_court.dart';
 import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 import 'package:flutter_application_1/services/booking/member/cancel_member.dart';
@@ -338,6 +338,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           );
 
           bookedSlots.add(formattedTime);
+
+          await BookingNonMember().addTotalHour(username);
         }
 
         await BookingNonMember().addTotalBooking(username);
@@ -355,7 +357,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           'memberBookingLength',
         );
 
-        if (currentBookingDates.length >= bookingDates.length) {
+        if (currentBookingDates >= bookingDates) {
           // Jika melebihi jumlah hari
           for (
             int minutes = startTotalMinutes;
@@ -407,7 +409,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
       if (!mounted) return;
       _safeNavigatorPop(context); // Tutup loading
-      showSuccessSnackBar(context, 'Berhasil booking untuk $username');
+      showSuccessSnackBar(context, 'Berhasil booking untuk $username, lapangan $court pada tanggal $dateStr, pukul $startTime - $endTime');
       await _loadOrCreateSlots(selectedDate);
     } catch (e) {
       if (!mounted) return;
@@ -519,52 +521,59 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   ) async {
     bool? confirm = await showDialog<bool>(
       context: context,
-      builder: (BuildContext confirmContext)  {
+      builder: (BuildContext confirmContext) {
         return AlertDialog(
           title: Text('Konfirmasi Booking'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-                Text('Customer: $username'),
-                Text('Lapangan: $court'),
-                Text('Jam Mulai: $startTime'),
-                Text('Jam Selesai: $endTime'),
-                FutureBuilder<double>(
-                  future: totalPrice(
+              Text('Customer: $username'),
+              Text('Lapangan: $court'),
+              Text('Jam Mulai: $startTime'),
+              Text('Jam Selesai: $endTime'),
+              SizedBox(height: 8),
+              FutureBuilder<double>(
+                future: _memberOrNonMember(username).then((type) {
+                  return totalPrice(
                     startTime: startTime,
                     endTime: endTime,
                     selectedDate: selectedDate,
-                    type: _memberOrNonMember(username),
-                  ),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Text('Menghitung harga...');
-                    } else if (snapshot.hasError) {
-                      return Text('Gagal menghitung harga');
-                    } else {
-                      final price = snapshot.data ?? 0;
-                      return Text(
-                        'Total Harga: Rp ${price.toStringAsFixed(0)}',
-                      );
-                    }
-                  },
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(confirmContext).pop(false),
-                child: Text('Batal'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(confirmContext).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: Text('Konfirmasi'),
+                    type: type,
+                  );
+                }),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Text('Menghitung harga...');
+                  } else if (snapshot.hasError) {
+                    return Text('Gagal menghitung harga');
+                  } else {
+                    final price = snapshot.data ?? 0;
+                    return Text(
+                      'Total Harga: Rp ${price.toStringAsFixed(0)}',
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  }
+                },
               ),
             ],
-          );
-  }
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(confirmContext).pop(false),
+              child: Text('Batal'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(confirmContext).pop(true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: Text('Konfirmasi'),
+            ),
+          ],
+        );
+      },
     );
     if (confirm == true && mounted) {
       _processBooking(
@@ -585,13 +594,13 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     } else {
       final bookingDates = await FirebaseGetUser().getUserData(
         username,
-        'bookingDates',
+        'memberTotalBooking',
       );
       final currentBookingDates = await FirebaseGetUser().getUserData(
         username,
-        'currentBookingDates',
+        'memberCurrentTotalBooking',
       );
-      if (currentBookingDates.length >= bookingDates.length) {
+      if (currentBookingDates >= bookingDates) {
         return 'nonMember';
       } else {
         return 'member';
@@ -636,14 +645,16 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     Text(
                       'Status: ${type == "member" ? "Member" : "Non Member"}',
                     ),
-                    Text('Total Durasi: ${consecutiveSlots.length * 30} menit'),
+                    SizedBox(height: 8),
                     FutureBuilder<double>(
-                      future: totalPrice(
-                        startTime: startTime,
-                        endTime: endTime,
-                        selectedDate: selectedDate,
-                        type: type,
-                      ),
+                      future: _memberOrNonMember(username).then((type) {
+                        return totalPrice(
+                          startTime: startTime,
+                          endTime: endTime,
+                          selectedDate: selectedDate,
+                          type: type,
+                        );
+                      }),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
@@ -654,6 +665,10 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                           final price = snapshot.data ?? 0;
                           return Text(
                             'Total Harga: Rp ${price.toStringAsFixed(0)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
                           );
                         }
                       },
@@ -681,84 +696,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             ),
       );
     } catch (e) {
-      debugPrint('Error getting booking confirmation status: $e');
-      // Tampilkan dialog tanpa status konfirmasi jika ada error
       if (!mounted) return;
-
-      await showDialog(
-        context: context,
-        builder:
-            (BuildContext dialogContext) => AlertDialog(
-              title: Text('Detail Booking'),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Customer: $username',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    SizedBox(height: 8),
-                    Text('Lapangan: $court'),
-                    Text('Jam Mulai: $startTime'),
-                    Text('Jam Selesai: $endTime'),
-                    Text('Total Durasi: ${consecutiveSlots.length * 30} menit'),
-                    FutureBuilder<double>(
-                      future: totalPrice(
-                        startTime: startTime,
-                        endTime: endTime,
-                        selectedDate: selectedDate,
-                        type: 'Non Member',
-                      ),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState ==
-                            ConnectionState.waiting) {
-                          return Text('Menghitung harga...');
-                        } else if (snapshot.hasError) {
-                          return Text('Gagal menghitung harga');
-                        } else {
-                          final price = snapshot.data ?? 0;
-                          return Text(
-                            'Total Harga: Rp ${price.toStringAsFixed(0)}',
-                          );
-                        }
-                      },
-                    ),
-                    SizedBox(height: 10),
-                    if (consecutiveSlots.length > 1) ...[
-                      Text(
-                        'Slot yang dibooking:',
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      ...consecutiveSlots.map(
-                        (slot) => Padding(
-                          padding: EdgeInsets.only(left: 16),
-                          child: Text('• $slot'),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => _safeNavigatorPop(dialogContext),
-                  child: Text('Tutup'),
-                ),
-                TextButton(
-                  onPressed:
-                      () => _handleCancelBooking(dialogContext, time, court),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: Text(
-                    consecutiveSlots.length > 1
-                        ? 'Batalkan Semua'
-                        : 'Batalkan Booking',
-                  ),
-                ),
-              ],
-            ),
-      );
+      showErrorSnackBar(context, 'Gagal menampilkan detail booking : $e');
     }
   }
 
@@ -803,8 +742,17 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     for (int i = startIndex; i <= endIndex; i++) {
       consecutiveSlots.add(timeRanges[i]);
     }
-
     return consecutiveSlots;
+  }
+
+  List<String> _generateCancelOptions(List<String> consecutiveSlots) {
+    List<String> options = [];
+    for (int i = 0; i < consecutiveSlots.length; i++) {
+      options.add(
+        '${consecutiveSlots.first.split(" - ")[0]} - ${consecutiveSlots[i].split(" - ")[1]}',
+      );
+    }
+    return options;
   }
 
   Future<void> _handleCancelBooking(
@@ -839,39 +787,62 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     String startTime = consecutiveSlots.first.split(' - ')[0];
     String endTime = consecutiveSlots.last.split(' - ')[1];
 
+    String? selectedCancelRange;
+
     // Show confirmation with booking details
     bool? confirm = await showDialog<bool>(
       context: context,
-      builder:
-          (BuildContext confirmContext) => AlertDialog(
-            title: Text('Konfirmasi Pembatalan Booking'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Customer: $username'),
-                Text('Lapangan: $court'),
-                Text('Jam Mulai: $startTime'),
-                Text('Jam Selesai: $endTime'),
-                SizedBox(height: 10),
-                Text(
-                  'Apakah Anda yakin ingin membatalkan booking ini?',
-                  style: TextStyle(fontWeight: FontWeight.bold),
+      builder: (BuildContext confirmContext) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setStateDialog) {
+            return AlertDialog(
+              title: Text('Konfirmasi Pembatalan Booking'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Customer: $username'),
+                  Text('Lapangan: $court'),
+                  Text('Pilih durasi pembatalan:'),
+                  DropdownButton<String>(
+                    value: selectedCancelRange,
+                    isExpanded: true,
+                    items:
+                        _generateCancelOptions(consecutiveSlots).map((range) {
+                          return DropdownMenuItem(
+                            value: range,
+                            child: Text(range),
+                          );
+                        }).toList(),
+                    onChanged: (value) {
+                      setStateDialog(() {
+                        selectedCancelRange = value;
+                      });
+                    },
+                  ),
+
+                  SizedBox(height: 10),
+                  Text(
+                    'Apakah Anda yakin ingin membatalkan booking ini?',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(confirmContext).pop(false),
+                  child: Text('Tidak'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(confirmContext).pop(true),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: Text('Ya, Batalkan'),
                 ),
               ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(confirmContext).pop(false),
-                child: Text('Tidak'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(confirmContext).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: Text('Ya, Batalkan'),
-              ),
-            ],
-          ),
+            );
+          },
+        );
+      },
     );
 
     if (confirm == true && mounted) {
@@ -885,14 +856,22 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
 
         if (timeSlotData.type == 'member') {
-          for (String timeSlot in consecutiveSlots) {
-            await CancelMember().cancelBooking(
-              username,
-              dateStr,
-              court,
-              timeSlot.split(' - ')[0],
-              timeSlot.split(' - ')[1],
+          if (selectedCancelRange != null) {
+            String selectedEnd = selectedCancelRange!.split(' - ')[1];
+            int endIndex = consecutiveSlots.indexWhere(
+              (slot) => slot.split(' - ')[1] == selectedEnd,
             );
+
+            for (int i = 0; i <= endIndex; i++) {
+              String timeSlot = consecutiveSlots[i];
+              await CancelMember().cancelBooking(
+                username,
+                dateStr,
+                court,
+                timeSlot.split(' - ')[0],
+                timeSlot.split(' - ')[1],
+              );
+            }
           }
 
           await CancelMember().updateUserCancel(username, dateStr);
@@ -900,14 +879,22 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           if (!mounted) return;
           _safeNavigatorPop(context); // Close loading dialog
         } else {
-          for (String timeSlot in consecutiveSlots) {
-            await CancelNonMember().cancelBooking(
-              username,
-              dateStr,
-              court,
-              timeSlot.split(' - ')[0],
-              timeSlot.split(' - ')[1],
+          if (selectedCancelRange != null) {
+            String selectedEnd = selectedCancelRange!.split(' - ')[1];
+            int endIndex = consecutiveSlots.indexWhere(
+              (slot) => slot.split(' - ')[1] == selectedEnd,
             );
+
+            for (int i = 0; i <= endIndex; i++) {
+              String timeSlot = consecutiveSlots[i];
+              await CancelNonMember().cancelBooking(
+                username,
+                dateStr,
+                court,
+                timeSlot.split(' - ')[0],
+                timeSlot.split(' - ')[1],
+              );
+            }
           }
 
           await CancelNonMember().updateUserCancel(username, dateStr);
@@ -919,7 +906,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         if (mounted) {
           showSuccessSnackBar(
             context,
-            'Berhasil membatalkan bookingan untuk $username, hari ${DateFormat('EEEE, d MMMM yyyy').format(selectedDate)}, pukul $startTime - $endTime',
+            'Berhasil membatalkan bookingan untuk $username, hari ${DateFormat('EEEE, d MMMM yyyy').format(selectedDate)}, pukul $selectedCancelRange',
           );
 
           // Refresh data
@@ -1144,7 +1131,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   Widget build(BuildContext context) {
     final sortedCourtIds = courtIds.toList()..sort((a, b) => a.compareTo(b));
     return Scaffold(
-      appBar: AppBar(title: Text("Kalender"),
+      appBar: AppBar(
+        title: Text("Kalender"),
         actions: [
           IconButton(
             onPressed: () async {
@@ -1156,7 +1144,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   lastDate: DateTime(2101),
                 );
                 if (picked != null) {
-                  setState(() => selectedDate = picked);
+                  _changeDate(picked);
                 }
               } catch (e) {
                 print('DatePicker error: $e');

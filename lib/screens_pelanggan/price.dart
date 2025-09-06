@@ -251,7 +251,7 @@ class _HalamanPriceListState extends State<HalamanPriceList> {
             ),
           ),
           Text(
-            formatPrice(price),
+            '${formatPrice(price)} / jam',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ],

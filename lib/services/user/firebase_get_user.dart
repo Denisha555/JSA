@@ -47,7 +47,7 @@ class FirebaseGetUser {
       if (snapshot.docs.isEmpty) {
         throw Exception('User not found');
       }
-
+      
       return snapshot.docs[0].get(field);
     } catch (e) {
       throw Exception('Error Fetching User Data: $e');

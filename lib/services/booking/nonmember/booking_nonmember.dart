@@ -20,9 +20,13 @@ class BookingNonMember {
       }
 
       final slots = doc.data()!['slots'] as List<dynamic>;
-      final slotIndex = slots.indexWhere((slot) => slot['startTime'] == startTime);
+      final slotIndex = slots.indexWhere(
+        (slot) => slot['startTime'] == startTime,
+      );
 
-      if (slotIndex == -1 || !slots[slotIndex]['isAvailable'] || slots[slotIndex]['isClosed'] == true) {
+      if (slotIndex == -1 ||
+          !slots[slotIndex]['isAvailable'] ||
+          slots[slotIndex]['isClosed'] == true) {
         throw Exception('Slot not available');
       }
 
@@ -36,6 +40,23 @@ class BookingNonMember {
       });
     } catch (e) {
       throw Exception('Failed to book slots for non-member: $e');
+    }
+  }
+
+  Future<void> addTotalHour(String username) async {
+    try {
+      final exist = await FirebaseCheckUser().checkExistence(
+        'username',
+        username,
+      );
+      if (exist) {
+        await firestore.collection('users').doc(username).set({
+          'totalHour': FieldValue.increment(0.5),
+          'point': FieldValue.increment(0.5),
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      throw Exception('Failed to add total booking: $e');
     }
   }
 
@@ -55,9 +76,19 @@ class BookingNonMember {
     }
   }
 
-  Future<void> addBookingDates (String username, dynamic dates) async {
-    return firestore.collection('users').doc(username).set({
-      'bookingDates': FieldValue.arrayUnion(dates),
-    }, SetOptions(merge: true));
+  Future<void> addBookingDates(String username, dynamic dates) async {
+    final userDoc = firestore.collection('users').doc(username);
+
+    final snapshot = await userDoc.get();
+    List<dynamic> currentDates = [];
+
+    if (snapshot.exists && snapshot.data()!.containsKey('bookingDates')) {
+      currentDates = List<String>.from(snapshot.data()!['bookingDates']);
+    }
+
+    // Tambahkan semua tanggal baru, termasuk yang sama (duplikat tetap masuk)
+    currentDates.addAll(dates);
+
+    await userDoc.set({'bookingDates': currentDates}, SetOptions(merge: true));
   }
 }

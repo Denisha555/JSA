@@ -31,6 +31,8 @@ class CancelMember {
         throw Exception('slot not found');
       }
 
+      print('start time : $startTime');
+
       final slots = doc.data()!['slots'] as List<dynamic>;
       final slotIndex = slots.indexWhere(
         (slot) => slot['startTime'] == startTime,
@@ -41,33 +43,47 @@ class CancelMember {
 
       var updatedSlot = List<Map<String, dynamic>>.from(slots);
 
+      List<String> cancelList = List<String>.from(
+        updatedSlot[slotIndex]['cancel'] ?? [],
+      );
+
+      cancelList.add(username);
+
       updatedSlot[slotIndex]['isAvailable'] = true;
-      updatedSlot[slotIndex]['username'] = null;
-      updatedSlot[slotIndex]['type'] = null;
-      updatedSlot[slotIndex]['cancel'] = [
-        updatedSlot[slotIndex]['cancel']..add(username),
-      ];
+      updatedSlot[slotIndex]['username'] = '';
+      updatedSlot[slotIndex]['type'] = '';
+      updatedSlot[slotIndex]['cancel'] = cancelList;
 
       batch.set(firestore.collection('time_slots').doc(docId), {
         'slots': updatedSlot,
       }, SetOptions(merge: true));
+
+      batch.commit();
     } catch (e) {
       throw 'Error canceling booking: $e';
     }
   }
 
-  Future<void> updateUserCancel(username, String dateStr) async {
+  Future<void> updateUserCancel(String username, String dateStr) async {
     try {
-      final exist = await FirebaseCheckUser().checkExistence(
-        'username',
-        username,
-      );
-      if (exist) {
-        await firestore.collection('users').doc(username).set({
+      final docRef = firestore.collection('users').doc(username);
+      final docSnapshot = await docRef.get();
+
+      if (docSnapshot.exists) {
+        List<dynamic> currentDates = docSnapshot.data()?['bookingDates'] ?? [];
+
+        // Buat salinan & hapus satu kemunculan dateStr
+        List<String> updatedDates = List<String>.from(currentDates);
+        int indexToRemove = updatedDates.indexOf(dateStr);
+        if (indexToRemove != -1) {
+          updatedDates.removeAt(indexToRemove);
+        }
+
+        await docRef.set({
           'cancel': FieldValue.increment(1),
-          'memberCurrentTotalBooking': FieldValue.increment(-1),
           'cancelDate': FieldValue.arrayUnion([dateStr]),
-          'bookingDates': FieldValue.arrayRemove([dateStr]),
+          'bookingDates': updatedDates,
+          'memberCurrentTotalBooking': FieldValue.increment(-1),
         }, SetOptions(merge: true));
       }
     } catch (e) {

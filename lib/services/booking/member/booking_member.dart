@@ -4,7 +4,12 @@ import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 class BookingMember {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  Future<void> bookSlotForMember(String courtId, String dateStr, String startTime, String username) async {
+  Future<void> bookSlotForMember(
+    String courtId,
+    String dateStr,
+    String startTime,
+    String username,
+  ) async {
     try {
       final docId = '${courtId}_$dateStr';
       final doc = await firestore.collection('time_slots').doc(docId).get();
@@ -14,9 +19,13 @@ class BookingMember {
       }
 
       final slots = doc.data()!['slots'] as List<dynamic>;
-      final slotIndex = slots.indexWhere((slot) => slot['startTime'] == startTime);
+      final slotIndex = slots.indexWhere(
+        (slot) => slot['startTime'] == startTime,
+      );
 
-      if (slotIndex == -1 && slots[slotIndex]['isAvailable'] == false && slots[slotIndex]['isClosed'] == true) {
+      if (slotIndex == -1 &&
+          slots[slotIndex]['isAvailable'] == false &&
+          slots[slotIndex]['isClosed'] == true) {
         throw Exception('Slot not available');
       }
 
@@ -34,8 +43,14 @@ class BookingMember {
   }
 
   // digunakan saat mendaftar sebagai member
-  Future<void> addTotalBookingDays(String username, int days, int length) async {
+  Future<void> addTotalBookingDays(
+    String username,
+    int days,
+    int length,
+  ) async {
     try {
+      print('add total booking days');
+      print(length);
       final exist = await FirebaseCheckUser().checkExistence(
         'username',
         username,
@@ -69,9 +84,19 @@ class BookingMember {
     }
   }
 
-  Future<void> addBookingDates(String username, dynamic dates) {
-    return firestore.collection('users').doc(username).set({
-      'bookingDates': FieldValue.arrayUnion(dates),
-    }, SetOptions(merge: true));
+  Future<void> addBookingDates(String username, dynamic dates) async {
+    final userDoc = firestore.collection('users').doc(username);
+
+    final snapshot = await userDoc.get();
+    List<dynamic> currentDates = [];
+
+    if (snapshot.exists && snapshot.data()!.containsKey('bookingDates')) {
+      currentDates = List<String>.from(snapshot.data()!['bookingDates']);
+    }
+
+    // Tambahkan semua tanggal baru, termasuk yang sama (duplikat tetap masuk)
+    currentDates.addAll(dates);
+
+    await userDoc.set({'bookingDates': currentDates}, SetOptions(merge: true));
   }
 }

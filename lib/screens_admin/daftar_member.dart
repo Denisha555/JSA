@@ -117,14 +117,14 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
   }
 
   int timeToMinutes(String time) {
-  final finalTime = time.split(' ');
-  final parts = finalTime[0].split(':');
-  return int.parse(parts[0]) * 60 + int.parse(parts[1]);
-}
+    final finalTime = time.split(' ');
+    final parts = finalTime[0].split(':');
+    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+  }
 
   // Date management
   List<DateTime> _getWeekdaysInRange(int weekday, DateTime baseDate) {
-    final endDate = DateTime(baseDate.year, baseDate.month + 1, baseDate.day);
+    final endDate = DateTime(baseDate.year, baseDate.month + 1, 0);
     final totalDays = endDate.difference(baseDate).inDays + 1;
 
     return List.generate(
@@ -156,7 +156,6 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
       hasCheckedAvailability = false;
     });
 
-    
     try {
       await _findAvailableCourt();
 
@@ -214,29 +213,30 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
     int startMinutes,
     int endMinutes,
   ) async {
+    final List<Future<bool>> checkFutures = [];
+
     for (final date in selectedDates) {
       final dateStr = DateFormat('yyyy-MM-dd').format(date);
       for (
         int slotStart = startMinutes;
         slotStart < endMinutes;
-        slotStart += _slotDurationMinutes
+        slotStart += 30
       ) {
-        final slotStartTime = minutesToFormattedTime(slotStart);
-        print(slotStartTime);
-        final isAvailable = await FirebaseCheckTimeSlot().isSlotAvailable(
+        final slotTime = minutesToFormattedTime(slotStart);
+
+        final futureCheck = FirebaseCheckTimeSlot().isSlotAvailable(
           courtId,
           dateStr,
-          slotStartTime,
+          slotTime,
         );
 
-        debugPrint(
-          'Slot $slotStartTime di lapangan $courtId pada $dateStr: ${isAvailable ? "Tersedia" : "Tidak Tersedia"}',
-        );
-
-        if (!isAvailable) return false;
+        checkFutures.add(futureCheck);
       }
     }
-    return true;
+
+    final results = await Future.wait(checkFutures);
+
+    return results.every((result) => result); // true kalau semua available
   }
 
   // Validation
@@ -283,6 +283,33 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                         children: [
                           _buildInfoRow('Jam Mulai', selectedStartTime),
                           _buildInfoRow('Jam Selesai', selectedEndTime),
+
+                          FutureBuilder<double>(
+                            future: totalPrice(
+                              startTime: selectedStartTime,
+                              endTime: selectedEndTime,
+                              selectedDate: selectedDates[0],
+                              type: 'member',
+                            ),
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return Text('Menghitung harga...');
+                              } else if (snapshot.hasError) {
+                                return Text('Gagal menghitung harga');
+                              } else {
+                                double price = snapshot.data ?? 0;
+                                price =
+                                    price *
+                                    selectedDates.length *
+                                    selectedCourts.length;
+                                return Text(
+                                  'Total Harga: Rp ${price.toStringAsFixed(0)}',
+                                );
+                              }
+                            },
+                          ),
+                          
                           const SizedBox(height: 16),
 
                           const Text(
@@ -657,7 +684,7 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
 
       await BookingMember().addTotalBookingDays(
         username,
-        selectedDates.length,
+        selectedDates.length * courtIds.length,
         length,
       );
 
@@ -765,10 +792,13 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                                 onSelected: (_) {
                                   DateTime date = DateTime.now();
                                   selectedDates = _getWeekdaysInRange(
-                                      entry.value,
-                                      date,
-                                    );
-                                  if (selectedDates.first.isBefore(date) || selectedDates.first.isAtSameMomentAs(date)) {
+                                    entry.value,
+                                    date,
+                                  );
+                                  if (selectedDates.first.isBefore(date) ||
+                                      selectedDates.first.isAtSameMomentAs(
+                                        date,
+                                      )) {
                                     date = date.add(Duration(days: 7));
                                   }
                                   setState(() {

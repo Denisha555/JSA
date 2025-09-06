@@ -7,10 +7,11 @@ import 'package:flutter_application_1/function/price/price.dart';
 import 'package:flutter_application_1/model/time_slot_model.dart';
 import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/services/court/firebase_get_court.dart';
-import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 import 'package:flutter_application_1/services/user/firebase_update_user.dart';
 import 'package:flutter_application_1/services/booking/member/booking_member.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_check_time_slot.dart';
+import 'package:flutter_application_1/services/notification/onesignal_send_notification.dart';
+
 
 class HalamanMember extends StatefulWidget {
   const HalamanMember({super.key});
@@ -89,7 +90,7 @@ class _HalamanMemberState extends State<HalamanMember> {
 
   // Business logic methods
   List<DateTime> _getWeekdaysInRange(int weekday, DateTime baseDate) {
-    final endDate = DateTime(baseDate.year, baseDate.month + 1, baseDate.day);
+    final endDate = DateTime(baseDate.year, baseDate.month + 1, 0);
     final daysDifference = endDate.difference(baseDate).inDays + 1;
 
     return List.generate(
@@ -120,9 +121,31 @@ class _HalamanMemberState extends State<HalamanMember> {
     return true;
   }
 
+  int timeToMinutes(String time) {
+    final finalTime = time.split(' ');
+    final parts = finalTime[0].split(':');
+    return int.parse(parts[0]) * 60 + int.parse(parts[1]);
+  }
+
   Future<void> _findAvailableCourt() async {
+    print('find available court');
     if (courts.isEmpty) {
       showErrorSnackBar(context, 'Data lapangan belum dimuat');
+      return;
+    }
+
+    if (!await FirebaseCheckTimeSlot().checkTimeSlots(
+      selectedDates.first,
+      selectedStartTime,
+    )) {
+      if (!mounted) return;
+      showErrorSnackBar(
+        context,
+        'Jam yang dipilih tidak tersedia : $selectedStartTime',
+      );
+      setState(() {
+        isLoading = false;
+      });
       return;
     }
 
@@ -149,7 +172,7 @@ class _HalamanMemberState extends State<HalamanMember> {
     int startMinutes,
     int endMinutes,
   ) async {
-    // final List<Future<bool>> tasks = [];
+    final List<Future<bool>> checkFutures = [];
 
     for (final date in selectedDates) {
       final dateStr = DateFormat('yyyy-MM-dd').format(date);
@@ -159,17 +182,20 @@ class _HalamanMemberState extends State<HalamanMember> {
         slotStart += 30
       ) {
         final slotTime = minutesToFormattedTime(slotStart);
-        final isAvailable = await FirebaseCheckTimeSlot().isSlotAvailable(
+
+        final futureCheck = FirebaseCheckTimeSlot().isSlotAvailable(
           court.courtId,
           dateStr,
           slotTime,
         );
-        if (!isAvailable) {
-          return false; // Jika ada slot yang tidak tersedia, langsung return false
-        }
+
+        checkFutures.add(futureCheck);
       }
     }
-    return true; // Jika semua slot tersedia, return true
+
+    final results = await Future.wait(checkFutures);
+
+    return results.every((result) => result); // true kalau semua available
   }
 
   Future<void> _becomeMember(List<String> courts, List<DateTime> dates) async {
@@ -185,22 +211,8 @@ class _HalamanMemberState extends State<HalamanMember> {
         throw Exception('Username tidak ditemukan');
       }
 
-      for (final selectedDate in dates) {
-        final formattedDate = DateFormat('yyyy-MM-dd').format(selectedDate);
-        debugPrint('Selected date: $formattedDate');
-
-        // await _bookAllSlots(courtId, username);
-        await _registerMemberMultipleCourts(courts);
-
-        if (selectedDate == dates.first) {
-          await FirebaseUpdateUser().updateUser('role', username, 'member');
-          await FirebaseUpdateUser().updateUser(
-            'startTimeMember',
-            username,
-            formattedDate,
-          );
-        }
-      }
+      // await _registerMemberMultipleCourts(courts);
+      await _bookAllSlotsMultipleCourts(courts, username);
 
       if (mounted) {
         showSuccessSnackBar(context, 'Selamat! Anda berhasil menjadi member');
@@ -208,6 +220,8 @@ class _HalamanMemberState extends State<HalamanMember> {
         SharedPreferences prefs = await SharedPreferences.getInstance();
         prefs.setBool('isMember', true);
         prefs.setBool('isMemberUI', true);
+
+        await OneSignalSendNotification().sendNewMemberNotification(username, startTimeController.text, courts.toString(), _getWeekdayName(dates.first.weekday));
       }
     } catch (e) {
       if (mounted) {
@@ -220,46 +234,16 @@ class _HalamanMemberState extends State<HalamanMember> {
     }
   }
 
-  Future<void> _registerMemberMultipleCourts(List<String> courtIds) async {
-    final prefs = await SharedPreferences.getInstance();
-    final username = prefs.getString('username') ?? '';
-
-    // final username = usernameController.text.trim();
-
-    setState(() => isLoading = true);
-
-    try {
-      // Check if user exists
-      final userExists = await FirebaseCheckUser().checkExistence(
-        'username',
-        username,
-      );
-      if (!userExists) {
-        if (!mounted) return;
-        showErrorSnackBar(context, 'Username tidak ditemukan');
-        return;
-      }
-
-      // Book all slots for all selected courts
-      await _bookAllSlotsMultipleCourts(courtIds, username);
-    } catch (e) {
-      if (mounted) {
-        showErrorSnackBar(context, 'Gagal mendaftarkan member: $e');
-      }
-    } finally {
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
-    }
-  }
-
   Future<void> _bookAllSlotsMultipleCourts(
     List<String> courtIds,
     String username,
   ) async {
+    print('book all slots');
     final startMinutes = timeToMinutes(selectedStartTime);
     final endMinutes = timeToMinutes(selectedEndTime);
     int length = 0;
+
+    print('selectedDates: $selectedDates');
 
     final selectedDatesStr =
         selectedDates
@@ -267,8 +251,8 @@ class _HalamanMemberState extends State<HalamanMember> {
             .toList();
 
     // Loop through each selected court
-    for (final courtId in courtIds) {
-      for (final date in selectedDates) {
+    for (final date in selectedDates) {
+      for (final courtId in courtIds) {
         final dateStr = DateFormat('yyyy-MM-dd').format(date);
         try {
           for (
@@ -285,6 +269,10 @@ class _HalamanMemberState extends State<HalamanMember> {
               username,
             );
 
+            print('first selected date: ${selectedDates.first}');
+            print('date: $date');
+            print('length: $length');
+
             if (selectedDates.first == date && courtIds.first == courtId) {
               length++;
             }
@@ -295,31 +283,36 @@ class _HalamanMemberState extends State<HalamanMember> {
         }
       }
     }
-    
-    await BookingMember().addTotalBookingDays(
-      username,
-      selectedDates.length,
-      length,
-    );
 
-    await BookingMember().addBookingDates(username, selectedDatesStr);
+    print('length for total booking: $length');
 
     // Update user role hanya sekali setelah semua booking selesai
-    if (selectedDates.isNotEmpty) {
-      try {
-        final firstDateStr = DateFormat(
-          'yyyy-MM-dd',
-        ).format(selectedDates.first);
-        await FirebaseUpdateUser().updateUser('role', username, 'member');
-        await FirebaseUpdateUser().updateUser(
-          'startTimeMember',
-          username,
-          firstDateStr,
-        );
-      } catch (e) {
-        if (!mounted) return;
-        showErrorSnackBar(context, 'Gagal memperbarui role user: $e');
-      }
+
+    try {
+      print('update user data');
+
+      final firstDateStr = DateFormat('yyyy-MM-dd').format(selectedDates.first);
+      await FirebaseUpdateUser().updateUser('role', username, 'member');
+      await FirebaseUpdateUser().updateUser(
+        'startTimeMember',
+        username,
+        firstDateStr,
+      );
+
+      await BookingMember().addTotalBookingDays(
+        username,
+        selectedDates.length * courtIds.length,
+        length,
+      );
+
+      await BookingMember().addBookingDates(username, selectedDatesStr);
+    } catch (e) {
+      if (!mounted) return;
+      showErrorSnackBar(context, 'Gagal memperbarui role user: $e');
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
@@ -614,11 +607,22 @@ class _HalamanMemberState extends State<HalamanMember> {
                               selected: isSelected,
                               selectedColor: primaryColor,
                               onSelected: (_) {
+                                DateTime date = DateTime.now();
+                                selectedDates = _getWeekdaysInRange(
+                                  entry.value,
+                                  date,
+                                );
+                                if (selectedDates.first.isBefore(date) ||
+                                    selectedDates.first.isAtSameMomentAs(
+                                      date,
+                                    )) {
+                                  date = date.add(Duration(days: 7));
+                                }
                                 setState(() {
                                   selectedWeekday = entry.value;
                                   selectedDates = _getWeekdaysInRange(
                                     entry.value,
-                                    DateTime.now(),
+                                    date,
                                   );
                                   // hasCheckedAvailability = false;
                                 });
@@ -637,11 +641,14 @@ class _HalamanMemberState extends State<HalamanMember> {
                       context: context,
                       initialTime: jamMulai,
                     );
+                    print('picked: $picked');
                     if (picked != null) {
                       setState(() {
                         jamMulai = picked;
-                        selectedStartTime = jamMulai.format(context);
+                        selectedStartTime = formatTimeOfDay24(jamMulai);
                       });
+                      print('selectedStartTime: $selectedStartTime');
+                      print(jamMulai.format(context));
                     }
                   },
                   child: AbsorbPointer(
@@ -675,7 +682,7 @@ class _HalamanMemberState extends State<HalamanMember> {
                     if (picked != null) {
                       setState(() {
                         jamSelesai = picked;
-                        selectedEndTime = jamSelesai.format(context);
+                        selectedEndTime = formatTimeOfDay24(jamSelesai);
                       });
                     }
                   },
@@ -751,7 +758,18 @@ class _HalamanMemberState extends State<HalamanMember> {
   Widget _buildLoadingOverlay() {
     return Container(
       color: Colors.black.withValues(alpha: 0.3),
-      child: const Center(child: CircularProgressIndicator()),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Center(child: CircularProgressIndicator()),
+          const SizedBox(width: 13),
+          const Text(
+            'Memproses',
+            style: TextStyle(color: Colors.white, fontSize: 15),
+          ),
+        ],
+      ),
     );
   }
 

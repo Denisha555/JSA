@@ -5,7 +5,6 @@ import 'package:flutter_application_1/model/time_slot_model.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_add_time_slot.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_check_time_slot.dart';
 
-
 class FirebaseGetTimeSlot {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
@@ -23,7 +22,7 @@ class FirebaseGetTimeSlot {
         return getTimeSlot(selectedDate);
       }
 
-      // await FirebaseCheckTimeSlot().isSlotReady(dateStr); 
+      // await FirebaseCheckTimeSlot().isSlotReady(dateStr);
 
       List<TimeSlotModel> result = [];
       for (var doc in querySnapshot.docs) {
@@ -91,67 +90,36 @@ class FirebaseGetTimeSlot {
   }) async {
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(date);
+      final docId = '${court}_$dateStr';
+      final doc = await firestore.collection('time_slots').doc(docId).get();
 
-      final query = firestore
-          .collection('time_slots')
-          .where('date', isEqualTo: dateStr)
-          .where('courtId', isEqualTo: court);
-
-      final snapshot = await query.get();
-
-      if (snapshot.docs.isEmpty) {
-        return [];
+      if (!doc.exists) {
+        await FirebaseAddTimeSlot().addTimeSlot(date);
+        return getSlotRangeAvailability(
+          startTime: startTime,
+          court: court,
+          date: date,
+          maxSlots: maxSlots,
+        );
       }
 
-      // Ambil array "slots" dari dokumen pertama
-      final slots = List<Map<String, dynamic>>.from(
-        snapshot.docs.first.data()['slots'],
-      );
+      final slots = doc.data()!['slots'] as List<dynamic>;
+      final startMinutes = timeToMinutes(startTime);
 
-      // Filter berdasarkan startTime dan ketersediaan
-      final filtered =
-          slots
-              .where(
-                (slot) =>
-                    slot['startTime'].compareTo(startTime) >= 0 &&
-                    slot['isAvailable'] == true,
-              )
-              .take(maxSlots)
-              .map(
-                (slot) => TimeSlotModel(
-                  startTime: slot['startTime'],
-                  endTime: slot['endTime'],
-                  isAvailable: slot['isAvailable'],
-                  isClosed: slot['isClosed'] ?? false,
-                ),
-              )
-              .toList();
-
-      return filtered;
+      // PERBAIKAN: Filter dan urutkan slot dengan benar
+      return slots
+          .where((slot) {
+            final slotStart = timeToMinutes(slot['startTime']);
+            return slotStart >= startMinutes; // Ambil slot dari waktu mulai
+          })
+          .take(maxSlots) // Batasi jumlah slot
+          .map(
+            (slot) =>
+                TimeSlotModel.fromJson(slot, courtId: court, date: dateStr),
+          )
+          .toList();
     } catch (e) {
       throw Exception('Failed to get slot range availability: $e');
-    }
-  }
-
-  Future<List<TimeSlotModel>> getCancelTimeSlots(String username) {
-    try {
-      return firestore
-          .collection('time_slots')
-          .where('username', isEqualTo: username)
-          .get()
-          .then(
-            (snapshot) =>
-                snapshot.docs.map((doc) {
-                  final data = doc.data();
-                  return TimeSlotModel(
-                    date: data['date'],
-                    startTime: data['startTime'],
-                    endTime: data['endTime'],
-                  );
-                }).toList(),
-          );
-    } catch (e) {
-      throw Exception('Failed to get cancel time slots: $e');
     }
   }
 }

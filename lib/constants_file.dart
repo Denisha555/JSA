@@ -181,3 +181,9 @@ String formatPrice(int price) {
 }
 
 String formatJam(int jam) => jam < 10 ? '0$jam.00' : '$jam.00';
+
+String formatTimeOfDay24(TimeOfDay time) {
+  final hour = time.hour.toString().padLeft(2, '0');
+  final minute = time.minute.toString().padLeft(2, '0');
+  return '$hour:$minute'; // contoh: 15:00
+}
