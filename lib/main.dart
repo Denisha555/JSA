@@ -4,6 +4,7 @@ import 'firebase_options.dart';
 import 'screens_pelanggan/masuk.dart';
 import 'screens_pelanggan/daftar.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
@@ -25,19 +26,31 @@ void main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // Debug log untuk OneSignal (opsional, khusus debug mode)
-    OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+    // Init OneSignal hanya untuk mobile (skip di web)
+    if (!kIsWeb) {
+      try {
+        // Debug log untuk OneSignal (opsional, khusus debug mode)
+        OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
 
-    // Init OneSignal
-    OneSignal.initialize("c8e16b1c-cee5-46f2-972e-4e4a190af032");
+        // Init OneSignal
+        OneSignal.initialize("c8e16b1c-cee5-46f2-972e-4e4a190af032");
 
-    // Minta izin notifikasi (bisa dipindah ke initState di halaman awal)
-    OneSignal.Notifications.requestPermission(true);
+        // Minta izin notifikasi
+        OneSignal.Notifications.requestPermission(true);
+        
+        debugPrint('OneSignal initialized successfully');
+      } catch (e) {
+        debugPrint('OneSignal initialization failed: $e');
+        // Lanjutkan aplikasi meskipun OneSignal gagal
+      }
+    } else {
+      debugPrint('Running on web, skipping  OneSignal initialization');
+    }
 
     runApp(const MyApp());
   } catch (e, stack) {
     debugPrint('Error initializing app: $e\n$stack');
-    runApp(const MyAppError());
+    runApp(MyAppError(error: e.toString()));
   }
 }
 
@@ -71,36 +84,69 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: SplashScreen(),
+      home: const SplashScreen(),
     );
   }
 }
 
 class MyAppError extends StatelessWidget {
-  const MyAppError({super.key});
+  final String error;
+  
+  const MyAppError({super.key, this.error = 'Unknown error'});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       home: Scaffold(
+        backgroundColor: Colors.white,
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error, color: Colors.red, size: 50),
-              const SizedBox(height: 20),
-              const Text(
-                'Gagal menginisialisasi aplikasi. Silakan coba lagi nanti.',
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  main();
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
-                child: const Text('Coba Lagi'),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 64),
+                const SizedBox(height: 24),
+                const Text(
+                  'Gagal Menginisialisasi Aplikasi',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  error,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    // Reload the app
+                    main();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 16,
+                    ),
+                  ),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text(
+                    'Coba Lagi',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -108,15 +154,18 @@ class MyAppError extends StatelessWidget {
   }
 }
 
-// halaman loading sebelum masuk ke aplikasi
+// Halaman loading sebelum masuk ke aplikasi
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  _SplashScreenState createState() => _SplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
 class _SplashScreenState extends State<SplashScreen> {
+  bool _isError = false;
+  String _errorMessage = '';
+
   @override
   void initState() {
     super.initState();
@@ -124,36 +173,136 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _checkLoginStatus() async {
-    await Future.delayed(const Duration(seconds: 2));
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String username = prefs.getString('username') ?? '';
-    if (username.isNotEmpty) {
-      if (username == 'admin_1') {
-        if (!mounted) return;
-        navigateToReplace(context, HalamanUtamaAdmin());
-      } if (username == 'owner_1') {
-        if (!mounted) return;
-        navigateToReplace(context, HalamanUtamaOwner());
-      } else {
-        if (!mounted) return;
-        navigateToReplace(context, PilihHalamanPelanggan());
-      }
-    } else {
+    try {
+      // Add a minimum display time for splash screen
+      await Future.delayed(const Duration(seconds: 2));
+      
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String username = prefs.getString('username') ?? '';
+      
+      debugPrint('Retrieved username: $username');
+      debugPrint('Running on web: $kIsWeb');
+      
       if (!mounted) return;
-      navigateToReplace(context, const MainApp());
+
+      if (username.isNotEmpty) {
+        if (username == 'admin_1') {
+          navigateToReplace(context, HalamanUtamaAdmin());
+        } else if (username == 'owner_1') {
+          navigateToReplace(context, HalamanUtamaOwner());
+        } else {
+          navigateToReplace(context, PilihHalamanPelanggan());
+        }
+      } else {
+        navigateToReplace(context, const MainApp());
+      }
+    } catch (e, stack) {
+      debugPrint('Error in splash screen: $e\n$stack');
+      if (mounted) {
+        setState(() {
+          _isError = true;
+          _errorMessage = e.toString();
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isError) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                'Error: $_errorMessage',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _isError = false;
+                  });
+                  _checkLoginStatus();
+                },
+                child: const Text('Coba Lagi'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset('assets/image/LogoJSA.jpg', width: 150, height: 150),
-            const SizedBox(height: 20),
-            CircularProgressIndicator(color: primaryColor),
+            // Logo dengan error handling
+            Container(
+              width: 150,
+              height: 150,
+              decoration: BoxDecoration(
+                color: Colors.grey[200],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/image/LogoJSA.jpg',
+                  width: 150,
+                  height: 150,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    debugPrint('Image loading error: $error');
+                    return Container(
+                      color: primaryColor.withOpacity(0.1),
+                      child: const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.sports_tennis,
+                              size: 48,
+                              color: primaryColor,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'JSA',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const CircularProgressIndicator(
+              color: primaryColor,
+              strokeWidth: 3,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Loading...',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
           ],
         ),
       ),
@@ -161,7 +310,7 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 }
 
-// halaman pertama untuk pilih daftar atau login
+// Halaman pertama untuk pilih daftar atau login
 class MainApp extends StatefulWidget {
   const MainApp({super.key});
 
@@ -173,7 +322,6 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
 
-  // memberikan sedikit animasi
   @override
   void initState() {
     super.initState();
@@ -197,114 +345,170 @@ class _MainAppState extends State<MainApp> with SingleTickerProviderStateMixin {
     final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: FadeTransition(
           opacity: _animation,
           child: Center(
             child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: defaultPadding,
-                      vertical: screenHeight * 0.02,
-                    ),
-                    child: Image.asset(
-                      'assets/image/LogoJSA.jpg',
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Logo dengan error handling dan fallback
+                    Container(
                       width: screenWidth * 0.7,
-                      height: screenHeight * 0.25,
-                    ),
-                  ),
-                  SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.5),
-                      end: Offset.zero,
-                    ).animate(_animation),
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                        top: defaultPadding,
-                        bottom: screenHeight * 0.04,
+                      height: screenHeight * 0.35,
+                      constraints: const BoxConstraints(
+                        maxWidth: 300,
+                        maxHeight: 300,
                       ),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: Image.asset(
+                          'assets/image/LogoJSA.jpg',
+                          fit: BoxFit.fill,
+                          errorBuilder: (context, error, stackTrace) {
+                            debugPrint('Logo image error: $error');
+                            return Container(
+                              color: primaryColor.withOpacity(0.1),
+                              child: const Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.sports_tennis,
+                                      size: 64,
+                                      color: primaryColor,
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text(
+                                      'Jump Smash\nArena',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.bold,
+                                        color: primaryColor,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 32),
+                    
+                    // Welcome text
+                    SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0, 0.5),
+                        end: Offset.zero,
+                      ).animate(_animation),
                       child: const Text(
-                        "Selamat Datang di Jump Smash Arena!",
+                        "Selamat Datang di\nJump Smash Arena!",
                         style: TextStyle(
-                          fontSize: 17,
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color: primaryColor,
                         ),
                         textAlign: TextAlign.center,
                       ),
                     ),
-                  ),
-                  // button untuk masuk ke halaman masuk
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: defaultPadding,
-                      vertical: defaultPadding / 2,
-                    ),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const HalamanMasuk(),
+                    
+                    const SizedBox(height: 48),
+                    
+                    // Button Masuk
+                    SizedBox(
+                      width: double.infinity,
+                      // constraints: const BoxConstraints(maxWidth: 400),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HalamanMasuk(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(double.infinity, 50),
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
                           ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        minimumSize: Size(screenWidth * 0.85, buttonHeight),
-                        elevation: 3,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(borderRadius),
                         ),
-                      ),
-                      child: const Text(
-                        "Masuk",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ),
-                  // button untuk masuk ke halaman daftar
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: defaultPadding,
-                      vertical: defaultPadding / 2,
-                    ),
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const HalamanDaftar(),
+                        child: const Text(
+                          "Masuk",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
                           ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        minimumSize: Size(screenWidth * 0.85, buttonHeight),
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(borderRadius),
-                          side: BorderSide(color: primaryColor, width: 1.5),
-                        ),
-                      ),
-                      child: Text(
-                        "Daftar",
-                        style: TextStyle(
-                          color: primaryColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    
+                    const SizedBox(height: 16),
+                    
+                    // Button Daftar
+                    SizedBox(
+                      width: double.infinity,
+                      // constraints: const BoxConstraints(maxWidth: 400),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HalamanDaftar(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: primaryColor,
+                          minimumSize: const Size(double.infinity, 50),
+                          elevation: 0,
+                          side: const BorderSide(
+                            color: primaryColor,
+                            width: 2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(borderRadius),
+                          ),
+                        ),
+                        child: const Text(
+                          "Daftar",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ),
+                    
+                    // Debug info untuk web
+                    if (kIsWeb) ...[
+                      const SizedBox(height: 24),
+                      Text(
+                        'Running on Web',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[400],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
           ),

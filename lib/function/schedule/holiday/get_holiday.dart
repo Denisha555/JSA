@@ -6,18 +6,17 @@ class GetHoliday {
 
   Future<List<JadwalKhususModel>> getAllHolidays() async {
     try {
-      QuerySnapshot querySnapshot =
-          await firestore
-              .collection('jadwal_khusus')
-              .where('type', isEqualTo: 'holiday')
-              .orderBy('date', descending: true)
-              .get();
+      final qs = await firestore.collection('jadwal_khusus').get();
 
-      return querySnapshot.docs.map((doc) {
-        return JadwalKhususModel.fromJson(
-          doc.data() as Map<String, dynamic>,
-        );
-      }).toList();
+      final data =
+          qs.docs
+              .map((e) => JadwalKhususModel.fromJson(e.data()))
+              .where((e) => e.type == 'holiday')
+              .toList();
+
+      data.sort((a, b) => b.date.compareTo(a.date));
+
+      return data;
     } catch (e) {
       throw Exception('Error getting holiday: $e');
     }

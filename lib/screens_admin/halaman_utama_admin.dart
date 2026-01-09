@@ -82,62 +82,68 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
 
     return Column(
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              children: [
-                // Header row
-                Container(
-                  decoration: const BoxDecoration(
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(8),
-                      topRight: Radius.circular(8),
+        InteractiveViewer(
+          panEnabled: true, // bisa drag ke kiri/kanan/atas/bawah
+          scaleEnabled: true, // bisa pinch zoom
+          minScale: 0.5,
+          maxScale: 3,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                children: [
+                  // Header row
+                  Container(
+                    decoration: const BoxDecoration(
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        _buildHeaderCell('Jam', width: 110),
+                        ...sortedCourtIds.map(
+                          (id) => _buildHeaderCell('Lapangan ${id.courtId}'),
+                        ),
+                      ],
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      _buildHeaderCell('Jam', width: 110),
-                      ...sortedCourtIds.map(
-                        (id) => _buildHeaderCell('Lapangan ${id.courtId}'),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Data rows
-                ...bookingData.entries.map((entry) {
-                  final time = entry.key;
-                  final courts = entry.value;
-
-                  return Row(
-                    children: [
-                      _buildTimeCell(time),
-                      ...sortedCourtIds.map((id) {
-                        final cellData =
-                            courts[id.courtId] ??
-                            {
-                              'isAvailable': true,
-                              'username': '',
-                              'isClosed': false,
-                              'isHoliday': false,
-                            };
-
-                        return _buildCourtCell(
-                          time,
-                          id.courtId.toString(),
-                          cellData['isAvailable'] ?? true,
-                          cellData['username'] ?? '',
-                          cellData['type'] ?? '',
-                          cellData['isClosed'] ?? false,
-                          cellData['isHoliday'] ?? false,
-                        );
-                      }),
-                    ],
-                  );
-                }),
-              ],
+                      
+                  // Data rows
+                  ...bookingData.entries.map((entry) {
+                    final time = entry.key;
+                    final courts = entry.value;
+                      
+                    return Row(
+                      children: [
+                        _buildTimeCell(time),
+                        ...sortedCourtIds.map((id) {
+                          final cellData =
+                              courts[id.courtId] ??
+                              {
+                                'isAvailable': true,
+                                'username': '',
+                                'isClosed': false,
+                                'isHoliday': false,
+                              };
+                      
+                          return _buildCourtCell(
+                            time,
+                            id.courtId.toString(),
+                            cellData['isAvailable'] ?? true,
+                            cellData['username'] ?? '',
+                            cellData['type'] ?? '',
+                            cellData['isClosed'] ?? false,
+                            cellData['isHoliday'] ?? false,
+                          );
+                        }),
+                      ],
+                    );
+                  }),
+                ],
+              ),
             ),
           ),
         ),
@@ -460,7 +466,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
               ),
               TextButton(
                 onPressed: () async {
-                  await OnesignalDeleteNotification().deleteNotification(id!);
+                  OnesignalDeleteNotification().deleteNotification(id!);
                   SharedPreferences prefs =
                       await SharedPreferences.getInstance();
                   await prefs.remove('admin_id');

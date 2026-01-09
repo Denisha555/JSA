@@ -154,6 +154,23 @@ int getDayIndex(String day) {
   return days.indexOf(day);
 }
 
+String getMonth(int month) {
+  const months = [
+    'Januari',
+    'Februari',
+    'Maret',
+    'April',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
+    'Oktober',
+    'November',
+    'Desember'
+  ];
+  return months[month];
+}
+
 String hashPassword(String password) {
   final bytes = utf8.encode(password);
   final digest = sha256.convert(bytes);

@@ -30,6 +30,7 @@ dependencies:
   onesignal_flutter: ^5.3.4
   http: ^1.5.0
   fl_chart: ^1.0.0
+  pluto_grid: ^8.1.0
 
 dev_dependencies:
   flutter_test:

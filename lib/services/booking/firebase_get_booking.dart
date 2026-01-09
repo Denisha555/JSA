@@ -286,26 +286,32 @@ class FirebaseGetBooking {
     }
   }
 
-  Future<List<TimeSlotModel>> getBookingForReport(String startDate, String endDate) async {
+  Future<List<TimeSlotModel>> getBookingForReport(String startDate, String status) async {
     try {
       QuerySnapshot timeSlotsSnapshot =
           await firestore.collection('time_slots')
           .where('date', isGreaterThanOrEqualTo: startDate)
-          .where('date', isLessThanOrEqualTo: endDate)
           .get();
 
       if (timeSlotsSnapshot.docs.isEmpty) {
-        print("no data found");
         return [];
       }
 
-      print("data found");
       List<TimeSlotModel> allSlots = [];
 
       for (var doc in timeSlotsSnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final slots = data['slots'] as List<dynamic>? ?? [];
-        for (var slot in slots) {
+        final filterSlots = slots.where((slot) {
+          if (status == "member") {
+            return slot["type"] == "member";
+          } else if (status == "nonMember") {
+            return slot["type"] == "nonMember";
+          }
+          return true;
+        }).toList();
+
+        for (var slot in filterSlots) {
           if (slot["isAvailable"] == false) {
             double price = await totalPrice(
               startTime: slot['startTime'] as String,
@@ -336,7 +342,6 @@ class FirebaseGetBooking {
           }
         }
       }
-
       return allSlots;
     } catch (e) {
       throw Exception('Failed to get all bookings: $e');

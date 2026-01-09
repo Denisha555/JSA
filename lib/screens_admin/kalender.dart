@@ -532,6 +532,21 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               Text('Lapangan: $court'),
               Text('Jam Mulai: $startTime'),
               Text('Jam Selesai: $endTime'),
+              FutureBuilder(future: _memberOrNonMember(username).then((type) {
+                return type;
+              })
+              , builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Text('Memeriksa status user...');
+                } else if (snapshot.hasError) {
+                  return Text('Gagal memeriksa status user');
+                } else {
+                  final type = snapshot.data ?? 'nonMember';
+                  return Text(
+                    'Status: ${type == "member" ? "Member" : "Non Member"}',
+                  );
+                }
+              }),
               SizedBox(height: 8),
               FutureBuilder<double>(
                 future: _memberOrNonMember(username).then((type) {
