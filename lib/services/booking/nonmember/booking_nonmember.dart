@@ -76,14 +76,18 @@ class BookingNonMember {
     }
   }
 
-  Future<void> addBookingDates(String username, dynamic dates) async {
+  Future<void> addBookingDates(String username, List<String> dates) async {
     final userDoc = firestore.collection('users').doc(username);
 
     final snapshot = await userDoc.get();
-    List<dynamic> currentDates = [];
+    List<String> currentDates = [];
 
     if (snapshot.exists && snapshot.data()!.containsKey('bookingDates')) {
-      currentDates = List<String>.from(snapshot.data()!['bookingDates']);
+      final data = snapshot.data()!['bookingDates'];
+
+      if (data is List) {
+        currentDates = data.map((e) => e.toString()).toList();
+      }
     }
 
     // Tambahkan semua tanggal baru, termasuk yang sama (duplikat tetap masuk)

@@ -9,6 +9,7 @@ class TimeSlotModel {
   final bool isClosed;
   final bool isHoliday;
   final String username;
+  final String kontak;
   final String courtId;
   final String date;
   double price;
@@ -25,6 +26,7 @@ class TimeSlotModel {
     this.isClosed = false,
     this.isHoliday = false,
     this.username = '',
+    this.kontak = '',
     this.courtId = '',
     this.date = '',
     this.price = 0.0,
@@ -43,6 +45,7 @@ class TimeSlotModel {
       isClosed: json['isClosed'] ?? false,
       isHoliday: json['isHoliday'] ?? false,
       username: json['username'] ?? '',
+      kontak: json['kontak'] ?? '',
       courtId: courtId ?? '',
       date: date ?? '',
       price: price ?? 0.0,
@@ -62,6 +65,7 @@ class TimeSlotModel {
       'isClosed': isClosed,
       'isHoliday': isHoliday,
       'username': username,
+      'kontak': kontak,
       'courtId': courtId,
       'date': date,
       'price': price,

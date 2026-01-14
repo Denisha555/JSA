@@ -110,12 +110,12 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                       ],
                     ),
                   ),
-                      
+
                   // Data rows
                   ...bookingData.entries.map((entry) {
                     final time = entry.key;
                     final courts = entry.value;
-                      
+
                     return Row(
                       children: [
                         _buildTimeCell(time),
@@ -128,7 +128,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                                 'isClosed': false,
                                 'isHoliday': false,
                               };
-                      
+
                           return _buildCourtCell(
                             time,
                             id.courtId.toString(),
@@ -466,13 +466,20 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
               ),
               TextButton(
                 onPressed: () async {
-                  OnesignalDeleteNotification().deleteNotification(id!);
-                  SharedPreferences prefs =
-                      await SharedPreferences.getInstance();
-                  await prefs.remove('admin_id');
+                  try {
+                    OnesignalDeleteNotification().deleteNotification(id!);
+                    SharedPreferences prefs =
+                        await SharedPreferences.getInstance();
+                    await prefs.remove('admin_id');
 
-                  if (!context.mounted) return;
-                  Navigator.pop(context, true);
+                    if (!context.mounted) return;
+                    Navigator.pop(context, true);
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error logging out: $e')),
+                    );
+                  }
                 },
                 child: const Text('Logout'),
               ),

@@ -320,7 +320,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       double totalHours = (endTotalMinutes - startTotalMinutes) / 60.0;
 
       List<String> bookedSlots = [];
+      List<String> bookedDates = [];
 
+      // non member booking
       if (await FirebaseCheckUser().checkUserType(username) != 'member') {
         for (
           int minutes = startTotalMinutes;
@@ -340,9 +342,14 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           bookedSlots.add(formattedTime);
 
           await BookingNonMember().addTotalHour(username);
+
+          bookedDates.add(dateStr);
         }
 
         await BookingNonMember().addTotalBooking(username);
+        await BookingNonMember().addBookingDates(username, [bookedDates[0]]);
+
+      // member booking
       } else {
         final bookingDates = await FirebaseGetUser().getUserData(
           username,

@@ -3,6 +3,7 @@ import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/model/time_slot_model.dart';
 import 'package:flutter_application_1/services/booking/firebase_get_booking.dart';
 import 'package:pluto_grid/pluto_grid.dart';
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 
 class HalamanLaporan extends StatefulWidget {
   const HalamanLaporan({super.key});
@@ -43,7 +44,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
   String? _selectedBulan;
   String? _selectedStatus;
 
-  final columns = <PlutoColumn>[
+  final nonMemberColumns = <PlutoColumn>[
     PlutoColumn(
       title: 'Nama Pelanggan',
       field: 'nama_pelanggan',
@@ -54,6 +55,53 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
       field: 'jadwal_main',
       type: PlutoColumnType.text(),
     ),
+    PlutoColumn(
+      title: 'Total Hari',
+      field: 'total_hari',
+      type: PlutoColumnType.text(),
+    ),
+    PlutoColumn(title: 'Jam', field: 'jam', type: PlutoColumnType.text()),
+    PlutoColumn(title: 'Durasi', field: 'durasi', type: PlutoColumnType.text()),
+    PlutoColumn(
+      title: 'Lapangan',
+      field: 'lapangan',
+      type: PlutoColumnType.text(),
+    ),
+    PlutoColumn(
+      title: 'Jumlah Lapangan',
+      field: 'jumlah_lapangan',
+      type: PlutoColumnType.text(),
+    ),
+    PlutoColumn(
+      title: 'Harga per Jam',
+      field: 'harga_per_jam',
+      type: PlutoColumnType.text(),
+    ),
+    PlutoColumn(
+      title: 'Jumlah Harga',
+      field: 'jumlah_harga',
+      type: PlutoColumnType.text(),
+    ),
+    PlutoColumn(
+      title: 'Keterangan',
+      field: 'keterangan',
+      type: PlutoColumnType.text(),
+    ),
+    PlutoColumn(
+      title: 'Catatan',
+      field: 'catatan',
+      type: PlutoColumnType.text(),
+    ),
+  ];
+
+  final memberColumns = <PlutoColumn>[
+    PlutoColumn(
+      title: 'Nama Member',
+      field: 'nama_member',
+      type: PlutoColumnType.text(),
+    ),
+    PlutoColumn(title: 'Kontak', field: 'kontak', type: PlutoColumnType.text()),
+    PlutoColumn(title: 'Jadwal', field: 'jadwal', type: PlutoColumnType.text()),
     PlutoColumn(
       title: 'Total Hari',
       field: 'total_hari',
@@ -258,14 +306,28 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                     ),
                     const SizedBox(height: 12),
 
-                    Expanded(
-                      child: InteractiveViewer(
-                        boundaryMargin: EdgeInsets.all(100),
-                        minScale: 1,
-                        maxScale: 2.5,
-                        child: PlutoGrid(columns: columns, rows: rows),
+                    if (_laporanData![0].status == 'nonMember') ...[
+                      Expanded(
+                        child: InteractiveViewer(
+                          boundaryMargin: EdgeInsets.all(100),
+                          minScale: 1,
+                          maxScale: 2.5,
+                          child: PlutoGrid(
+                            columns: nonMemberColumns,
+                            rows: rows,
+                          ),
+                        ),
                       ),
-                    ),
+                    ] else if (_laporanData![0].status == 'member') ...[
+                      Expanded(
+                        child: InteractiveViewer(
+                          boundaryMargin: EdgeInsets.all(100),
+                          minScale: 1,
+                          maxScale: 2.5,
+                          child: PlutoGrid(columns: memberColumns, rows: rows),
+                        ),
+                      ),
+                    ],
                   ] else if (_isLoading) ...[
                     Center(
                       child: Column(
@@ -308,65 +370,146 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
     );
   }
 
-  bool canMerge(a, b) =>
-      a.username == b.username &&
-      a.date == b.date &&
-      a.courtId == b.courtId &&
-      a.endTime == b.startTime;
+  void generateLaporan() async {
+    _laporanSummary = _laporanData;
 
-  void generateLaporan() {
-    // _laporanSummary = List<TimeSlotModel>.from(_laporanData!);
-
-    // int i = 0;
-    // final result = List<TimeSlotModel>.from(_laporanSummary!);
-    // for (var item in _laporanSummary!) {
-    //   var _laporanData![i] = _laporanSummary![i];
-    //   var _laporanData![i + 1] = _laporanSummary![i + 1];
-    //   if (result.isNotEmpty && canMerge(result.last, item)) {
-    //     _laporanData![i].endTime = _laporanData![i + 1].endTime;
-    //     _laporanData![i].price += _laporanData![i + 1].price;
-    //   } else {
-    //     result.add(item);
-    //   }
-
-    //   final durMinutes =
-    //       timeToMinutes(_laporanData![i].endTime) - timeToMinutes(_laporanData![i].startTime);
-
-    //   final durHours = durMinutes / 60.0;
-    //   _laporanData![i].pricePerHour = durHours > 0 ? _laporanData![i].price / durHours : _laporanData![i].price;
-    // }
-
-    // _laporanSummary = result;
-
-    _laporanSummary = [];
+    if (_laporanSummary == null || _laporanSummary!.isEmpty) {
+      return;
+    }
 
     int i = 0;
-    while (i < _laporanData!.length - 1) {
-      int start = 0;
-      int end = 0;
-      if (_laporanData![i].username == _laporanData![i + 1].username &&
-          _laporanData![i].date == _laporanData![i + 1].date &&
-          _laporanData![i].courtId == _laporanData![i + 1].courtId &&
-          _laporanData![i].endTime == _laporanData![i + 1].startTime) {
-        end = end + 1;
-        continue;
-      } else {
-        _laporanSummary!.add(_laporanData![start]);
-        _laporanSummary![start].endTime = _laporanData![end].endTime;
-        _laporanSummary![start].price = _laporanSummary![start].price * (end - start + 1);
+    while (i <= _laporanSummary!.length - 1) {
+      if (_laporanSummary!.length == 1) {
+        // satu pesanan
+        final curr = _laporanSummary![i];
+
+        final durHours =
+            ((timeToMinutes(curr.endTime) - timeToMinutes(curr.startTime)) /
+                60);
+
+        if (durHours.round() % durHours != 0) {
+          int slots = durHours.round() + 1;
+          double pricePerSlot = curr.price / slots;
+          curr.pricePerHour = pricePerSlot * 2;
+        } else {
+          curr.pricePerHour = (curr.price / durHours);
+        }
+
+        print(
+          'current price : ${curr.price}, durHours: $durHours, pricePerHour: ${curr.pricePerHour}',
+        );
+
+        break;
+      } else if (i == _laporanSummary!.length - 1) {
+        // lebih dari satu pesanan
+        final curr = _laporanSummary![i];
+        final prev = _laporanSummary![i - 1];
+
+        if (curr.username == prev.username &&
+            curr.date == prev.date &&
+            curr.courtId == prev.courtId &&
+            timeToMinutes(curr.startTime) == timeToMinutes(prev.endTime)) {
+          prev.endTime = curr.endTime;
+          prev.price += curr.price;
+          _laporanSummary!.removeAt(i);
+        }
+
+        final durHours =
+            ((timeToMinutes(curr.endTime) - timeToMinutes(curr.startTime)) /
+                60);
+
+        if (durHours.round() % durHours != 0) {
+          int slots = durHours.round() + 1;
+          double pricePerSlot = curr.price / slots;
+          curr.pricePerHour = pricePerSlot * 2;
+        } else {
+          curr.pricePerHour = (curr.price / durHours);
+        }
+
+        print(
+          'current price : ${curr.price}, durHours: $durHours, pricePerHour: ${curr.pricePerHour}',
+        );
+
+        break;
       }
-      
+
+      var curr = _laporanSummary![i];
+      var next = _laporanSummary![i + 1];
+
+      if (curr.username == next.username &&
+          curr.date == next.date &&
+          curr.courtId == next.courtId &&
+          timeToMinutes(curr.endTime) == timeToMinutes(next.startTime)) {
+        curr.endTime = next.endTime;
+        curr.price += next.price;
+
+        _laporanSummary!.removeAt(i + 1);
+
+        continue;
+      }
+
       final durHours =
-          ((timeToMinutes(_laporanData![i].endTime) - timeToMinutes(_laporanData![i].startTime)) ~/ 60);
-      _laporanData![i].pricePerHour = durHours >= 1 ? _laporanData![i].price / durHours : _laporanData![i].price;
+          ((timeToMinutes(curr.endTime) - timeToMinutes(curr.startTime)) / 60);
+
+      if (durHours.round() % durHours != 0) {
+        int slots = durHours.round() + 1;
+        double pricePerSlot = curr.price / slots;
+        curr.pricePerHour = pricePerSlot * 2;
+      } else {
+        curr.pricePerHour = (curr.price / durHours);
+      }
+      print(
+        'current price : ${curr.price}, durHours: $durHours, pricePerHour: ${curr.pricePerHour}',
+      );
 
       i++;
-      start = end;
     }
+
+    // if (_laporanSummary![0].status == 'member') {
+    //   for (var data in _laporanSummary!) {
+    //     final username = data.username;
+    //     final dates = await FirebaseGetUser().getUserData(username, 'bookingDates');
+    //     final kontak = await FirebaseGetUser().getUserData(username, 'phoneNumber');
+
+    //     List<String> bookingDates = [];
+    //     List<String> courts = [];
+
+    //   }
+    // }
 
     setState(() {
       _laporanSummary = _laporanSummary;
 
+      // if (_laporanSummary![0].status == 'member') {
+      //   rows =
+      //       _laporanSummary!.map((data) {
+      //         return PlutoRow(
+      //           cells: {
+      //             'nama_member': PlutoCell(value: data.username),
+      //             'kontak': PlutoCell(),
+      //             'jadwal_main': PlutoCell(value: data.date),
+      //             'total_hari': PlutoCell(value: 1),
+      //             'jam': PlutoCell(
+      //               value: '${data.startTime} - ${data.endTime}',
+      //             ),
+      //             'durasi': PlutoCell(
+      //               value:
+      //                   '${(timeToMinutes(data.endTime) - timeToMinutes(data.startTime)) / 60} jam',
+      //             ),
+      //             'lapangan': PlutoCell(value: data.courtId),
+      //             'jumlah_lapangan': PlutoCell(value: 1),
+      //             'harga_per_jam': PlutoCell(
+      //               value: 'Rp ${data.pricePerHour.toStringAsFixed(0)}',
+      //             ),
+      //             'jumlah_harga': PlutoCell(
+      //               value: 'Rp ${data.price.toStringAsFixed(0)}',
+      //             ),
+      //             'keterangan': PlutoCell(value: ""),
+      //             'catatan': PlutoCell(value: ""),
+      //           },
+      //         );
+      //       }).toList();
+      // } else if (_laporanSummary![0].status == 'nonMember') {
       rows =
           _laporanSummary!.map((data) {
             return PlutoRow(
@@ -377,7 +520,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                 'jam': PlutoCell(value: '${data.startTime} - ${data.endTime}'),
                 'durasi': PlutoCell(
                   value:
-                      '${(timeToMinutes(data.endTime) - timeToMinutes(data.startTime)) ~/ 60} jam',
+                      '${(timeToMinutes(data.endTime) - timeToMinutes(data.startTime)) / 60} jam',
                 ),
                 'lapangan': PlutoCell(value: data.courtId),
                 'jumlah_lapangan': PlutoCell(value: 1),
@@ -392,6 +535,8 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
               },
             );
           }).toList();
+        print(rows);
+      // }
     });
   }
 

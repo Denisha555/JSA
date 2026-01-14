@@ -1,3 +1,4 @@
+import 'package:flutter_application_1/screens_admin/customers.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
@@ -10,6 +11,7 @@ import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 import 'package:flutter_application_1/services/user/firebase_update_user.dart';
 import 'package:flutter_application_1/services/booking/member/booking_member.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_check_time_slot.dart';
+import 'package:flutter_application_1/constants_file.dart';
 
 class HalamanMemberAdmin extends StatefulWidget {
   const HalamanMemberAdmin({super.key});
@@ -216,7 +218,7 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
     final List<Future<bool>> checkFutures = [];
 
     for (final date in selectedDates) {
-      final dateStr = DateFormat('yyyy-MM-dd').format(date);
+      final dateStr = formatDateStr(date);
       for (
         int slotStart = startMinutes;
         slotStart < endMinutes;
@@ -438,7 +440,7 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                                     vertical: 2,
                                   ),
                                   child: Text(
-                                    '${_getWeekdayName(date.weekday)}, ${DateFormat('dd MMM yyyy').format(date)}',
+                                    '${namaHari(date.weekday)}, ${DateFormat('dd MMM yyyy').format(date)}',
                                     style: const TextStyle(fontSize: 14),
                                   ),
                                 );
@@ -586,6 +588,8 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                 onPressed: () {
                   Navigator.of(context).pop();
                   _registerMemberMultipleCourts(courtIds);
+                  Navigator.pushReplacement(context,
+                  MaterialPageRoute(builder: (context) => HalamanCustomers()));
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
                 child: const Text(
@@ -657,11 +661,13 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
     final startMinutes = timeToMinutes(selectedStartTime);
     final endMinutes = timeToMinutes(selectedEndTime);
 
+    List<String> bookedDates = [];
     try {
       int length = 0;
       for (final courtId in courtIds) {
         for (final date in selectedDates) {
-          final dateStr = DateFormat('yyyy-MM-dd').format(date);
+          final dateStr = formatDateStr(date);
+          bookedDates.add(dateStr);
           for (
             int minute = startMinutes;
             minute < endMinutes;
@@ -688,7 +694,7 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
         length,
       );
 
-      await BookingMember().addBookingDates(username, selectedDates);
+      await BookingMember().addBookingDates(username, bookedDates);
     } catch (e) {
       if (!mounted) return;
       showErrorSnackBar(context, 'Gagal mendaftarkan member: $e');
