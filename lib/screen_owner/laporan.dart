@@ -461,21 +461,19 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
     print('After merging: ${_laporanSummary!.length} slots');
 
     if (_laporanSummary![0].type == 'member') {
-      // Group data berdasarkan kombinasi unik
       Map<String, List<TimeSlotModel>> grouped = {};
 
       for (var data in _laporanSummary!) {
-        // Buat key unik dari kombinasi kolom yang harus sama
         String key =
-            '${data.username}_${data.date}_${data.courtId}_${data.startTime}_${data.endTime}';
+            '${data.username}_${data.courtId}_${data.startTime}_${data.endTime}';
 
+        // kalau belum ada key, buat list baru
         if (!grouped.containsKey(key)) {
           grouped[key] = [];
         }
         grouped[key]!.add(data);
       }
 
-      // Proses setiap group
       List<TimeSlotModel> result = [];
 
       for (var entry in grouped.entries) {

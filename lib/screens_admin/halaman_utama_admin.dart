@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_application_1/main.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/services/notification/onesignal_delete_notification.dart';
@@ -467,11 +468,13 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
               TextButton(
                 onPressed: () async {
                   try {
-                    OnesignalDeleteNotification().deleteNotification(id!);
+                    if (!kIsWeb) {
+                       OnesignalDeleteNotification().deleteNotification(id!);
+                    }
                     SharedPreferences prefs =
                         await SharedPreferences.getInstance();
                     await prefs.remove('admin_id');
-
+                    
                     if (!context.mounted) return;
                     Navigator.pop(context, true);
                   } catch (e) {

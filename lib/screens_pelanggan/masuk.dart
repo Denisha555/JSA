@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_application_1/screen_owner/halaman_utama_owner.dart';
 import 'package:flutter_application_1/screens_pelanggan/lupa_password.dart';
 import 'package:flutter_application_1/services/notification/onesignal_add_notification.dart';
@@ -157,13 +158,14 @@ class _HalamanMasukState extends State<HalamanMasuk>
       // Save to shared preferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('username', usernameController.text);
-
-      var id = await OneSignal.User.getOnesignalId();
+      
+      if (!kIsWeb) {
+        var id = await OneSignal.User.getOnesignalId();
       await prefs.setString('admin_id', id!);
-
-      OneSignal.User.addTagWithKey("role", "admin");
+        OneSignal.User.addTagWithKey("role", "admin");
       await OneSignalAddNotification().addNotification(id);
-
+      }
+    
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
