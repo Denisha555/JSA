@@ -9,9 +9,11 @@ class TimeSlotModel {
   final bool isClosed;
   final bool isHoliday;
   final String username;
-  final String kontak;
+  String kontak;
   final String courtId;
   final String date;
+  int totalHari;
+  String jadwal;
   double price;
   double pricePerHour;
 
@@ -29,6 +31,8 @@ class TimeSlotModel {
     this.kontak = '',
     this.courtId = '',
     this.date = '',
+    this.totalHari = 0,
+    this.jadwal = '',
     this.price = 0.0,
     this.pricePerHour = 0.0,
   });
@@ -48,6 +52,8 @@ class TimeSlotModel {
       kontak: json['kontak'] ?? '',
       courtId: courtId ?? '',
       date: date ?? '',
+      totalHari: json['totalHari'] ?? 0,
+      jadwal: json['jadwal'] ?? '',
       price: price ?? 0.0,
       pricePerHour: price ?? 0.0,
     );
@@ -67,7 +73,9 @@ class TimeSlotModel {
       'username': username,
       'kontak': kontak,
       'courtId': courtId,
+      'jadwal': jadwal,
       'date': date,
+      'totalHari': totalHari,
       'price': price,
       'pricePerHour': pricePerHour,
     };

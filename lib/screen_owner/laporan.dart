@@ -14,6 +14,7 @@ class HalamanLaporan extends StatefulWidget {
 
 class _HalamanLaporanState extends State<HalamanLaporan> {
   bool _isLoading = false;
+  Key _gridKey = UniqueKey();
 
   List<TimeSlotModel>? _laporanData;
   List<TimeSlotModel>? _laporanSummary;
@@ -58,7 +59,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
     PlutoColumn(
       title: 'Total Hari',
       field: 'total_hari',
-      type: PlutoColumnType.text(),
+      type: PlutoColumnType.number(),
     ),
     PlutoColumn(title: 'Jam', field: 'jam', type: PlutoColumnType.text()),
     PlutoColumn(title: 'Durasi', field: 'durasi', type: PlutoColumnType.text()),
@@ -70,7 +71,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
     PlutoColumn(
       title: 'Jumlah Lapangan',
       field: 'jumlah_lapangan',
-      type: PlutoColumnType.text(),
+      type: PlutoColumnType.number(),
     ),
     PlutoColumn(
       title: 'Harga per Jam',
@@ -101,7 +102,11 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
       type: PlutoColumnType.text(),
     ),
     PlutoColumn(title: 'Kontak', field: 'kontak', type: PlutoColumnType.text()),
-    PlutoColumn(title: 'Jadwal', field: 'jadwal', type: PlutoColumnType.text()),
+    PlutoColumn(
+      title: 'Jadwal Main',
+      field: 'jadwal_main',
+      type: PlutoColumnType.text(),
+    ),
     PlutoColumn(
       title: 'Total Hari',
       field: 'total_hari',
@@ -295,7 +300,8 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                 mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   const SizedBox(height: 20),
-                  if (_laporanData != null) ...[
+                  if (_laporanSummary != null &&
+                      _laporanSummary!.isNotEmpty) ...[
                     const Text(
                       'Hasil Laporan',
                       style: TextStyle(
@@ -306,25 +312,30 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                     ),
                     const SizedBox(height: 12),
 
-                    if (_laporanData![0].status == 'nonMember') ...[
+                    if (_laporanSummary![0].type == 'nonMember') ...[
                       Expanded(
                         child: InteractiveViewer(
                           boundaryMargin: EdgeInsets.all(100),
                           minScale: 1,
                           maxScale: 2.5,
                           child: PlutoGrid(
+                            key: _gridKey,
                             columns: nonMemberColumns,
                             rows: rows,
                           ),
                         ),
                       ),
-                    ] else if (_laporanData![0].status == 'member') ...[
+                    ] else if (_laporanSummary![0].type == 'member') ...[
                       Expanded(
                         child: InteractiveViewer(
                           boundaryMargin: EdgeInsets.all(100),
                           minScale: 1,
                           maxScale: 2.5,
-                          child: PlutoGrid(columns: memberColumns, rows: rows),
+                          child: PlutoGrid(
+                            key: _gridKey,
+                            columns: memberColumns,
+                            rows: rows,
+                          ),
                         ),
                       ),
                     ],
@@ -339,27 +350,9 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                         ],
                       ),
                     ),
-                  ] else ...[
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.analytics_outlined,
-                            size: 64,
-                            color: Colors.grey[400],
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Pilih periode waktu untuk melihat laporan',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  ] else if (_laporanSummary == null ||
+                      _laporanSummary!.isEmpty) ...[
+                    Expanded(child: Center(child: Text("Data Tidak Tersedia"))),
                   ],
                 ],
               ),
@@ -396,7 +389,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
         }
 
         print(
-          'current price : ${curr.price}, durHours: $durHours, pricePerHour: ${curr.pricePerHour}',
+          'current price : ${curr.price}, durHours: $durHours, pricePerHour: ${curr.pricePerHour}, ststus: ${curr.status}',
         );
 
         break;
@@ -465,78 +458,135 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
       i++;
     }
 
-    // if (_laporanSummary![0].status == 'member') {
-    //   for (var data in _laporanSummary!) {
-    //     final username = data.username;
-    //     final dates = await FirebaseGetUser().getUserData(username, 'bookingDates');
-    //     final kontak = await FirebaseGetUser().getUserData(username, 'phoneNumber');
+    print('After merging: ${_laporanSummary!.length} slots');
 
-    //     List<String> bookingDates = [];
-    //     List<String> courts = [];
+    if (_laporanSummary![0].type == 'member') {
+      // Group data berdasarkan kombinasi unik
+      Map<String, List<TimeSlotModel>> grouped = {};
 
-    //   }
-    // }
+      for (var data in _laporanSummary!) {
+        // Buat key unik dari kombinasi kolom yang harus sama
+        String key =
+            '${data.username}_${data.date}_${data.courtId}_${data.startTime}_${data.endTime}';
+
+        if (!grouped.containsKey(key)) {
+          grouped[key] = [];
+        }
+        grouped[key]!.add(data);
+      }
+
+      // Proses setiap group
+      List<TimeSlotModel> result = [];
+
+      for (var entry in grouped.entries) {
+        List<TimeSlotModel> group = entry.value;
+        TimeSlotModel first = group[0];
+
+        // Ambil semua tanggal dari group ini
+        List<String> allDates = group.map((e) => e.date).toList();
+
+        // Ambil hari unik
+        Set<String> uniqueDays = {};
+        for (var dateStr in allDates) {
+          final date = DateTime.parse(dateStr);
+          final day = namaHari(date.weekday);
+          uniqueDays.add(day);
+        }
+
+        // Format tanggal (ambil tanggal saja, bukan full date)
+        String datesStr = allDates.map((d) => d.split("-")[2]).join(', ');
+
+        // Set jadwal
+        if (uniqueDays.length == 1) {
+          first.jadwal = "${uniqueDays.first} ($datesStr)";
+        } else {
+          String allDays = uniqueDays.join(', ');
+          first.jadwal = "$allDays ($datesStr)";
+        }
+
+        first.totalHari = allDates.length;
+
+        // Ambil kontak (jika belum ada)
+        if (first.kontak == null || first.kontak.isEmpty) {
+          final kontak = await FirebaseGetUser().getUserData(
+            first.username,
+            'phoneNumber',
+          );
+          first.kontak = kontak;
+        }
+
+        result.add(first);
+      }
+
+      _laporanSummary = result;
+    }
 
     setState(() {
       _laporanSummary = _laporanSummary;
+      _gridKey = UniqueKey();
 
-      // if (_laporanSummary![0].status == 'member') {
-      //   rows =
-      //       _laporanSummary!.map((data) {
-      //         return PlutoRow(
-      //           cells: {
-      //             'nama_member': PlutoCell(value: data.username),
-      //             'kontak': PlutoCell(),
-      //             'jadwal_main': PlutoCell(value: data.date),
-      //             'total_hari': PlutoCell(value: 1),
-      //             'jam': PlutoCell(
-      //               value: '${data.startTime} - ${data.endTime}',
-      //             ),
-      //             'durasi': PlutoCell(
-      //               value:
-      //                   '${(timeToMinutes(data.endTime) - timeToMinutes(data.startTime)) / 60} jam',
-      //             ),
-      //             'lapangan': PlutoCell(value: data.courtId),
-      //             'jumlah_lapangan': PlutoCell(value: 1),
-      //             'harga_per_jam': PlutoCell(
-      //               value: 'Rp ${data.pricePerHour.toStringAsFixed(0)}',
-      //             ),
-      //             'jumlah_harga': PlutoCell(
-      //               value: 'Rp ${data.price.toStringAsFixed(0)}',
-      //             ),
-      //             'keterangan': PlutoCell(value: ""),
-      //             'catatan': PlutoCell(value: ""),
-      //           },
-      //         );
-      //       }).toList();
-      // } else if (_laporanSummary![0].status == 'nonMember') {
-      rows =
-          _laporanSummary!.map((data) {
-            return PlutoRow(
-              cells: {
-                'nama_pelanggan': PlutoCell(value: data.username),
-                'jadwal_main': PlutoCell(value: data.date),
-                'total_hari': PlutoCell(value: 1),
-                'jam': PlutoCell(value: '${data.startTime} - ${data.endTime}'),
-                'durasi': PlutoCell(
-                  value:
-                      '${(timeToMinutes(data.endTime) - timeToMinutes(data.startTime)) / 60} jam',
-                ),
-                'lapangan': PlutoCell(value: data.courtId),
-                'jumlah_lapangan': PlutoCell(value: 1),
-                'harga_per_jam': PlutoCell(
-                  value: 'Rp ${data.pricePerHour.toStringAsFixed(0)}',
-                ),
-                'jumlah_harga': PlutoCell(
-                  value: 'Rp ${data.price.toStringAsFixed(0)}',
-                ),
-                'keterangan': PlutoCell(value: ""),
-                'catatan': PlutoCell(value: ""),
-              },
-            );
-          }).toList();
+      print('Final laporan summary: ${_laporanSummary!.length} slots');
+
+      if (_laporanSummary![0].type == 'member') {
+        rows =
+            _laporanSummary!.map((data) {
+              return PlutoRow(
+                cells: {
+                  'nama_member': PlutoCell(value: data.username),
+                  'kontak': PlutoCell(value: data.kontak),
+                  'jadwal_main': PlutoCell(value: data.jadwal),
+                  'total_hari': PlutoCell(value: data.totalHari),
+                  'jam': PlutoCell(
+                    value: '${data.startTime} - ${data.endTime}',
+                  ),
+                  'durasi': PlutoCell(
+                    value:
+                        '${(timeToMinutes(data.endTime) - timeToMinutes(data.startTime)) / 60} jam',
+                  ),
+                  'lapangan': PlutoCell(value: data.courtId),
+                  'jumlah_lapangan': PlutoCell(value: 1),
+                  'harga_per_jam': PlutoCell(
+                    value: 'Rp ${data.pricePerHour.toStringAsFixed(0)}',
+                  ),
+                  'jumlah_harga': PlutoCell(
+                    value: 'Rp ${data.price.toStringAsFixed(0)}',
+                  ),
+                  'keterangan': PlutoCell(value: ""),
+                  'catatan': PlutoCell(value: ""),
+                },
+              );
+            }).toList();
+        print('TOTAL ROWS CREATED: ${rows.length}');
+      } else if (_laporanSummary![0].type == 'nonMember') {
+        rows =
+            _laporanSummary!.map((data) {
+              return PlutoRow(
+                cells: {
+                  'nama_pelanggan': PlutoCell(value: data.username),
+                  'jadwal_main': PlutoCell(value: data.date),
+                  'total_hari': PlutoCell(value: 1),
+                  'jam': PlutoCell(
+                    value: '${data.startTime} - ${data.endTime}',
+                  ),
+                  'durasi': PlutoCell(
+                    value:
+                        '${(timeToMinutes(data.endTime) - timeToMinutes(data.startTime)) / 60} jam',
+                  ),
+                  'lapangan': PlutoCell(value: data.courtId),
+                  'jumlah_lapangan': PlutoCell(value: 1),
+                  'harga_per_jam': PlutoCell(
+                    value: 'Rp ${data.pricePerHour.toStringAsFixed(0)}',
+                  ),
+                  'jumlah_harga': PlutoCell(
+                    value: 'Rp ${data.price.toStringAsFixed(0)}',
+                  ),
+                  'keterangan': PlutoCell(value: ""),
+                  'catatan': PlutoCell(value: ""),
+                },
+              );
+            }).toList();
         print(rows);
-      // }
+      }
     });
   }
 

@@ -98,7 +98,6 @@ class _HalamanPesananState extends State<HalamanPesanan> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
             // Display the booking data
             Expanded(
               child: _isLoading
