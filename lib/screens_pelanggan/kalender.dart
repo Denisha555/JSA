@@ -703,6 +703,17 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       await _loadUserData();
       final username = _cachedUsername ?? '';
 
+      print('_cacheRole di _showBookingDialog: $_cacheRole');
+
+      if (_cacheRole == 'member') {
+        if (!mounted) return;
+        showErrorSnackBar(
+          context,
+          'Anda tidak dapat melakukan pembookingan pada mode member, harap ubah status menjadi non member untuk melakukan pembookingan. Untuk melakukan perubahan jadwal pada member, harap hubungi admin.',
+        );
+        return;
+      }
+
       if (!isAvailable) {
         _showBookingInfoDialog(time, court, selectedDate, isAvailable: false);
         return;
@@ -821,8 +832,11 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     'Status: Telah dibooking',
                     style: TextStyle(color: Colors.red),
                   ),
-                  SizedBox(height: 30,),
-                  Text('Catatan: Untuk melakukan pembatalan harap hubungi admin', style: TextStyle(color: Colors.grey),)
+                  SizedBox(height: 30),
+                  Text(
+                    'Catatan: Untuk melakukan pembatalan harap hubungi admin',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ],
               ],
             ),
@@ -983,6 +997,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     debugPrint(
       'username: $username, type: $type, isAvailable: $isAvailable, isClosed: $isClosed, isHoliday: $isHoliday',
     );
+
     final isPast = _isTimePast(time, selectedDate);
     final cellKey = _getCellKey(time, court);
     final isProcessing = processingCells.contains(cellKey);
@@ -1027,7 +1042,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         if (_memberCurrentTotalBooking! >= _memberTotalBooking!) {
           showErrorSnackBar(
             context,
-            'Anda tidak dapat melakukan pembookingan pada mode member, harap ubah status menjadi non member untuk melakukan pembookingan',
+            'Anda tidak dapat melakukan pembookingan pada mode member, harap ubah status menjadi non member untuk melakukan pembookingan. Untuk melakukan perubahan jadwal pada member, harap hubungi admin.',
           );
           return;
         }

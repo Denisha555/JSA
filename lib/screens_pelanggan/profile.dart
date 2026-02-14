@@ -76,6 +76,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
             isMemberUI =
                 userPreference ??
                 true; // default ke true kalau belum pernah di-set
+            prefs.setBool('isMemberUI', true);
           });
         } else {
           // kalau bukan member, tidak boleh ada UI member
