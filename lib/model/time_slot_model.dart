@@ -51,7 +51,7 @@ class TimeSlotModel {
       username: json['username'] ?? '',
       kontak: json['kontak'] ?? '',
       courtId: courtId ?? '',
-      date: date ?? '',
+      date: date ?? json['date'] ?? '',
       totalHari: json['totalHari'] ?? 0,
       jadwal: json['jadwal'] ?? '',
       price: price ?? 0.0,

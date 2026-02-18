@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/function/price/price.dart';
 import 'package:flutter_application_1/model/time_slot_model.dart';
+import 'package:intl/intl.dart';
 
 class FirebaseGetBooking {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -140,7 +141,7 @@ class FirebaseGetBooking {
         final slots = doc.data()['slots'] as List<dynamic>;
         for (var slot in slots) {
           if (slot["isAvailable"] == false) {
-            allSlots.add(TimeSlotModel.fromJson(slot, courtId: doc.id));
+            allSlots.add(TimeSlotModel.fromJson(slot, courtId: doc.id, date: formatStrToLongDate(DateFormat('yyyy-MM-dd').format(date))));
           }
         }
       }

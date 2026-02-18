@@ -148,6 +148,12 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
 
   List<PlutoRow> rows = [];
 
+  PlutoGridStateManager? _stateManager;
+  double _zoomScale = 1.0;
+
+  final double _minZoom = 0.7;
+  final double _maxZoom = 1.8;
+
   @override
   void initState() {
     super.initState();
@@ -313,29 +319,48 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                     const SizedBox(height: 12),
 
                     if (_laporanSummary![0].type == 'nonMember') ...[
-                      Expanded(
-                        child: InteractiveViewer(
-                          boundaryMargin: EdgeInsets.all(100),
-                          minScale: 1,
-                          maxScale: 2.5,
-                          child: PlutoGrid(
-                            key: _gridKey,
-                            columns: nonMemberColumns,
-                            rows: rows,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.zoom_out),
+                            onPressed: () => _zoomGrid(0.9),
                           ),
+                          IconButton(
+                            icon: Icon(Icons.zoom_in),
+                            onPressed: () => _zoomGrid(1.1),
+                          ),
+                        ],
+                      ),
+                      Expanded(
+                        child: PlutoGrid(
+                          key: _gridKey,
+                          columns: nonMemberColumns,
+                          rows: rows,
+                          onLoaded: (event) {
+                            _stateManager = event.stateManager;
+                          },
                         ),
                       ),
                     ] else if (_laporanSummary![0].type == 'member') ...[
-                      Expanded(
-                        child: InteractiveViewer(
-                          boundaryMargin: EdgeInsets.all(100),
-                          minScale: 1,
-                          maxScale: 2.5,
-                          child: PlutoGrid(
-                            key: _gridKey,
-                            columns: memberColumns,
-                            rows: rows,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.zoom_out),
+                            onPressed: () => _zoomGrid(0.9),
                           ),
+                          IconButton(
+                            icon: Icon(Icons.zoom_in),
+                            onPressed: () => _zoomGrid(1.1),
+                          ),
+                        ],
+                      ),
+                      Expanded(
+                        child: PlutoGrid(
+                          key: _gridKey,
+                          columns: memberColumns,
+                          rows: rows,
                         ),
                       ),
                     ],
@@ -361,6 +386,20 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
         ),
       ),
     );
+  }
+
+  void _zoomGrid(double factor) {
+    if (_stateManager == null) return;
+
+    setState(() {
+      _zoomScale = (_zoomScale * factor).clamp(_minZoom, _maxZoom);
+
+      for (var column in _stateManager!.columns) {
+        column.width = column.width * factor;
+      }
+
+      _stateManager!.notifyListeners();
+    });
   }
 
   void generateLaporan() async {

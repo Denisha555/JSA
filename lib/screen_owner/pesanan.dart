@@ -56,6 +56,7 @@ class _HalamanPesananState extends State<HalamanPesanan> {
         detail = newDetail;
         _isLoading = false;
       });
+      print('date: ${detail[0].date}, startTime: ${detail[0].startTime}, endTime: ${detail[0].endTime}, type: ${detail[0].type}');
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -87,7 +88,7 @@ class _HalamanPesananState extends State<HalamanPesanan> {
           children: [
             TextField(
               controller: _controller,
-              readOnly: true, // biar ga bisa ketik manual
+              readOnly: true, 
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -98,6 +99,7 @@ class _HalamanPesananState extends State<HalamanPesanan> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
             // Display the booking data
             Expanded(
               child: _isLoading
@@ -118,7 +120,7 @@ class _HalamanPesananState extends State<HalamanPesanan> {
                               child: ListTile(
                                 title: Text(booking.date),
                                 subtitle: Text('Time: ${booking.startTime} - ${booking.endTime}'),
-                                trailing: Text('Status: ${booking.status}'),
+                                trailing: Text('Status: ${booking.type}'),
                               ),
                             );
                           },
