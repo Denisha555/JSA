@@ -154,6 +154,11 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
   final double _minZoom = 0.7;
   final double _maxZoom = 1.8;
 
+  // Lebar awal kolom disimpan supaya zoom tidak drift
+  final Map<String, double> _originalColumnWidths = {};
+
+  double _previousScale = 1.0;
+
   @override
   void initState() {
     super.initState();
@@ -200,7 +205,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                                     MediaQuery.of(context).size.width / 2 - 55,
                                 height: 50,
                                 child: DropdownButton(
-                                  hint: Text('Pilih Tahun'),
+                                  hint: const Text('Pilih Tahun'),
                                   isExpanded: true,
                                   value: _selectedTahun,
                                   items:
@@ -210,11 +215,14 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                                           child: Text(item),
                                         );
                                       }).toList(),
-                                  onChanged: (String? value) {
-                                    setState(() {
-                                      _selectedTahun = value;
-                                    });
-                                  },
+                                  onChanged:
+                                      _isLoading
+                                          ? null
+                                          : (String? value) {
+                                            setState(() {
+                                              _selectedTahun = value;
+                                            });
+                                          },
                                 ),
                               ),
 
@@ -225,7 +233,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                                 width:
                                     MediaQuery.of(context).size.width / 2 - 55,
                                 child: DropdownButton(
-                                  hint: Text('Pilih Bulan'),
+                                  hint: const Text('Pilih Bulan'),
                                   isExpanded: true,
                                   value: _selectedBulan,
                                   items:
@@ -235,11 +243,14 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                                           child: Text(item),
                                         );
                                       }).toList(),
-                                  onChanged: (String? value) {
-                                    setState(() {
-                                      _selectedBulan = value;
-                                    });
-                                  },
+                                  onChanged:
+                                      _isLoading
+                                          ? null
+                                          : (String? value) {
+                                            setState(() {
+                                              _selectedBulan = value;
+                                            });
+                                          },
                                 ),
                               ),
                             ],
@@ -251,7 +262,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                             height: 50,
                             width: double.infinity,
                             child: DropdownButton(
-                              hint: Text('Pilih Status'),
+                              hint: const Text('Pilih Status'),
                               isExpanded: true,
                               value: _selectedStatus,
                               items:
@@ -261,23 +272,40 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                                       child: Text(item['label']!),
                                     );
                                   }).toList(),
-                              onChanged: (String? value) {
-                                setState(() {
-                                  _selectedStatus = value;
-                                });
-                              },
+                              onChanged:
+                                  _isLoading
+                                      ? null
+                                      : (String? value) {
+                                        setState(() {
+                                          _selectedStatus = value;
+                                        });
+                                      },
                             ),
                           ),
 
                           const SizedBox(height: 20),
 
-                          // Tombol Generate Laporan
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: () async {
-                                _isLoading ? null : await _getLaporan();
-                              },
+                              // ← pakai null langsung kalau loading, bukan fungsi kosong
+                              onPressed:
+                                  _isLoading
+                                      ? null
+                                      : () async {
+                                        await _getLaporan();
+                                      },
+                              icon:
+                                  _isLoading
+                                      ? const SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors.white,
+                                        ),
+                                      )
+                                      : const Icon(Icons.bar_chart),
                               label: Text(
                                 _isLoading ? 'Memuat...' : 'Tampilkan Laporan',
                               ),
@@ -318,66 +346,84 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                     ),
                     const SizedBox(height: 12),
 
-                    if (_laporanSummary![0].type == 'nonMember') ...[
+                    if (_laporanSummary![0].type == 'nonMember' ||
+                        _laporanSummary![0].type == 'member') ...[
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
+                          // Tombol zoom out: disable kalau sudah mentok minimum
                           IconButton(
-                            icon: Icon(Icons.zoom_out),
-                            onPressed: () => _zoomGrid(0.9),
+                            icon: const Icon(Icons.zoom_out),
+                            onPressed:
+                                _zoomScale <= _minZoom
+                                    ? null
+                                    : () => _zoomGrid(0.9),
                           ),
+                          Text('${(_zoomScale * 100).round()}%'),
+                          // Tombol zoom in: disable kalau sudah mentok maximum
                           IconButton(
-                            icon: Icon(Icons.zoom_in),
-                            onPressed: () => _zoomGrid(1.1),
+                            icon: const Icon(Icons.zoom_in),
+                            onPressed:
+                                _zoomScale >= _maxZoom
+                                    ? null
+                                    : () => _zoomGrid(1.1),
+                          ),
+                          // Tombol reset zoom
+                          IconButton(
+                            icon: const Icon(Icons.zoom_out_map),
+                            tooltip: 'Reset Zoom',
+                            onPressed:
+                                _zoomScale == 1.0 ? null : () => _resetZoom(),
                           ),
                         ],
                       ),
                       Expanded(
                         child: PlutoGrid(
                           key: _gridKey,
-                          columns: nonMemberColumns,
+                          columns:
+                              _laporanSummary![0].type == 'member'
+                                  ? memberColumns
+                                  : nonMemberColumns,
                           rows: rows,
                           onLoaded: (event) {
                             _stateManager = event.stateManager;
+
+                            // Kalau originalWidths belum ada, simpan (hanya pertama kali)
+                            if (_originalColumnWidths.isEmpty) {
+                              _saveOriginalWidths();
+                            } else {
+                              // Grid rebuild karena zoom — terapkan ulang lebar sesuai scale
+                              for (var col in _stateManager!.columns) {
+                                final originalWidth =
+                                    _originalColumnWidths[col.field];
+                                if (originalWidth != null) {
+                                  col.width = (originalWidth * _zoomScale)
+                                      .clamp(40.0, double.infinity);
+                                }
+                              }
+                              _stateManager!.notifyListeners();
+                            }
                           },
-                        ),
-                      ),
-                    ] else if (_laporanSummary![0].type == 'member') ...[
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          IconButton(
-                            icon: Icon(Icons.zoom_out),
-                            onPressed: () => _zoomGrid(0.9),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.zoom_in),
-                            onPressed: () => _zoomGrid(1.1),
-                          ),
-                        ],
-                      ),
-                      Expanded(
-                        child: PlutoGrid(
-                          key: _gridKey,
-                          columns: memberColumns,
-                          rows: rows,
                         ),
                       ),
                     ],
                   ] else if (_isLoading) ...[
-                    Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator(),
-                          SizedBox(height: 16),
-                          Text('Memuat laporan...'),
-                        ],
+                    const Expanded(
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(),
+                            SizedBox(height: 16),
+                            Text('Memuat laporan...'),
+                          ],
+                        ),
                       ),
                     ),
-                  ] else if (_laporanSummary == null ||
-                      _laporanSummary!.isEmpty) ...[
-                    Expanded(child: Center(child: Text("Data Tidak Tersedia"))),
+                  ] else ...[
+                    const Expanded(
+                      child: Center(child: Text("Data Tidak Tersedia")),
+                    ),
                   ],
                 ],
               ),
@@ -388,37 +434,72 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
     );
   }
 
+  /// Simpan lebar asli kolom sebagai referensi zoom
+  void _saveOriginalWidths() {
+    // if (_stateManager == null) return;
+    // _originalColumnWidths.clear();
+    for (var col in _stateManager!.columns) {
+      _originalColumnWidths[col.field] = col.width;
+    }
+  }
+
   void _zoomGrid(double factor) {
     if (_stateManager == null) return;
 
-    setState(() {
-      _zoomScale = (_zoomScale * factor).clamp(_minZoom, _maxZoom);
+    final newScale = (_zoomScale * factor).clamp(_minZoom, _maxZoom);
+    if (newScale == _zoomScale) return;
 
-      for (var column in _stateManager!.columns) {
-        column.width = column.width * factor;
+    // Terapkan width dulu ke originalColumnWidths-scaled sebelum rebuild
+    _zoomScale = newScale;
+
+    // Reset scroll ke awal supaya tidak ada kolom yang hilang
+    _stateManager!.scroll.horizontal?.jumpTo(0);
+
+    for (var col in _stateManager!.columns) {
+      final originalWidth = _originalColumnWidths[col.field];
+      if (originalWidth != null) {
+        final newWidth = (originalWidth * _zoomScale).clamp(
+          40.0,
+          double.infinity,
+        );
+        col.width = newWidth;
       }
+    }
 
-      _stateManager!.notifyListeners();
+    setState(() {
+      _gridKey = UniqueKey(); // ← force rebuild grid
+    });
+  }
+
+  void _resetZoom() {
+    if (_stateManager == null) return;
+
+    _zoomScale = 1.0;
+    _stateManager!.scroll.horizontal?.jumpTo(0);
+
+    setState(() {
+      _gridKey = UniqueKey();
     });
   }
 
   void generateLaporan() async {
+    _zoomScale = 1.0;
+    _originalColumnWidths.clear();
+
     _laporanSummary = _laporanData;
 
     if (_laporanSummary == null || _laporanSummary!.isEmpty) {
+      setState(() {});
       return;
     }
 
     int i = 0;
     while (i <= _laporanSummary!.length - 1) {
       if (_laporanSummary!.length == 1) {
-        // satu pesanan
         final curr = _laporanSummary![i];
-
         final durHours =
             ((timeToMinutes(curr.endTime) - timeToMinutes(curr.startTime)) /
                 60);
-
         if (durHours.round() % durHours != 0) {
           int slots = durHours.round() + 1;
           double pricePerSlot = curr.price / slots;
@@ -426,14 +507,8 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
         } else {
           curr.pricePerHour = (curr.price / durHours);
         }
-
-        print(
-          'current price : ${curr.price}, durHours: $durHours, pricePerHour: ${curr.pricePerHour}, ststus: ${curr.status}',
-        );
-
         break;
       } else if (i == _laporanSummary!.length - 1) {
-        // lebih dari satu pesanan
         final curr = _laporanSummary![i];
         final prev = _laporanSummary![i - 1];
 
@@ -449,7 +524,6 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
         final durHours =
             ((timeToMinutes(curr.endTime) - timeToMinutes(curr.startTime)) /
                 60);
-
         if (durHours.round() % durHours != 0) {
           int slots = durHours.round() + 1;
           double pricePerSlot = curr.price / slots;
@@ -457,11 +531,6 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
         } else {
           curr.pricePerHour = (curr.price / durHours);
         }
-
-        print(
-          'current price : ${curr.price}, durHours: $durHours, pricePerHour: ${curr.pricePerHour}',
-        );
-
         break;
       }
 
@@ -474,15 +543,12 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
           timeToMinutes(curr.endTime) == timeToMinutes(next.startTime)) {
         curr.endTime = next.endTime;
         curr.price += next.price;
-
         _laporanSummary!.removeAt(i + 1);
-
         continue;
       }
 
       final durHours =
           ((timeToMinutes(curr.endTime) - timeToMinutes(curr.startTime)) / 60);
-
       if (durHours.round() % durHours != 0) {
         int slots = durHours.round() + 1;
         double pricePerSlot = curr.price / slots;
@@ -490,14 +556,9 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
       } else {
         curr.pricePerHour = (curr.price / durHours);
       }
-      print(
-        'current price : ${curr.price}, durHours: $durHours, pricePerHour: ${curr.pricePerHour}',
-      );
 
       i++;
     }
-
-    print('After merging: ${_laporanSummary!.length} slots');
 
     if (_laporanSummary![0].type == 'member') {
       Map<String, List<TimeSlotModel>> grouped = {};
@@ -505,8 +566,6 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
       for (var data in _laporanSummary!) {
         String key =
             '${data.username}_${data.courtId}_${data.startTime}_${data.endTime}';
-
-        // kalau belum ada key, buat list baru
         if (!grouped.containsKey(key)) {
           grouped[key] = [];
         }
@@ -519,10 +578,8 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
         List<TimeSlotModel> group = entry.value;
         TimeSlotModel first = group[0];
 
-        // Ambil semua tanggal dari group ini
         List<String> allDates = group.map((e) => e.date).toList();
 
-        // Ambil hari unik
         Set<String> uniqueDays = {};
         for (var dateStr in allDates) {
           final date = DateTime.parse(dateStr);
@@ -530,10 +587,8 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
           uniqueDays.add(day);
         }
 
-        // Format tanggal (ambil tanggal saja, bukan full date)
         String datesStr = allDates.map((d) => d.split("-")[2]).join(', ');
 
-        // Set jadwal
         if (uniqueDays.length == 1) {
           first.jadwal = "${uniqueDays.first} ($datesStr)";
         } else {
@@ -543,7 +598,6 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
 
         first.totalHari = allDates.length;
 
-        // Ambil kontak (jika belum ada)
         if (first.kontak == null || first.kontak.isEmpty) {
           final kontak = await FirebaseGetUser().getUserData(
             first.username,
@@ -558,42 +612,45 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
       _laporanSummary = result;
     }
 
+    // Reset zoom setiap kali generate laporan baru
+    _zoomScale = 1.0;
+    _originalColumnWidths.clear();
+
     setState(() {
-      _laporanSummary = _laporanSummary;
       _gridKey = UniqueKey();
 
-      print('Final laporan summary: ${_laporanSummary!.length} slots');
-
       if (_laporanSummary![0].type == 'member') {
-        rows =
-            _laporanSummary!.map((data) {
-              return PlutoRow(
-                cells: {
-                  'nama_member': PlutoCell(value: data.username),
-                  'kontak': PlutoCell(value: data.kontak),
-                  'jadwal_main': PlutoCell(value: data.jadwal),
-                  'total_hari': PlutoCell(value: data.totalHari),
-                  'jam': PlutoCell(
-                    value: '${data.startTime} - ${data.endTime}',
-                  ),
-                  'durasi': PlutoCell(
-                    value:
-                        '${(timeToMinutes(data.endTime) - timeToMinutes(data.startTime)) / 60} jam',
-                  ),
-                  'lapangan': PlutoCell(value: data.courtId),
-                  'jumlah_lapangan': PlutoCell(value: 1),
-                  'harga_per_jam': PlutoCell(
-                    value: 'Rp ${data.pricePerHour.toStringAsFixed(0)}',
-                  ),
-                  'jumlah_harga': PlutoCell(
-                    value: 'Rp ${data.price.toStringAsFixed(0)}',
-                  ),
-                  'keterangan': PlutoCell(value: ""),
-                  'catatan': PlutoCell(value: ""),
-                },
-              );
-            }).toList();
-        print('TOTAL ROWS CREATED: ${rows.length}');
+        rows = List.generate(_laporanSummary!.length, (index) {
+          final data = _laporanSummary![index];
+          // Nama hanya tampil di row pertama per username,
+          // row berikutnya kosong supaya terkesan seperti di-merge
+          final showNama =
+              index == 0 ||
+              _laporanSummary![index - 1].username != data.username;
+          return PlutoRow(
+            cells: {
+              'nama_member': PlutoCell(value: showNama ? data.username : ''),
+              'kontak': PlutoCell(value: showNama ? (data.kontak ?? '') : ''),
+              'jadwal_main': PlutoCell(value: data.jadwal),
+              'total_hari': PlutoCell(value: data.totalHari),
+              'jam': PlutoCell(value: '${data.startTime} - ${data.endTime}'),
+              'durasi': PlutoCell(
+                value:
+                    '${(timeToMinutes(data.endTime) - timeToMinutes(data.startTime)) / 60} jam',
+              ),
+              'lapangan': PlutoCell(value: data.courtId),
+              'jumlah_lapangan': PlutoCell(value: 1),
+              'harga_per_jam': PlutoCell(
+                value: 'Rp ${data.pricePerHour.toStringAsFixed(0)}',
+              ),
+              'jumlah_harga': PlutoCell(
+                value: 'Rp ${data.price.toStringAsFixed(0)}',
+              ),
+              'keterangan': PlutoCell(value: ""),
+              'catatan': PlutoCell(value: ""),
+            },
+          );
+        });
       } else if (_laporanSummary![0].type == 'nonMember') {
         rows =
             _laporanSummary!.map((data) {
@@ -622,7 +679,6 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                 },
               );
             }).toList();
-        print(rows);
       }
     });
   }
@@ -630,20 +686,37 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
   Future<void> _getLaporan() async {
     setState(() {
       _isLoading = true;
+      // Reset data lama supaya tidak tampil grid lama saat loading
+      _laporanSummary = null;
+      rows = [];
     });
 
-    final data = await FirebaseGetBooking().getBookingForReport(
-      "$_selectedTahun-${(bulanList.indexOf(_selectedBulan!) + 1).toString().padLeft(2, '0')}",
-      _selectedStatus!,
-    );
+    try {
+      final data = await FirebaseGetBooking().getBookingForReport(
+        "$_selectedTahun-${(bulanList.indexOf(_selectedBulan!) + 1).toString().padLeft(2, '0')}",
+        _selectedStatus!,
+      );
 
-    print('Laporan data: ${data.length} slots');
+      setState(() {
+        _laporanData = data;
+        _isLoading = false;
+      });
 
-    setState(() {
-      _laporanData = data;
-      _isLoading = false;
-    });
-
-    generateLaporan();
+      generateLaporan();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _laporanData = [];
+        _laporanSummary = [];
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memuat laporan: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
