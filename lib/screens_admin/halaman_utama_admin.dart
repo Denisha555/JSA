@@ -85,9 +85,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
       children: [
         InteractiveViewer(
           panEnabled: true, // bisa drag ke kiri/kanan/atas/bawah
-          scaleEnabled: true, // bisa pinch zoom
-          minScale: 0.5,
-          maxScale: 3,
+          scaleEnabled: false, 
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Padding(
