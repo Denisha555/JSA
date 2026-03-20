@@ -51,6 +51,8 @@ flutter:
     - assets/image/TentangKami.png
     - assets/image/Lapangan.jpg
     - assets/image/PromoEvent.jpeg
+    - assets/image/Whatsapp.png
+    - assets/image/Instagram.png
 
 flutter_launcher_icons:
   android: true

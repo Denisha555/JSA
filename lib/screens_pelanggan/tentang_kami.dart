@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_application_1/constants_file.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:url_launcher/url_launcher.dart';
-
+import 'package:flutter_application_1/constants_file.dart';
 
 class HalamanTentangKami extends StatefulWidget {
   const HalamanTentangKami({super.key});
@@ -55,10 +56,11 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
       // Dapatkan lokasi hanya sekali untuk link Google Maps
       try {
         Position posisi = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.reduced, // Gunakan akurasi lebih rendah
+          desiredAccuracy:
+              LocationAccuracy.reduced, // Gunakan akurasi lebih rendah
           timeLimit: const Duration(seconds: 5), // Timeout lebih cepat
         );
-        
+
         if (mounted) {
           setState(() {
             _lokasiPengguna = LatLng(posisi.latitude, posisi.longitude);
@@ -80,23 +82,24 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error membuka link: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error membuka link: $e')));
       }
     }
   }
 
   void _bukaGoogleMaps() async {
     try {
-      final String origin = _lokasiPengguna != null 
-          ? '${_lokasiPengguna!.latitude},${_lokasiPengguna!.longitude}' 
-          : '';
-      
+      final String origin =
+          _lokasiPengguna != null
+              ? '${_lokasiPengguna!.latitude},${_lokasiPengguna!.longitude}'
+              : '';
+
       final Uri mapsUrl = Uri.parse(
         'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=${_lokasiArena.latitude},${_lokasiArena.longitude}',
       );
-      
+
       if (!await launchUrl(mapsUrl, mode: LaunchMode.externalApplication)) {
         throw 'Tidak bisa membuka Google Maps';
       }
@@ -114,163 +117,398 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
     return Scaffold(
       appBar: AppBar(title: const Text("Tentang Kami"), centerTitle: true),
       body: ListView(
-        padding: const EdgeInsets.all(16),
         children: [
-          Center(
-            child: Column(
-              children: [
-                // Use error handler for asset loading
-                Image.asset(
-                  'assets/image/LogoJSA.jpg',
-                  height: 100,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      height: 100,
-                      width: 100,
-                      color: Colors.grey[300],
-                      child: const Icon(Icons.error),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'JUMP SMASH ARENA',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Jump, smash, and win! Rasakan serunya main badminton di Jump Smash Arena—lapangan kece, suasana oke!',
+          Container(
+            color: primaryColor,
+            width: double.infinity,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 15.0),
+              child: Center(
+                child: Text(
+                  "Jump, smash, and win! Rasakan serunya main badminton di Jump Smash Arena—lapangan kece, suasana oke!",
+                  style: TextStyle(fontSize: 15, color: Colors.white),
                   textAlign: TextAlign.center,
                 ),
-              ],
+              ),
             ),
           ),
-          const SizedBox(height: 20),
-          SizedBox(
-            height: 200,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Stack(
-                children: [
-                  FlutterMap(
-                    mapController: _mapController,
-                    options: MapOptions(
-                      initialCenter: _lokasiArena,
-                      initialZoom: 16,
-                      interactionOptions: const InteractionOptions(
-                        flags: ~InteractiveFlag.doubleTapZoom,
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.location_on, color: primaryColor),
+                    SizedBox(width: 8),
+                    Text(
+                      "Lokasi",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
-                      onMapReady: () {
-                        setState(() {
-                          _mapReady = true;
-                        });
-                        // Move to user location if available
-                        if (_lokasiPengguna != null) {
-                          _mapController.move(_lokasiPengguna!, 16);
-                        }
-                      },
                     ),
-                    children: [
-                      TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        userAgentPackageName: 'com.example.app',
-                        tileProvider: NetworkTileProvider(),
-                        errorImage: Image.asset(
-                          'assets/image/map_placeholder.png',
-                          fit: BoxFit.cover,
-                        ).image,
-                      ),
-                      MarkerLayer(
-                        markers: [
-                          Marker(
-                            point: _lokasiArena,
-                            width: 40,
-                            height: 40,
-                            child: const Icon(
-                              Icons.location_pin,
-                              color: Colors.red,
-                              size: 40,
+                  ],
+                ),
+                SizedBox(height: 5),
+                SizedBox(
+                  height: 200,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Stack(
+                      children: [
+                        FlutterMap(
+                          mapController: _mapController,
+                          options: MapOptions(
+                            initialCenter: _lokasiArena,
+                            initialZoom: 16,
+                            interactionOptions: const InteractionOptions(
+                              flags: ~InteractiveFlag.doubleTapZoom,
+                            ),
+                            onMapReady: () {
+                              setState(() {
+                                _mapReady = true;
+                              });
+                              // Move to user location if available
+                              if (_lokasiPengguna != null) {
+                                _mapController.move(_lokasiPengguna!, 16);
+                              }
+                            },
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate:
+                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName: 'com.example.app',
+                              tileProvider: NetworkTileProvider(),
+                              errorImage:
+                                  Image.asset(
+                                    'assets/image/map_placeholder.png',
+                                    fit: BoxFit.cover,
+                                  ).image,
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: _lokasiArena,
+                                  width: 40,
+                                  height: 40,
+                                  child: const Icon(
+                                    Icons.location_pin,
+                                    color: Colors.red,
+                                    size: 40,
+                                  ),
+                                ),
+                                if (_lokasiPengguna != null)
+                                  Marker(
+                                    point: _lokasiPengguna!,
+                                    width: 30,
+                                    height: 30,
+                                    child: const Icon(
+                                      Icons.person_pin_circle,
+                                      color: Colors.blue,
+                                      size: 30,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        if (_isLoading)
+                          Container(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            child: const Center(
+                              child: CircularProgressIndicator(),
                             ),
                           ),
-                          if (_lokasiPengguna != null)
-                            Marker(
-                              point: _lokasiPengguna!,
-                              width: 30,
-                              height: 30,
-                              child: const Icon(
-                                Icons.person_pin_circle,
-                                color: Colors.blue,
-                                size: 30,
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: _bukaGoogleMaps,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      color: const Color.fromARGB(255, 228, 243, 255),
+                      border: Border.all(
+                        color: const Color.fromARGB(255, 195, 228, 255),
+                        width: 1.5,
+                      ),
+                    ),
+                    width: double.infinity,
+                    child: Padding(
+                      padding: const EdgeInsets.all(10.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Jump Smash Arena",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+
+                          Text(
+                            'Jln. Parit Haji Husein 1, Gg. Sawit No.10, Bangka Belitung Laut, Kec. Pontianak Tenggara, Kota Pontianak, Kalimantan Barat 78124',
+                            style: TextStyle(
+                              color: const Color.fromARGB(255, 97, 97, 97),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Icon(Icons.access_time, color: primaryColor),
+                    SizedBox(width: 8),
+                    const Text(
+                      'Jam Operasional',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 5),
+
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color.fromARGB(255, 241, 241, 241),
+                    border: Border.all(
+                      color: const Color.fromARGB(255, 217, 217, 217),
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10.0),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: const [
+                            Text(
+                              'Senin',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
                               ),
                             ),
-                        ],
+                            Text(
+                              '07.30 - 23.00',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Divider(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: const [
+                            Text(
+                              'Selasa',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              '07.30 - 23.00',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Divider(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: const [
+                            Text(
+                              'Rabu',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              '07.30 - 23.00',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Divider(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: const [
+                            Text(
+                              'Kamis',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              '07.30 - 23.00',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Divider(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: const [
+                            Text(
+                              'Jumat',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              '07.30 - 23.00',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Divider(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: const [
+                            Text(
+                              'Sabtu',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              '07.30 - 23.00',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Divider(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: const [
+                            Text(
+                              'Minggu',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            Text(
+                              '07.30 - 23.00',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                Center(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.info, color: primaryColor),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Note : Jam operasional dapat berubah selama hari libur, harap hubungi kami untuk informasi lebih lanjut.',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: primaryColor,
+                          ),
+                          softWrap: true,
+                        ),
                       ),
                     ],
                   ),
-                  if (_isLoading)
-                    Container(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      child: const Center(
-                        child: CircularProgressIndicator(),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          InkWell(
-            onTap: _bukaGoogleMaps,
-            child: Row(
-              children: const [
-                Icon(Icons.location_on, color: Colors.blue),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Jln. Parit Haji Husein 1, Gg. Sawit No.10, Bangka Belitung Laut, Kec. Pontianak Tenggara, Kota Pontianak, Kalimantan Barat 78124',
-                    style: TextStyle(
-                      color: Colors.blue,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
                 ),
+
+                SizedBox(height: 15),
+
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(255, 241, 241, 241),
+                      ),
+                      icon: Image.asset(
+                        'assets/image/Whatsapp.png',
+                        width: 24,
+                        height: 24,
+                      ),
+                      label: const Text(
+                        "WhatsApp",
+                        style: TextStyle(color: Colors.black),
+                      ),
+                      onPressed: () {
+                        _bukaLink('https://wa.me/6281299931908');
+                      },
+                    ),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color.fromARGB(255, 241, 241, 241),
+                      ),
+                      icon: Image.asset(
+                        'assets/image/Instagram.png',
+                        width: 24,
+                        height: 24,
+                      ),
+                      label: const Text(
+                        "Instagram",
+                        style: TextStyle(color: Colors.black),
+                      ),
+                      onPressed: () {
+                        _bukaLink(
+                          'https://www.instagram.com/jumpsmasharena?igsh=MWRpcG53YmRnYWRubA==',
+                        );
+                      },
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20),
               ],
             ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Jam Operasional',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-          ),
-          const Divider(),
-          const JamRow(hari: 'Senin', jam: '07.00 - 23.00'),
-          const JamRow(hari: 'Selasa', jam: '07.00 - 23.00'),
-          const JamRow(hari: 'Rabu', jam: '07.00 - 23.00'),
-          const JamRow(hari: 'Kamis', jam: '07.00 - 23.00'),
-          const JamRow(hari: 'Jumat', jam: '07.00 - 23.00'),
-          const JamRow(hari: 'Sabtu', jam: '07.00 - 23.00'),
-          const JamRow(hari: 'Minggu', jam: '07.00 - 23.00'),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: Color.fromARGB(255, 42, 92, 170)),
-                label: const Text("WhatsApp", style: TextStyle(color: Colors.white)),
-                onPressed: () {
-                  _bukaLink('https://wa.me/6281299931908');
-                },
-              ),
-              ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Color.fromARGB(255, 42, 92, 170),
-                ),
-                label: const Text("Instagram", style: TextStyle(color: Colors.white)),
-                onPressed: () {
-                  _bukaLink('https://www.instagram.com/jumpsmasharena?igsh=MWRpcG53YmRnYWRubA==');
-                },
-              ),
-            ],
           ),
         ],
       ),
