@@ -53,6 +53,12 @@ flutter:
     - assets/image/PromoEvent.jpeg
     - assets/image/Whatsapp.png
     - assets/image/Instagram.png
+    - assets/image/Kantin1.jpeg
+    - assets/image/Musholla1.jpeg
+    - assets/image/Parkiran1.jpeg
+    - assets/image/Toilet1.jpeg
+    - assets/image/Lapangan1.jpeg
+    - assets/image/SewaRaket.jpeg
 
 flutter_launcher_icons:
   android: true

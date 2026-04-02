@@ -1,6 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
+import 'package:flutter_application_1/screens_pelanggan/tentang_kami/kantin.dart';
+import 'package:flutter_application_1/screens_pelanggan/tentang_kami/lapangan.dart';
+import 'package:flutter_application_1/screens_pelanggan/tentang_kami/musholla.dart';
+import 'package:flutter_application_1/screens_pelanggan/tentang_kami/parkiran.dart';
+import 'package:flutter_application_1/screens_pelanggan/tentang_kami/sewa_raket.dart';
+import 'package:flutter_application_1/screens_pelanggan/tentang_kami/toilet.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -139,6 +145,220 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.start,
               children: [
+                Row(
+                  children: [
+                    Icon(Icons.business_outlined, color: primaryColor),
+                    SizedBox(width: 8),
+                    Text(
+                      "Galeri Fasilitas",
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 5),
+                Row(
+                  children: [
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const Lapangan(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: MediaQuery.of(context).size.width * 0.3,
+                            height: MediaQuery.of(context).size.width * 0.3,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color.fromARGB(255, 217, 217, 217),
+                                width: 1.5,
+                              ),
+                              image: DecorationImage(
+                                image: AssetImage('assets/image/Lapangan1.jpeg'),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Text("Lapangan"),
+                      ],
+                    ),
+                    SizedBox(width: 9),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SewaRaket(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: MediaQuery.of(context).size.width * 0.3,
+                            height: MediaQuery.of(context).size.width * 0.3,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color.fromARGB(255, 217, 217, 217),
+                                width: 1.5,
+                              ),
+                              image: DecorationImage(
+                                image: AssetImage('assets/image/SewaRaket.jpeg'),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Text("Sewa Raket"),
+                      ],
+                    ),
+                    SizedBox(width: 9),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const Parkiran(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: MediaQuery.of(context).size.width * 0.3,
+                            height: MediaQuery.of(context).size.width * 0.3,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color.fromARGB(255, 217, 217, 217),
+                                width: 1.5,
+                              ),
+                              image: DecorationImage(
+                                image: AssetImage('assets/image/Parkiran.jpeg'),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Text("Parkiran"),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: 5),
+                Row(
+                  children: [
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const Kantin(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: MediaQuery.of(context).size.width * 0.3,
+                            height: MediaQuery.of(context).size.width * 0.3,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color.fromARGB(255, 217, 217, 217),
+                                width: 1.5,
+                              ),
+                              image: DecorationImage(
+                                image: AssetImage('assets/image/Kantin1.jpeg'),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Text("Kantin"),
+                      ],
+                    ),
+                    SizedBox(width: 9),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: (){
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const Musholla(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: MediaQuery.of(context).size.width * 0.3,
+                            height: MediaQuery.of(context).size.width * 0.3,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color.fromARGB(255, 217, 217, 217),
+                                width: 1.5,
+                              ),
+                              image: DecorationImage(
+                                image: AssetImage('assets/image/Musholla1.jpeg'),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Text("Musholla"),
+                      ],
+                    ),
+                    SizedBox(width: 9),
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: (){
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const Toilet(),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: MediaQuery.of(context).size.width * 0.3,
+                            height: MediaQuery.of(context).size.width * 0.3,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color.fromARGB(255, 217, 217, 217),
+                                width: 1.5,
+                              ),
+                              image: DecorationImage(
+                                image: AssetImage('assets/image/Toilet1.jpeg'),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Text("Toilet"),
+                      ],
+                    ),
+                  ],
+                ),
+                SizedBox(height: 20),
                 Row(
                   children: [
                     Icon(Icons.location_on, color: primaryColor),
@@ -470,7 +690,12 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                   children: [
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(255, 241, 241, 241),
+                        backgroundColor: const Color.fromARGB(
+                          255,
+                          241,
+                          241,
+                          241,
+                        ),
                       ),
                       icon: Image.asset(
                         'assets/image/Whatsapp.png',
@@ -487,7 +712,12 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                     ),
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color.fromARGB(255, 241, 241, 241),
+                        backgroundColor: const Color.fromARGB(
+                          255,
+                          241,
+                          241,
+                          241,
+                        ),
                       ),
                       icon: Image.asset(
                         'assets/image/Instagram.png',
