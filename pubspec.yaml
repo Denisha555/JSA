@@ -31,6 +31,7 @@ dependencies:
   http: ^1.5.0
   fl_chart: ^1.0.0
   pluto_grid: ^8.1.0
+  carousel_slider: ^5.1.2
 
 dev_dependencies:
   flutter_test:
@@ -54,12 +55,20 @@ flutter:
     - assets/image/Whatsapp.png
     - assets/image/Instagram.png
     - assets/image/Kantin1.jpeg
+    - assets/image/Kantin2.jpeg
     - assets/image/Musholla1.jpeg
+    - assets/image/Musholla2.jpeg
+    - assets/image/Musholla3.jpeg
     - assets/image/Parkiran1.jpeg
+    - assets/image/Parkiran2.jpeg
     - assets/image/Toilet1.jpeg
+    - assets/image/Toilet2.jpeg
     - assets/image/Lapangan1.jpeg
-    - assets/image/SewaRaket.jpeg
-
+    - assets/image/Lapangan2.jpeg
+    - assets/image/Lapangan3.jpeg
+    - assets/image/SewaRaket1.jpeg
+    - assets/image/SewaRaket2.jpeg
+    
 flutter_launcher_icons:
   android: true
   ios: true

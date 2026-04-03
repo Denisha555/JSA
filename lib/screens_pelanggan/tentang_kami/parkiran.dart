@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 
 class Parkiran extends StatelessWidget {
   const Parkiran({super.key});
@@ -14,7 +15,18 @@ class Parkiran extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset("assets/image/Parkiran1.jpeg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
+            CarouselSlider(
+              options: CarouselOptions(
+                height: MediaQuery.of(context).size.width,
+                autoPlay: true,
+                autoPlayInterval: Duration(seconds: 10),
+                viewportFraction: 1.0,
+              ),
+              items: [
+                Image.asset("assets/image/Parkiran1.jpeg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
+                Image.asset("assets/image/Parkiran2.jpeg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
+              ],
+            ),
             Padding(
               padding: const EdgeInsets.all(20.0),
               child: Column(
