@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:carousel_slider/carousel_slider.dart';
+import 'package:carousel_slider/carousel_slider.dart' as cs;
 
 class Toilet extends StatelessWidget {
   const Toilet({super.key});
@@ -13,8 +13,8 @@ class Toilet extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CarouselSlider(
-              options: CarouselOptions(
+            cs.CarouselSlider(
+              options: cs.CarouselOptions(
                 height: MediaQuery.of(context).size.width,
                 autoPlay: true,
                 autoPlayInterval: Duration(seconds: 10),
@@ -28,7 +28,7 @@ class Toilet extends StatelessWidget {
                   height: MediaQuery.of(context).size.width,
                 ),
                 Image.asset(
-                  "assets/image/Toilet2.jpeg",
+                  "assets/image/Toilet2.jpg",
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: MediaQuery.of(context).size.width,

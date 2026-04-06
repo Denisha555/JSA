@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:carousel_slider/carousel_slider.dart';
+import 'package:carousel_slider/carousel_slider.dart' as cs;
 
 class Kantin extends StatelessWidget {
   const Kantin({super.key});
@@ -15,16 +15,17 @@ class Kantin extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CarouselSlider(
-              options: CarouselOptions(
+            cs.CarouselSlider(
+              options: cs.CarouselOptions(
                 height: MediaQuery.of(context).size.width,
                 autoPlay: true,
                 autoPlayInterval: Duration(seconds: 10),
                 viewportFraction: 1.0,
               ),
               items: [
-                Image.asset("assets/image/Kantin1.jpeg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
-                Image.asset("assets/image/Kantin2.jpeg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
+                Image.asset("assets/image/Kantin1.jpg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
+                Image.asset("assets/image/Kantin2.jpg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
+                Image.asset("assets/image/Kantin3.jpg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
               ],
             ),
             Padding(
@@ -36,7 +37,7 @@ class Kantin extends StatelessWidget {
                   SizedBox(height: 10),
                   Text("Detail Fasilitas", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   SizedBox(height: 5),
-                  Text("Kami menyediakan berbagai fasilitas pendukung untuk menunjang kenyamanan dan kelancaran aktivitas bermain badminton Anda. Mulai dari beragam pilihan snack ringan dan minuman segar yang dapat dinikmati untuk mengembalikan energi setelah bermain, hingga layanan sewa raket dengan harga yang terjangkau bagi Anda yang tidak membawa perlengkapan pribadi. Selain itu, kami juga menyediakan penjualan bola bulu tangkis berkualitas yang cocok digunakan baik untuk latihan maupun pertandingan. Untuk memastikan pengalaman bermain yang lebih teratur dan efisien, tersedia pula layanan pencatatan jadwal lapangan yang memudahkan Anda dalam melakukan reservasi dan menghindari bentrok waktu. Dengan fasilitas yang lengkap dan praktis ini, kami berkomitmen untuk memberikan pengalaman bermain badminton yang nyaman, menyenangkan, dan tanpa hambatan.", textAlign: TextAlign.justify),
+                  Text("Kantin menyediakan berbagai pilihan makanan serta minuman segar yang dapat dinikmati sebelum maupun setelah bermain. Pilihan yang tersedia cukup beragam dan praktis untuk membantu mengembalikan energi setelah beraktivitas di lapangan. Area kantin juga menjadi tempat yang nyaman untuk beristirahat sejenak sambil menunggu giliran bermain.", textAlign: TextAlign.justify),
                   SizedBox(height: 20),
                 ],
               ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:carousel_slider/carousel_slider.dart';
+import 'package:carousel_slider/carousel_slider.dart' as cs;
 
 class Lapangan extends StatelessWidget {
   const Lapangan({super.key});
@@ -13,8 +13,8 @@ class Lapangan extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CarouselSlider(
-              options: CarouselOptions(
+            cs.CarouselSlider(
+              options: cs.CarouselOptions(
                 height: MediaQuery.of(context).size.width,
                 autoPlay: true,
                 autoPlayInterval: Duration(seconds: 10),
@@ -22,7 +22,7 @@ class Lapangan extends StatelessWidget {
               ),
               items: [
                 Image.asset(
-                  "assets/image/Lapangan1.jpeg",
+                  "assets/image/Lapangan1.jpg",
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: MediaQuery.of(context).size.width,
@@ -34,7 +34,7 @@ class Lapangan extends StatelessWidget {
                   height: MediaQuery.of(context).size.width,
                 ),
                 Image.asset(
-                  "assets/image/Lapangan2.jpeg",
+                  "assets/image/Lapangan2.jpg",
                   fit: BoxFit.cover,
                   width: double.infinity,
                   height: MediaQuery.of(context).size.width,
@@ -54,7 +54,7 @@ class Lapangan extends StatelessWidget {
                   ),
                   SizedBox(height: 5),
                   Text(
-                    "Kondisi lapangan kami cukup bersih dan terawat sehingga nyaman digunakan untuk bermain, baik santai maupun kompetitif, serta dilengkapi dengan area khusus untuk juri/wasit yang mendukung jalannya pertandingan. Selain itu, tersedia juga phone holder bagi Anda yang ingin merekam permainan dengan lebih praktis, serta dilengkapi CCTV untuk menjaga keamanan dan memastikan seluruh aktivitas di area lapangan tetap terpantau dengan baik.",
+                    "Lapangan terjaga bersih dan nyaman digunakan untuk bermain, baik santai maupun kompetitif. Tersedia juga kursi wasit yang bisa digunakan untuk memantau jalannya pertandingan atau mencatat skor. Selain itu, tersedia phone holder bagi yang ingin merekam permainan dengan lebih praktis. Area lapangan juga dilengkapi CCTV untuk menjaga keamanan dan memastikan aktivitas tetap terpantau.",
                     textAlign: TextAlign.justify,
                   ),
                   SizedBox(height: 20),

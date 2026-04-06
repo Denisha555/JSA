@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:carousel_slider/carousel_slider.dart';
+import 'package:carousel_slider/carousel_slider.dart' as cs;
 
 class SewaRaket extends StatelessWidget {
   const SewaRaket({super.key});
@@ -15,15 +15,15 @@ class SewaRaket extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CarouselSlider(
-              options: CarouselOptions(
+            cs.CarouselSlider(
+              options: cs.CarouselOptions(
                 height: MediaQuery.of(context).size.width,
                 autoPlay: true,
                 autoPlayInterval: Duration(seconds: 10),
                 viewportFraction: 1.0,
               ),
               items: [
-                Image.asset("assets/image/SewaRaket.jpeg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
+                Image.asset("assets/image/SewaRaket1.jpeg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
                 Image.asset("assets/image/SewaRaket2.jpeg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
               ],
             ),

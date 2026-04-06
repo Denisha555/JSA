@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:carousel_slider/carousel_slider.dart';
+import 'package:carousel_slider/carousel_slider.dart' as cs;
 
 class Musholla extends StatelessWidget {
   const Musholla({super.key});
@@ -15,8 +15,8 @@ class Musholla extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            CarouselSlider(
-              options: CarouselOptions(
+            cs.CarouselSlider(
+              options: cs.CarouselOptions(
                 height: MediaQuery.of(context).size.width,
                 autoPlay: true,
                 autoPlayInterval: Duration(seconds: 10),
@@ -25,7 +25,7 @@ class Musholla extends StatelessWidget {
               items: [
                 Image.asset("assets/image/Musholla1.jpeg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
                 Image.asset("assets/image/Musholla2.jpeg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
-                Image.asset("assets/image/Musholla3.jpeg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
+                Image.asset("assets/image/Musholla3.jpg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
               ],
             ),
             Padding(

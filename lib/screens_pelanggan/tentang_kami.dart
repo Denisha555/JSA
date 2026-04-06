@@ -11,7 +11,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_application_1/constants_file.dart';
 
 class HalamanTentangKami extends StatefulWidget {
   const HalamanTentangKami({super.key});
@@ -183,7 +182,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                                 width: 1.5,
                               ),
                               image: DecorationImage(
-                                image: AssetImage('assets/image/Lapangan1.jpeg'),
+                                image: AssetImage('assets/image/Lapangan1.jpg'),
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -215,7 +214,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                                 width: 1.5,
                               ),
                               image: DecorationImage(
-                                image: AssetImage('assets/image/SewaRaket.jpeg'),
+                                image: AssetImage('assets/image/SewaRaket1.jpeg'),
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -247,7 +246,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                                 width: 1.5,
                               ),
                               image: DecorationImage(
-                                image: AssetImage('assets/image/Parkiran.jpeg'),
+                                image: AssetImage('assets/image/Parkiran1.jpg'),
                                 fit: BoxFit.cover,
                               ),
                             ),
@@ -283,7 +282,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                                 width: 1.5,
                               ),
                               image: DecorationImage(
-                                image: AssetImage('assets/image/Kantin1.jpeg'),
+                                image: AssetImage('assets/image/Kantin1.jpg'),
                                 fit: BoxFit.cover,
                               ),
                             ),
