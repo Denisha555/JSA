@@ -287,11 +287,12 @@ class FirebaseGetBooking {
     }
   }
 
-  Future<List<TimeSlotModel>> getBookingForReport(String startDate, String status) async {
+  Future<List<TimeSlotModel>> getBookingForReport(String startDate, String endDate, String status) async {
     try {
       QuerySnapshot timeSlotsSnapshot =
           await firestore.collection('time_slots')
-          .where('date', isGreaterThanOrEqualTo: startDate)
+          .where('date', isGreaterThan: startDate)
+          .where('date', isLessThan: endDate)
           .get();
 
       if (timeSlotsSnapshot.docs.isEmpty) {

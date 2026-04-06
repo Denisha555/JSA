@@ -295,17 +295,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                                       : () async {
                                         await _getLaporan();
                                       },
-                              icon:
-                                  _isLoading
-                                      ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
-                                        ),
-                                      )
-                                      : const Icon(Icons.bar_chart),
+                              
                               label: Text(
                                 _isLoading ? 'Memuat...' : 'Tampilkan Laporan',
                               ),
@@ -694,6 +684,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
     try {
       final data = await FirebaseGetBooking().getBookingForReport(
         "$_selectedTahun-${(bulanList.indexOf(_selectedBulan!) + 1).toString().padLeft(2, '0')}",
+        "$_selectedTahun-${(bulanList.indexOf(_selectedBulan!) + 2).toString().padLeft(2, '0')}",
         _selectedStatus!,
       );
 
