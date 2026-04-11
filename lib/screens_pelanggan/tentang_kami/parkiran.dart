@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart' as cs;
 
-class Parkiran extends StatelessWidget {
+class Parkiran extends StatefulWidget {
   const Parkiran({super.key});
 
+  @override
+  State<Parkiran> createState() => _ParkiranState();
+}
+
+class _ParkiranState extends State<Parkiran> {
+  int activeIndex = 0;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -15,16 +21,40 @@ class Parkiran extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            cs.CarouselSlider(
-              options: cs.CarouselOptions(
-                height: MediaQuery.of(context).size.width,
-                autoPlay: true,
-                autoPlayInterval: Duration(seconds: 10),
-                viewportFraction: 1.0,
-              ),
-              items: [
-                Image.asset("assets/image/Parkiran1.jpg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
-                Image.asset("assets/image/Parkiran2.jpg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
+            Stack(
+              children: [
+                cs.CarouselSlider(
+                  options: cs.CarouselOptions(
+                    height: MediaQuery.of(context).size.width,
+                    autoPlay: true,
+                    autoPlayInterval: Duration(seconds: 10),
+                    viewportFraction: 1.0,
+                    onPageChanged: (index, reason) {
+                      setState(() {
+                        activeIndex = index;
+                      });
+                    },
+                  ),
+                  items: [
+                    Image.asset("assets/image/Parkiran1.jpg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
+                    Image.asset("assets/image/Parkiran2.jpg", fit: BoxFit.cover, width: double.infinity, height: MediaQuery.of(context).size.width,),
+                  ],
+                ),
+                Positioned(bottom: 10, left: 0, right: 0, child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [0, 1].asMap().entries.map((entry) {
+                    bool isActive = activeIndex == entry.key; 
+                    return Container(
+                      margin: EdgeInsets.symmetric(horizontal: 4),
+                      height: 6,
+                      width: isActive ? 25 : 10, // aktif lebih panjang
+                      decoration: BoxDecoration(
+                        color: isActive ? Colors.white : Colors.grey,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    );
+                  }).toList(),
+                ))
               ],
             ),
             Padding(

@@ -491,24 +491,24 @@ class _HalamanMasukState extends State<HalamanMasuk>
                           ),
                         ),
                         
-                      GestureDetector(
-                        onTap: () {
+                      // GestureDetector(
+                      //   onTap: () {
                           // Navigator.push(context, MaterialPageRoute(
                           //   builder: (context) => HalamanLupaPassword(),
                           // ));
-                        },
-                        child: const Padding(
-                          padding: EdgeInsets.only(top: 16.0),
-                          child: Text(
-                            "Lupa password?",
-                            style: TextStyle(
-                              color: primaryColor,
-                              fontSize: 14,
-                              decoration: TextDecoration.underline,
-                            ),
-                          ),
-                        ),
-                      )
+                        // },
+                        // child: const Padding(
+                        //   padding: EdgeInsets.only(top: 16.0),
+                        //   child: Text(
+                        //     "Lupa password?",
+                        //     style: TextStyle(
+                        //       color: primaryColor,
+                        //       fontSize: 14,
+                        //       decoration: TextDecoration.underline,
+                        //     ),
+                        //   ),
+                        // ),
+                      // )
                     ],
                   ),
                 ),
