@@ -371,7 +371,7 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
                         _buildTextField(
                           controller: clubController,
                           labelText: "Nama Club",
-                          hintText: "Opsional - nama club/tim Anda",
+                          hintText: "Opsional",
                           icon: Icons.groups,
                           errorText: errorTextClub,
                           onChanged: () => setState(() => errorTextClub = null),

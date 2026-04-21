@@ -529,6 +529,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 },
               ),
               const SizedBox(height: 10),
+              Divider(),
               const Text(
                 'Catatan: Booking tidak dikenakan DP, harap datang sesuai jadwal yang dipilih',
                 style: TextStyle(fontSize: 13, color: Colors.grey),

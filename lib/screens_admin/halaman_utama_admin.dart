@@ -320,58 +320,65 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
 
   // Quick access menu buttons
   Widget _buildQuickAccessMenu(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Container(
-        height: 100,
-        decoration: BoxDecoration(color: Colors.grey[100]),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildQuickAccessButton(
-                icon: 'jadwal',
-                label: "Jadwal",
-                onTap: () => _navigateToScreen(HalamanJadwal()),
-              ),
-              SizedBox(width: 5),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Container(
+            height: 100,
+            width: constraints.maxWidth,
+            decoration: BoxDecoration(color: Colors.grey[100]),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildQuickAccessButton(
+                    icon: 'jadwal',
+                    label: "Jadwal",
+                    onTap: () => _navigateToScreen(HalamanJadwal()),
+                  ),
+                  SizedBox(width: 5),
+        
+                  _buildQuickAccessButton(
+                    icon: 'user',
+                    label: 'Customers',
+                    onTap: () => _navigateToScreen(HalamanCustomers()),
+                  ),
 
-              _buildQuickAccessButton(
-                icon: 'user',
-                label: 'Customers',
-                onTap: () => _navigateToScreen(HalamanCustomers()),
+                  SizedBox(width: 5),
+                  _buildQuickAccessButton(
+                    icon: 'lapangan',
+                    label: "Lapangan",
+                    onTap: () => _navigateToScreen(HalamanLapangan()),
+                  ),
+        
+                  SizedBox(width: 6),
+                  _buildQuickAccessButton(
+                    icon: 'booking',
+                    label: "Booking",
+                    onTap: () => _navigateToScreen(HalamanKalender()),
+                  ),
+        
+                  SizedBox(width: 12),
+                  _buildQuickAccessButton(
+                    icon: 'harga',
+                    label: "Harga",
+                    onTap: () => _navigateToScreen(HalamanPrice()),
+                  ),
+                  SizedBox(width: 12),
+        
+                  _buildQuickAccessButton(
+                    icon: 'promo_event',
+                    label: "Promo & Event",
+                    onTap: () => _navigateToScreen(HalamanPromoEvent()),
+                  ),
+                ],
               ),
-              _buildQuickAccessButton(
-                icon: 'lapangan',
-                label: "Lapangan",
-                onTap: () => _navigateToScreen(HalamanLapangan()),
-              ),
-
-              SizedBox(width: 6),
-              _buildQuickAccessButton(
-                icon: 'booking',
-                label: "Booking",
-                onTap: () => _navigateToScreen(HalamanKalender()),
-              ),
-
-              SizedBox(width: 12),
-              _buildQuickAccessButton(
-                icon: 'harga',
-                label: "Harga",
-                onTap: () => _navigateToScreen(HalamanPrice()),
-              ),
-              SizedBox(width: 12),
-
-              _buildQuickAccessButton(
-                icon: 'promo_event',
-                label: "Promo & Event",
-                onTap: () => _navigateToScreen(HalamanPromoEvent()),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      }
     );
   }
 

@@ -307,9 +307,9 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
                         base64Image.isNotEmpty
                             ? Image.memory(
                               base64Decode(base64Image),
-                              height: 180,
+                              height: MediaQuery.of(context).size.height * 0.5,
                               width: double.infinity,
-                              fit: BoxFit.cover,
+                              fit: BoxFit.fitHeight,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
                                   height: 180,
