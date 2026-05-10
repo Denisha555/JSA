@@ -130,14 +130,9 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
         errorTextNama = 'Nama lengkap tidak boleh kosong';
       });
       isValid = false;
-    } else if (fullName.length < 2) {
-      setState(() {
-        errorTextNama = 'Nama minimal 2 karakter';
-      });
-      isValid = false;
     } else if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(fullName)) {
       setState(() {
-        errorTextNama = 'Nama hanya boleh berisi huruf dan spasi';
+        errorTextNama = 'Nama lengkap hanya boleh berisi huruf dan spasi';
       });
       isValid = false;
     }

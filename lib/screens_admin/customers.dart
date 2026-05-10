@@ -8,7 +8,6 @@ import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:flutter_application_1/services/user/firebase_delete_user.dart';
 
-
 class HalamanCustomers extends StatefulWidget {
   const HalamanCustomers({super.key});
 
@@ -26,16 +25,14 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
     _fetchUsers();
   }
 
-  // Data fetching method
   Future<void> _fetchUsers() async {
+    if (mounted) setState(() => isLoading = true);
     try {
       final users = await FirebaseGetUser().getUsers();
       _processUsers(users);
     } catch (e) {
       if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
+        setState(() => isLoading = false);
         showErrorSnackBar(context, 'Gagal memuat data: $e');
       }
     }
@@ -43,49 +40,378 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
 
   void _processUsers(List<UserModel> allUsers) {
     final Map<String, Map<String, String>> tempData = {};
-
     for (var user in allUsers) {
-      final role = user.role;
-
-      // Skip admin and owner roles
-      if (role == 'admin' || role == 'owner') {
-        continue;
-      }
-
-      final status = (role == 'member') ? 'member' : 'nonMember';
-      tempData[user.username] = {'status': status};
+      if (user.role == 'admin' || user.role == 'owner') continue;
+      tempData[user.username] = {
+        'status': (user.role == 'member') ? 'member' : 'nonMember',
+      };
     }
-
-    if (mounted) {
+    if (mounted)
       setState(() {
         userdata = tempData;
         isLoading = false;
       });
-    }
   }
 
-  // Navigation methods
   void _navigateToUserInfo(String username) async {
+    // Tampilkan loading indicator saat fetch
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (_) => const Center(
+            child: CircularProgressIndicator(color: Colors.white),
+          ),
+    );
     try {
       await FirebaseCheckUser().checkMembership(username);
       await FirebaseCheckUser().checkRewardTime(username);
-      List<UserModel> userdata = await FirebaseGetUser().getUserByUsername(
-        username,
-      );
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => _buildUserInfoDialog(userdata),
-        );
-      }
+      final users = await FirebaseGetUser().getUserByUsername(username);
+      if (!mounted) return;
+      Navigator.of(context).pop(); // tutup loading
+      _showUserInfoSheet(users);
     } catch (e) {
       if (!mounted) return;
+      Navigator.of(context).pop();
       showErrorSnackBar(context, 'Gagal memuat informasi pengguna: $e');
     }
   }
 
-  void _showAddUserDialog() {
-    showDialog(context: context, builder: (context) => _buildAddUserDialog());
+  // ✅ Bottom sheet — lebih modern dari dialog
+  void _showUserInfoSheet(List<UserModel> users) {
+    if (users.isEmpty) return;
+    final user = users[0];
+    final isMember = user.role == 'member';
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Handle
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                // Avatar + nama
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 26,
+                      backgroundColor:
+                          isMember ? Colors.blueAccent : Colors.grey[400],
+                      child: Text(
+                        user.username.isNotEmpty
+                            ? user.username[0].toUpperCase()
+                            : '?',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user.username,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color:
+                                isMember ? Colors.blue[50] : Colors.grey[100],
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(
+                            isMember ? 'Member' : 'Non Member',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color:
+                                  isMember
+                                      ? Colors.blue[800]
+                                      : Colors.grey[700],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  child: Divider(height: 1),
+                ),
+                _buildInfoRow('Club', user.club == "" ? "-" : user.club),
+                _buildInfoRow(
+                  'No. Telepon',
+                  user.noTelp == "" ? "-" : user.noTelp,
+                ),
+                _buildInfoRow(
+                  'Mulai point',
+                  user.startTimePoint == "" ? "-" : user.startTimePoint,
+                ),
+                _buildInfoRow(
+                  'Mulai member',
+                  user.startTimeMember == "" ? "-" : user.startTimeMember,
+                ),
+                _buildInfoRow(
+                  'Poin',
+                  user.point.toString() == "" ? "0" : user.point.toString(),
+                ),
+                _buildInfoRow(
+                  'Cancel',
+                  user.cancel.toString() == "" ? "0" : user.cancel.toString(),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Tutup', style: TextStyle(fontSize: 15)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<bool> _showDeleteDialog(BuildContext context, String username) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text('Hapus pengguna?'),
+            content: Text('$username akan dihapus secara permanen.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () async {
+                  await FirebaseDeleteUser().deleteUser(username);
+                  if (!ctx.mounted) return;
+                  Navigator.of(ctx).pop(true);
+                },
+                child: const Text('Hapus'),
+              ),
+            ],
+          ),
+    );
+    if (confirmed == true) _fetchUsers();
+    return confirmed ?? false;
+  }
+
+  Future<bool> _showEditDialog(BuildContext context, String username) async {
+    List<UserModel> users;
+    try {
+      users = await FirebaseGetUser().getUserByUsername(username);
+    } catch (e) {
+      if (mounted) showErrorSnackBar(context, 'Gagal memuat data: $e');
+      return false;
+    }
+    if (users.isEmpty) return false;
+    final user = users[0];
+
+    final clubController = TextEditingController(text: user.club);
+    final notelpController = TextEditingController(text: user.noTelp);
+    final waktuPointController = TextEditingController(
+      text: user.startTimePoint.toString(),
+    );
+    final waktuMemberController = TextEditingController(
+      text: user.startTimeMember.toString(),
+    );
+    final pointController = TextEditingController(text: user.point.toString());
+    final cancelController = TextEditingController(
+      text: user.cancel.toString(),
+    );
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder:
+          (ctx) => Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              12,
+              20,
+              MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Edit pengguna',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user.username,
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: clubController,
+                    decoration: _inputDecor('Club'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: notelpController,
+                    decoration: _inputDecor('No. Telepon'),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: waktuPointController,
+                    decoration: _inputDecor('Waktu mulai (point)'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: waktuMemberController,
+                    decoration: _inputDecor('Waktu mulai (member)'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: pointController,
+                    decoration: _inputDecor('Poin'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: cancelController,
+                    decoration: _inputDecor('Cancel'),
+                    keyboardType: TextInputType.number,
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.of(ctx).pop(false),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                          ),
+                          child: const Text('Batal'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 13),
+                          ),
+                          onPressed: () async {
+                            // TODO: FirebaseUpdateUser().updateUser(...)
+                            Navigator.of(ctx).pop(true);
+                          },
+                          child: const Text('Simpan'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+
+    clubController.dispose();
+    notelpController.dispose();
+    waktuPointController.dispose();
+    waktuMemberController.dispose();
+    pointController.dispose();
+    cancelController.dispose();
+
+    if (saved == true) _fetchUsers();
+    return false;
+  }
+
+  InputDecoration _inputDecor(String label) {
+    return InputDecoration(
+      labelText: label,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      isDense: true,
+    );
   }
 
   @override
@@ -93,20 +419,20 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
+        backgroundColor: Colors.grey[100],
         appBar: _buildAppBar(),
         body: _buildBody(),
-        floatingActionButton: _buildFloatingActionButton(),
+        floatingActionButton: _buildFAB(),
       ),
     );
   }
 
-  // AppBar widget
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
       title: const Text("Customers"),
       bottom: const TabBar(
         labelColor: Colors.white,
-        unselectedLabelColor: Colors.white70,
+        unselectedLabelColor: Colors.white60,
         indicatorColor: Colors.white,
         indicatorWeight: 3,
         indicatorSize: TabBarIndicatorSize.tab,
@@ -114,13 +440,13 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
           Tab(
             child: Text(
               "Member",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
           ),
           Tab(
             child: Text(
               "Non Member",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -128,414 +454,337 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
     );
   }
 
-  // Body widget
   Widget _buildBody() {
-    if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
+    if (isLoading) return _buildSkeletonList();
     return TabBarView(
       children: [_buildUserList('member'), _buildUserList('nonMember')],
     );
   }
 
-  // FloatingActionButton widget
-  Widget _buildFloatingActionButton() {
+  // ✅ Skeleton loading — lebih elegan dari spinner
+  Widget _buildSkeletonList() {
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: 5,
+      itemBuilder:
+          (_, __) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  _skeletonBox(42, 42, radius: 21),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _skeletonBox(12, double.infinity),
+                        const SizedBox(height: 8),
+                        _skeletonBox(10, 80),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+    );
+  }
+
+  Widget _skeletonBox(double height, double width, {double radius = 6}) {
+    return Container(
+      height: height,
+      width: width == double.infinity ? null : width,
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(radius),
+      ),
+    );
+  }
+
+  Widget _buildFAB() {
     return FloatingActionButton(
-      onPressed: _showAddUserDialog,
+      onPressed: _showAddUserSheet,
       backgroundColor: primaryColor,
       child: const Icon(Icons.add, color: Colors.white),
     );
   }
 
-  // User list widget
+  // ✅ Bottom sheet untuk tambah user
+  void _showAddUserSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder:
+          (ctx) => Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const Text(
+                  'Pilih jenis akun',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 16),
+                _buildAddOption(
+                  title: 'Member',
+                  subtitle: 'Akun dengan keanggotaan aktif',
+                  icon: Icons.person,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const HalamanMemberAdmin(),
+                      ),
+                    ).then((_) {
+                      if (mounted) _fetchUsers();
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildAddOption(
+                  title: 'Non Member',
+                  subtitle: 'Akun tanpa keanggotaan',
+                  icon: Icons.person_outline,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const HalamanNonMemberAdmin(),
+                      ),
+                    ).then((_) {
+                      if (mounted) _fetchUsers();
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+
+  Widget _buildAddOption({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, color: primaryColor, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+            const Spacer(),
+            Icon(Icons.chevron_right, color: Colors.grey[400], size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildUserList(String status) {
-    final filteredUsers =
-        userdata.entries
-            .where((entry) => entry.value['status'] == status)
-            .map((entry) => _buildUserCard(entry.key, status))
-            .toList();
+    final filtered =
+        userdata.entries.where((e) => e.value['status'] == status).toList();
+
+    final count = filtered.length;
 
     return RefreshIndicator(
       onRefresh: _fetchUsers,
       child:
-          filteredUsers.isEmpty
+          filtered.isEmpty
               ? _buildEmptyState()
               : ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(16),
-                itemCount: filteredUsers.length,
-                itemBuilder: (context, index) => filteredUsers[index],
+                itemCount: filtered.length + 1,
+                itemBuilder: (context, index) {
+                  if (index == 0) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        '$count ${status == 'member' ? 'member' : 'non member'} aktif',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[500],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    );
+                  }
+                  final entry = filtered[index - 1];
+                  return _buildUserCard(entry.key, status);
+                },
               ),
     );
   }
 
-  // Empty state widget
   Widget _buildEmptyState() {
     return ListView(
-      children: const [
-        SizedBox(height: 100),
-        Center(
+      children: [
+        const SizedBox(height: 120),
+        Icon(Icons.people_outline, size: 48, color: Colors.grey[300]),
+        const SizedBox(height: 12),
+        const Center(
           child: Text(
             'Belum ada data',
-            style: TextStyle(fontSize: 16, color: Colors.grey),
+            style: TextStyle(fontSize: 15, color: Colors.grey),
           ),
         ),
       ],
     );
   }
 
-  // User card widget
   Widget _buildUserCard(String username, String status) {
-    return GestureDetector(
-      onTap: () => _navigateToUserInfo(username),
+    final isMember = status == 'member';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
       child: Dismissible(
         key: Key(username),
         direction: DismissDirection.horizontal,
         background: Container(
           alignment: Alignment.centerLeft,
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(color: Colors.green),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            color: Colors.green,
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: const Icon(Icons.edit, color: Colors.white),
         ),
         secondaryBackground: Container(
           alignment: Alignment.centerRight,
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(color: Colors.red),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            color: Colors.red,
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: const Icon(Icons.delete, color: Colors.white),
         ),
         confirmDismiss: (direction) async {
           if (direction == DismissDirection.endToStart) {
-            return await showDialog(
-              context: context,
-              builder: (context) {
-                return AlertDialog(
-                  title: const Text('Konfirmasi Hapus'),
-                  content: Text(
-                    'Apakah Anda yakin ingin menghapus pengguna $username?',
-                  ),
-                  actions: <Widget>[
-                    TextButton(
-                      child: const Text('Batal'),
-                      onPressed: () => Navigator.of(context).pop(false),
+            return await _showDeleteDialog(context, username);
+          } else {
+            return await _showEditDialog(context, username);
+          }
+        },
+        child: GestureDetector(
+          onTap: () => _navigateToUserInfo(username),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.grey.shade100),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor:
+                      isMember ? Colors.blueAccent : Colors.grey[400],
+                  child: Text(
+                    username.isNotEmpty ? username[0].toUpperCase() : '?',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
                     ),
-                    TextButton(
-                      child: const Text('Hapus'),
-                      onPressed: () async {
-                        await FirebaseDeleteUser().deleteUser(username);
-                        if (!context.mounted) return;
-                        Navigator.of(context).pop(true);
-                        _fetchUsers();
-                      },
-                    ),
-                  ],
-                );
-              },
-            );
-          } else if (direction == DismissDirection.startToEnd) {
-            List<UserModel> userData = await FirebaseGetUser()
-                .getUserByUsername(username);
-
-            return await showDialog(
-              context: context,
-              builder: (context) {
-                var clubController = TextEditingController(
-                  text: userData[0].club,
-                );
-                var notelpController = TextEditingController(
-                  text: userData[0].noTelp,
-                );
-                var waktuMulaiPointController = TextEditingController(
-                  text: userData[0].startTimePoint.toString(),
-                );
-                var waktuMulaiMemberController = TextEditingController(
-                  text: userData[0].startTimeMember.toString(),
-                );
-                var pointController = TextEditingController(
-                  text: userData[0].point.toString(),
-                );
-                var cancelController = TextEditingController(
-                  text: userData[0].cancel.toString(),
-                );
-
-                return AlertDialog(
-                  title: const Text(
-                    'Edit Pengguna',
-                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  content: Column(
-                    mainAxisAlignment: MainAxisAlignment.start,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Username : ${userData[0].username}',
-                        style: TextStyle(fontSize: 15),
-                      ),
-                      TextField(
-                        controller: clubController,
-                        decoration: const InputDecoration(labelText: 'Club'),
-                      ),
-                      TextField(
-                        controller: notelpController,
-                        decoration: const InputDecoration(
-                          labelText: 'No. Telepon',
+                        username,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      TextField(
-                        controller: waktuMulaiPointController,
-                        decoration: const InputDecoration(
-                          labelText: 'Waktu Mulai (Point)',
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isMember ? Colors.blue[50] : Colors.grey[100],
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text(
+                          isMember ? 'Member' : 'Non Member',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color:
+                                isMember ? Colors.blue[800] : Colors.grey[700],
+                          ),
                         ),
                       ),
-                      TextField(
-                        controller: waktuMulaiMemberController,
-                        decoration: const InputDecoration(
-                          labelText: 'Waktu Mulai (Member)',
-                        ),
-                      ),
-                      TextField(
-                        controller: pointController,
-                        decoration: const InputDecoration(labelText: 'Point'),
-                      ),
-                      TextField(
-                        controller: cancelController,
-                        decoration: const InputDecoration(labelText: 'Cancel'),
-                      )
                     ],
                   ),
-                  actions: <Widget>[
-                    TextButton(
-                      child: const Text('Tutup'),
-                      onPressed: () => Navigator.of(context).pop(false),
-                    ),
-                  ],
-                );
-              },
-            );
-          }
-          return Future.value(false);
-        },
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(12), // sama dengan background
-          child: Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  _buildUserAvatar(username, status),
-                  const SizedBox(width: 16),
-                  _buildUserInfo(username, status),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // User avatar widget
-  Widget _buildUserAvatar(String username, String status) {
-    return CircleAvatar(
-      radius: 24,
-      backgroundColor:
-          status == 'member' ? Colors.blueAccent : Colors.grey[400],
-      child: Text(
-        username.isNotEmpty ? username[0].toUpperCase() : '?',
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  // User info widget
-  Widget _buildUserInfo(String username, String status) {
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            username,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Status: ${status == 'member' ? 'Member' : 'Non Member'}',
-            style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // User info dialog
-  Widget _buildUserInfoDialog(List<UserModel> userdata) {
-    if (userdata.isEmpty) {
-      return _buildErrorDialog('Data pengguna tidak ditemukan');
-    }
-
-    final user = userdata[0];
-
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Informasi Customer',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            _buildUserInfoRow('Username', user.username),
-            _buildUserInfoRow('Club', user.club),
-            _buildUserInfoRow('No Telepon', user.noTelp),
-            _buildUserInfoRow('Waktu Mulai (point)', user.startTimePoint),
-            _buildUserInfoRow('Waktu Mulai (member)', user.startTimeMember),
-            _buildUserInfoRow('Poin', user.totalBooking.toString()),
-            _buildUserInfoRow('Cancel', user.cancel.toString()),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Tutup'),
                 ),
+                Icon(Icons.chevron_right, color: Colors.grey[300], size: 18),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // User info row widget
-  Widget _buildUserInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
           ),
-          Expanded(child: Text(value)),
-        ],
-      ),
-    );
-  }
-
-  // Error dialog
-  Widget _buildErrorDialog(String message) {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error, color: Colors.red, size: 48),
-            const SizedBox(height: 16),
-            Text(
-              'Error',
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Text(message),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Tutup'),
-            ),
-          ],
         ),
       ),
-    );
-  }
-
-  // Add user dialog
-  Widget _buildAddUserDialog() {
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Pilih Jenis Akun',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            _buildAddUserOption(
-              'Member',
-              Icons.person,
-              () => _navigateToAddMember(),
-            ),
-            const SizedBox(height: 10),
-            _buildAddUserOption(
-              'Non Member',
-              Icons.person_outline,
-              () => _navigateToAddNonMember(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Add user option widget
-  Widget _buildAddUserOption(String title, IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey[300]!),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: primaryColor),
-            const SizedBox(width: 16),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Navigation methods
-  void _navigateToAddMember() {
-    Navigator.of(context).pop(); // Close dialog first
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const HalamanMemberAdmin()),
-    );
-  }
-
-  void _navigateToAddNonMember() {
-    Navigator.of(context).pop(); // Close dialog first
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const HalamanNonMemberAdmin()),
     );
   }
 }

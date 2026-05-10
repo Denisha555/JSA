@@ -14,49 +14,60 @@ class AddCloseDay {
       final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
       final courts = await firestore.collection('lapangan').get();
       final batch = firestore.batch();
+      print(dateStr);
 
       final isDateInitialized =
           await firestore
               .collection('time_slots')
               .where('date', isEqualTo: dateStr)
-              .limit(1)
               .get();
 
-      if (isDateInitialized.docs.isEmpty) {
+      print('Courts count: ${courts.docs.length}');
+      print('Initialized slots count: ${isDateInitialized.docs.length}');
+
+      if (isDateInitialized.docs.length != courts.docs.length) {
         await FirebaseAddTimeSlot().addTimeSlot(selectedDate);
       }
 
       final startMins = timeToMinutes(startTime);
       final endMins = timeToMinutes(endTime);
+      print('Start mins: $startMins, End mins: $endMins');
 
       for (final court in courts.docs) {
         final courtNumber = court['nomor'];
+        final docId = '${courtNumber}_$dateStr';
+
+        final doc = await firestore.collection('time_slots').doc(docId).get();
+        final slots = doc.data()!['slots'] as List<dynamic>;
+        print('Processing court: $courtNumber');
 
         for (int mins = startMins; mins < endMins; mins += 30) {
-          final docId = '${courtNumber}_$dateStr';
-          final doc = await firestore.collection('time_slots').doc(docId).get();
+          String start = minutesToFormattedTime(mins);
+          String end = minutesToFormattedTime(mins + 30);
 
           if (!doc.exists) {
             throw Exception('Slot not found');
           }
 
-          final slots = doc.data()!['slots'] as List<dynamic>;
           final slotIndex = slots.indexWhere(
-            (slot) => slot['startTime'] == startTime,
+            (slot) => slot['startTime'] == start,
           );
 
           if (slotIndex == -1 ||
-              !slots[slotIndex]['isAvailable'] ||
+              slots[slotIndex]['isAvailable'] == false ||
               slots[slotIndex]['isClosed'] == true ||
               slots[slotIndex]['isHoliday'] == true) {
             throw Exception('Slot not available');
           }
 
-          await firestore.collection('time_slots').doc(docId).set({
-            'slots[$slotIndex].isAvailable': false,
-            'slots[$slotIndex].isClosed': true,
-          }, SetOptions(merge: true));
+          slots[slotIndex]['isClosed'] = true;
+          slots[slotIndex]['isAvailable'] = false;
         }
+
+        final timeSlotRef = firestore
+            .collection('time_slots')
+            .doc('${courtNumber}_$dateStr');
+        batch.set(timeSlotRef, {'slots': slots}, SetOptions(merge: true));
       }
 
       final closeDayRef = firestore.collection('jadwal_khusus').doc();
@@ -114,7 +125,7 @@ class AddCloseDay {
           updatedSlot['isAvailable'] = false;
           updatedSlots.add(updatedSlot);
         }
-        
+
         updateBatch.set(doc.reference, {
           'slots': updatedSlots,
         }, SetOptions(merge: true));

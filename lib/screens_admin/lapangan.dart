@@ -114,7 +114,7 @@ class _HalamanLapanganState extends State<HalamanLapangan>
     String nomor = _nomorController.text.trim();
 
     if (nomor.isEmpty) {
-      showErrorSnackBar(context, 'Nomor lapangan tidak boleh kosong');
+      showErrorSnackBar(context, 'Nama lapangan tidak boleh kosong');
       return;
     }
 

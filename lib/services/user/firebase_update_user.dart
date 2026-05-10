@@ -17,8 +17,7 @@ class FirebaseUpdateUser {
         
         final doc = await firestore.collection('users').doc(username).get();
         final data = doc.data()!;
-        await firestore.collection('users').doc(value).set(data);
-        await firestore.collection('users').doc(username).delete();
+        await firestore.collection('users').doc(username).set(data);
         
       } else {
         throw Exception('User does not exist');

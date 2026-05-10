@@ -5,7 +5,6 @@ import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 import 'package:flutter_application_1/services/user/firebase_add_user.dart';
 
-
 class HalamanNonMemberAdmin extends StatefulWidget {
   const HalamanNonMemberAdmin({super.key});
 
@@ -169,11 +168,13 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
         return;
       }
 
-      final clubUsed = await FirebaseCheckUser().checkExistence('club', club);
-      if (clubUsed) {
-        if (!mounted) return;
-        showErrorSnackBar(context, 'Club sudah digunakan');
-        return;
+      if (club != '') {
+        final clubUsed = await FirebaseCheckUser().checkExistence('club', club);
+        if (clubUsed) {
+          if (!mounted) return;
+          showErrorSnackBar(context, 'Club sudah digunakan');
+          return;
+        }
       }
 
       final telpUsed = await FirebaseCheckUser().checkExistence(

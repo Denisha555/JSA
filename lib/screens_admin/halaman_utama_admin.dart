@@ -326,7 +326,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
           scrollDirection: Axis.horizontal,
           child: Container(
             height: 100,
-            width: constraints.maxWidth,
+            // width: constraints.maxWidth,
             decoration: BoxDecoration(color: Colors.grey[100]),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),

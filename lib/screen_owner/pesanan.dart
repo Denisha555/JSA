@@ -39,7 +39,7 @@ class _HalamanPesananState extends State<HalamanPesanan> {
         _selectedDate = picked;
         _controller.text = DateFormat('dd/MM/yyyy').format(picked);
       });
-      
+
       // Reload data for the new date
       await getDetail();
     }
@@ -51,21 +51,28 @@ class _HalamanPesananState extends State<HalamanPesanan> {
     });
 
     try {
-      final newDetail = await FirebaseGetBooking().getBookingByDate(_selectedDate);
-      setState(() {
-        detail = newDetail;
-        _isLoading = false;
-      });
-      print('date: ${detail[0].date}, startTime: ${detail[0].startTime}, endTime: ${detail[0].endTime}, type: ${detail[0].type}');
+      final newDetail = await FirebaseGetBooking().getBookingByDate(
+        _selectedDate,
+      );
+      if (newDetail.isEmpty) {
+        setState(() {
+          detail = [];
+          _isLoading = false;
+        });
+        return;
+      } else {
+        setState(() {
+          detail = newDetail;
+          _isLoading = false;
+        });
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
       });
       // Handle error appropriately
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: $e')),
-        );
+        print('Error fetching booking data: $e');
       }
     }
   }
@@ -79,16 +86,14 @@ class _HalamanPesananState extends State<HalamanPesanan> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Pesanan'),
-      ),
+      appBar: AppBar(title: const Text('Pesanan')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             TextField(
               controller: _controller,
-              readOnly: true, 
+              readOnly: true,
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -102,29 +107,32 @@ class _HalamanPesananState extends State<HalamanPesanan> {
             const SizedBox(height: 16),
             // Display the booking data
             Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : detail.isEmpty
+              child:
+                  _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : detail.isEmpty
                       ? const Center(
-                          child: Text(
-                            'No bookings found for this date',
-                            style: TextStyle(fontSize: 16),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: detail.length,
-                          itemBuilder: (context, index) {
-                            final booking = detail[index];
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              child: ListTile(
-                                title: Text(booking.date),
-                                subtitle: Text('Time: ${booking.startTime} - ${booking.endTime}'),
-                                trailing: Text('Status: ${booking.type}'),
-                              ),
-                            );
-                          },
+                        child: Text(
+                          'No bookings found for this date',
+                          style: TextStyle(fontSize: 16),
                         ),
+                      )
+                      : ListView.builder(
+                        itemCount: detail.length,
+                        itemBuilder: (context, index) {
+                          final booking = detail[index];
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              title: Text(booking.date),
+                              subtitle: Text(
+                                'Time: ${booking.startTime} - ${booking.endTime}',
+                              ),
+                              trailing: Text('Status: ${booking.type}'),
+                            ),
+                          );
+                        },
+                      ),
             ),
           ],
         ),

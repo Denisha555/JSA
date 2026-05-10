@@ -28,13 +28,12 @@ class _HalamanMasukState extends State<HalamanMasuk>
   bool _isLoading = false;
   TextEditingController usernameController = TextEditingController();
   TextEditingController passwordController = TextEditingController();
-  String? errorTextUsername;
-  String? errorTextPassword;
 
   // Menambahkan animasi
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  final _formKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -74,34 +73,6 @@ class _HalamanMasukState extends State<HalamanMasuk>
   }
 
   void _login() async {
-    // Reset error states
-    setState(() {
-      errorTextUsername = null;
-      errorTextPassword = null;
-    });
-
-    // Validasi input
-    if (usernameController.text.isEmpty) {
-      setState(() {
-        errorTextUsername = "Username tidak boleh kosong";
-      });
-      return;
-    }
-
-    if (passwordController.text.isEmpty) {
-      setState(() {
-        errorTextPassword = "Password tidak boleh kosong";
-      });
-      return;
-    }
-
-    if (passwordController.text.length < 6) {
-      setState(() {
-        errorTextPassword = "Password minimal 6 karakter";
-      });
-      return;
-    }
-
     // Set loading state
     setState(() {
       _isLoading = true;
@@ -285,231 +256,243 @@ class _HalamanMasukState extends State<HalamanMasuk>
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20.0),
                 child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Logo
-                      Padding(
-                        padding: EdgeInsets.only(
-                          top: screenHeight * 0.01,
-                          bottom: screenHeight * 0.03,
-                          right: screenWidth * 0.1,
-                          left: screenWidth * 0.1,
-                        ),
-                        child: Image.asset(
-                          'assets/image/LogoJSA.jpg',
-                          width: 150,
-                          height: 150,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 150,
-                              height: 150,
-                              decoration: BoxDecoration(
-                                color: Colors.grey[300],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.image_not_supported,
-                                size: 50,
-                                color: Colors.grey,
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-
-                      // Judul login
-                      const Padding(
-                        padding: EdgeInsets.only(bottom: 30.0),
-                        child: Text(
-                          "Masuk ke Akun Anda",
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: primaryColor,
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Logo
+                        Padding(
+                          padding: EdgeInsets.only(
+                            top: screenHeight * 0.01,
+                            bottom: screenHeight * 0.03,
+                            right: screenWidth * 0.1,
+                            left: screenWidth * 0.1,
                           ),
-                        ),
-                      ),
-
-                      // Username field
-                      TextField(
-                        controller: usernameController,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 0.5,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 1.0,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: primaryColor,
-                              width: 2.0,
-                            ),
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.person,
-                            color: primaryColor,
-                          ),
-                          labelText: "Username",
-                          labelStyle: const TextStyle(color: Colors.grey),
-                          errorText: errorTextUsername,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 15.0,
-                            horizontal: 20.0,
-                          ),
-                        ),
-                        onChanged: (value) {
-                          setState(() {
-                            errorTextUsername = null;
-                          });
-                        },
-                      ),
-
-                      const SizedBox(height: 15),
-
-                      // Password field
-                      TextField(
-                        controller: passwordController,
-                        obscureText: _obscureText,
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: Colors.white,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 1.0,
-                            ),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: Colors.grey,
-                              width: 1.0,
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(borderRadius),
-                            borderSide: const BorderSide(
-                              color: primaryColor,
-                              width: 2.0,
-                            ),
-                          ),
-                          prefixIcon: const Icon(
-                            Icons.lock,
-                            color: primaryColor,
-                          ),
-                          labelText: "Password",
-                          labelStyle: const TextStyle(color: Colors.grey),
-                          errorText: errorTextPassword,
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 15.0,
-                            horizontal: 20.0,
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscureText
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              color: Colors.grey,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                _obscureText = !_obscureText;
-                              });
+                          child: Image.asset(
+                            'assets/image/LogoJSA.jpg',
+                            width: 150,
+                            height: 150,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Container(
+                                width: 150,
+                                height: 150,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.image_not_supported,
+                                  size: 50,
+                                  color: Colors.grey,
+                                ),
+                              );
                             },
                           ),
                         ),
-                        onChanged: (value) {
-                          setState(() {
-                            errorTextPassword = null;
-                          });
-                        },
-                        onSubmitted: (_) => _login(),
-                      ),
-
-                      const SizedBox(height: 30),
-
-                      // Login button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _login,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            disabledBackgroundColor: primaryColor.withValues(
-                              alpha: 0.6,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(borderRadius),
-                            ),
-                            elevation: 3,
-                          ),
-                          child:
-                              _isLoading
-                                  ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Colors.white,
-                                      ),
-                                      strokeWidth: 3,
-                                    ),
-                                  )
-                                  : const Text(
-                                    "Masuk",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                        ),
-                      ),
-
-                      // Debug info (remove in production)
-                      if (_isLoading)
+                    
+                        // Judul login
                         const Padding(
-                          padding: EdgeInsets.only(top: 16.0),
+                          padding: EdgeInsets.only(bottom: 30.0),
                           child: Text(
-                            "Sedang memproses login...",
-                            style: TextStyle(color: Colors.grey, fontSize: 12),
+                            "Masuk ke Akun Anda",
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: primaryColor,
+                            ),
                           ),
                         ),
-                        
-                      // GestureDetector(
-                      //   onTap: () {
-                          // Navigator.push(context, MaterialPageRoute(
-                          //   builder: (context) => HalamanLupaPassword(),
-                          // ));
-                        // },
-                        // child: const Padding(
-                        //   padding: EdgeInsets.only(top: 16.0),
-                        //   child: Text(
-                        //     "Lupa password?",
-                        //     style: TextStyle(
-                        //       color: primaryColor,
-                        //       fontSize: 14,
-                        //       decoration: TextDecoration.underline,
-                        //     ),
-                        //   ),
-                        // ),
-                      // )
-                    ],
+                    
+                        // Username field
+                        TextFormField(
+                          controller: usernameController,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(borderRadius),
+                              borderSide: const BorderSide(
+                                color: Colors.grey,
+                                width: 0.5,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(borderRadius),
+                              borderSide: const BorderSide(
+                                color: Colors.grey,
+                                width: 1.0,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(borderRadius),
+                              borderSide: const BorderSide(
+                                color: primaryColor,
+                                width: 2.0,
+                              ),
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.person,
+                              color: primaryColor,
+                            ),
+                            labelText: "Username",
+                            labelStyle: const TextStyle(color: Colors.grey),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 15.0,
+                              horizontal: 20.0,
+                            ),
+                          ),
+                          
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Username tidak boleh kosong';
+                            }
+                            return null;
+                          },
+                        ),
+                    
+                        const SizedBox(height: 15),
+                    
+                        // Password field
+                        TextFormField(
+                          controller: passwordController,
+                          obscureText: _obscureText,
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(borderRadius),
+                              borderSide: const BorderSide(
+                                color: Colors.grey,
+                                width: 1.0,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(borderRadius),
+                              borderSide: const BorderSide(
+                                color: Colors.grey,
+                                width: 1.0,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(borderRadius),
+                              borderSide: const BorderSide(
+                                color: primaryColor,
+                                width: 2.0,
+                              ),
+                            ),
+                            prefixIcon: const Icon(
+                              Icons.lock,
+                              color: primaryColor,
+                            ),
+                            labelText: "Password",
+                            labelStyle: const TextStyle(color: Colors.grey),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 15.0,
+                              horizontal: 20.0,
+                            ),
+                            suffixIcon: IconButton(
+                              icon: Icon(
+                                _obscureText
+                                    ? Icons.visibility
+                                    : Icons.visibility_off,
+                                color: Colors.grey,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  _obscureText = !_obscureText;
+                                });
+                              },
+                            ),
+                          ),
+                          
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Password tidak boleh kosong';
+                            }
+                            if (value.length < 6) {
+                              return 'Password minimal 6 karakter';
+                            }
+                            return null;
+                          },
+                          onFieldSubmitted: (_) => _login(),
+                        ),
+                    
+                        const SizedBox(height: 30),
+                    
+                        // Login button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : () {
+                              if (_formKey.currentState!.validate()) {
+                                _login();
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryColor,
+                              disabledBackgroundColor: primaryColor.withValues(
+                                alpha: 0.6,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(borderRadius),
+                              ),
+                              elevation: 3,
+                            ),
+                            child:
+                                _isLoading
+                                    ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white,
+                                        ),
+                                        strokeWidth: 3,
+                                      ),
+                                    )
+                                    : const Text(
+                                      "Masuk",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                          ),
+                        ),
+                    
+                        // Debug info (remove in production)
+                        if (_isLoading)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 16.0),
+                            child: Text(
+                              "Sedang memproses login...",
+                              style: TextStyle(color: Colors.grey, fontSize: 12),
+                            ),
+                          ),
+                          
+                        // GestureDetector(
+                        //   onTap: () {
+                            // Navigator.push(context, MaterialPageRoute(
+                            //   builder: (context) => HalamanLupaPassword(),
+                            // ));
+                          // },
+                          // child: const Padding(
+                          //   padding: EdgeInsets.only(top: 16.0),
+                          //   child: Text(
+                          //     "Lupa password?",
+                          //     style: TextStyle(
+                          //       color: primaryColor,
+                          //       fontSize: 14,
+                          //       decoration: TextDecoration.underline,
+                          //     ),
+                          //   ),
+                          // ),
+                        // )
+                      ],
+                    ),
                   ),
                 ),
               ),

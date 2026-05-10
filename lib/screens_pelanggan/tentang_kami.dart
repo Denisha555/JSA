@@ -474,7 +474,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                           ),
 
                           Text(
-                            'Jln. Parit Haji Husein 1, Gg. Sawit No.10, Bangka Belitung Laut, Kec. Pontianak Tenggara, Kota Pontianak, Kalimantan Barat 78124',
+                            'Jl. Parit Haji Husin 1, Gg. Sawit No.10, Bangka Belitung Laut, Kec. Pontianak Tenggara, Kota Pontianak, Kalimantan Barat 78124',
                             style: TextStyle(
                               color: const Color.fromARGB(255, 97, 97, 97),
                             ),
@@ -525,7 +525,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                               ),
                             ),
                             Text(
-                              '07.30 - 23.00',
+                              '07.00 - 23.00',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -545,7 +545,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                               ),
                             ),
                             Text(
-                              '07.30 - 23.00',
+                              '07.00 - 23.00',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -565,7 +565,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                               ),
                             ),
                             Text(
-                              '07.30 - 23.00',
+                              '07.00 - 23.00',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -585,7 +585,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                               ),
                             ),
                             Text(
-                              '07.30 - 23.00',
+                              '07.00 - 23.00',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -605,7 +605,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                               ),
                             ),
                             Text(
-                              '07.30 - 23.00',
+                              '07.00 - 23.00',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -625,7 +625,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                               ),
                             ),
                             Text(
-                              '07.30 - 23.00',
+                              '07.00 - 23.00',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
@@ -645,7 +645,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                               ),
                             ),
                             Text(
-                              '07.30 - 23.00',
+                              '07.00 - 23.00',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,

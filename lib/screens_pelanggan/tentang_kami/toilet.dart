@@ -41,7 +41,7 @@ class _ToiletState extends State<Toilet> {
                       height: MediaQuery.of(context).size.width,
                     ),
                     Image.asset(
-                      "assets/image/Toilet2.jpg",
+                      "assets/image/Toilet2.jpeg",
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: MediaQuery.of(context).size.width,

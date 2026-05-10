@@ -13,7 +13,6 @@ import 'package:flutter_application_1/function/schedule/close/delete_close_day.d
 import 'package:flutter_application_1/services/time_slot/firebase_add_time_slot.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_get_time_slot.dart';
 
-
 class HalamanJadwal extends StatefulWidget {
   const HalamanJadwal({super.key});
 
@@ -438,7 +437,7 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     }
 
     await AddCloseDay().closeUseTimeRange(
-      selectedDate, // Pass DateTime instead of tanggalKhusus
+      selectedDate,
       formatTime(jamMulaiKhusus),
       formatTime(jamSelesaiKhusus),
     );
@@ -491,10 +490,6 @@ class _HalamanJadwalState extends State<HalamanJadwal>
         // await FirebaseService().closeAllDay(tanggalKhusus);
         debugPrint('Closed all day close for ${formatTanggal(tanggalKhusus)}');
       } else {
-        debugPrint(
-          'Closing time range close for ${formatTanggal(tanggalKhusus)}: '
-          '${formatTime(jamMulaiKhusus)} - ${formatTime(jamSelesaiKhusus)}',
-        );
         // Close specific time range
         await _loadOrCreateSlots(tanggalKhusus);
       }

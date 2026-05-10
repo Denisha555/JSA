@@ -311,7 +311,7 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                               }
                             },
                           ),
-                          
+
                           const SizedBox(height: 16),
 
                           const Text(
@@ -488,116 +488,149 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
   }
 
   void _showUsernameInputDialogMultiple(List<String> courtIds) {
+    bool isRegistering = false; // ✅ variabel lokal khusus dialog
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder:
-          (context) => AlertDialog(
-            title: const Text('Input Username'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                // Tampilkan ringkasan booking
-                Text(
-                  'Ringkasan Booking:',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Lapangan: ${courtIds.join(', ')}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                Text(
-                  'Waktu: $selectedStartTime - $selectedEndTime',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                Text(
-                  'Total Tanggal: ${selectedDates.length} hari',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                FutureBuilder<double>(
-                  future: totalPrice(
-                    startTime: formatTime(jamMulai),
-                    endTime: formatTime(jamSelesai),
-                    selectedDate: selectedDates[0],
-                    type: 'member',
-                  ),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Text('Menghitung harga...');
-                    } else if (snapshot.hasError) {
-                      return Text('Gagal menghitung harga');
-                    } else {
-                      double price = snapshot.data ?? 0;
-                      price = price * selectedDates.length * courtIds.length;
-                      return Text(
-                        'Total Harga: Rp ${price.toStringAsFixed(0)}',
-                      );
-                    }
-                  },
-                ),
-
-                const SizedBox(height: 16),
-                TextField(
-                  controller: usernameController,
-                  decoration: InputDecoration(
-                    filled: true,
-                    fillColor: Colors.white,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.grey),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(
-                        color: primaryColor,
-                        width: 2,
+          (ctx) => StatefulBuilder(
+            // ✅ urutan yang benar
+            builder:
+                (ctx, setDialogState) => AlertDialog(
+                  title: const Text('Input Username'),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ringkasan Booking:',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
-                    prefixIcon: const Icon(Icons.person, color: primaryColor),
-                    labelText: "Username",
-                    hintText: "Masukkan username",
-                    contentPadding: const EdgeInsets.symmetric(
-                      vertical: 15,
-                      horizontal: 20,
-                    ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Lapangan: ${courtIds.join(', ')}',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      Text(
+                        'Waktu: $selectedStartTime - $selectedEndTime',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      Text(
+                        'Total Tanggal: ${selectedDates.length} hari',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      FutureBuilder<double>(
+                        future: totalPrice(
+                          startTime: formatTime(jamMulai),
+                          endTime: formatTime(jamSelesai),
+                          selectedDate: selectedDates[0],
+                          type: 'member',
+                        ),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Text('Menghitung harga...');
+                          } else if (snapshot.hasError) {
+                            return const Text('Gagal menghitung harga');
+                          } else {
+                            double price = snapshot.data ?? 0;
+                            price =
+                                price * selectedDates.length * courtIds.length;
+                            return Text(
+                              'Total Harga: Rp ${price.toStringAsFixed(0)}',
+                            );
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: usernameController,
+                        decoration: InputDecoration(
+                          filled: true,
+                          fillColor: Colors.white,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.grey),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(color: Colors.grey),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: const BorderSide(
+                              color: primaryColor,
+                              width: 2,
+                            ),
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.person,
+                            color: primaryColor,
+                          ),
+                          labelText: "Username",
+                          hintText: "Masukkan username",
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 15,
+                            horizontal: 20,
+                          ),
+                        ),
+                        textInputAction: TextInputAction.done,
+                        onSubmitted:
+                            (_) async =>
+                                await _registerMemberMultipleCourts(courtIds),
+                      ),
+                    ],
                   ),
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _registerMemberMultipleCourts(courtIds),
+                  actions: [
+                    TextButton(
+                      onPressed: () {
+                        usernameController.clear();
+                        Navigator.of(ctx).pop();
+                      },
+                      child: const Text('Batal'),
+                    ),
+                    ElevatedButton(
+                      onPressed:
+                          isRegistering
+                              ? null
+                              : () async {
+                                setDialogState(
+                                  () => isRegistering = true,
+                                ); // ✅ pakai setDialogState
+                                await _registerMemberMultipleCourts(courtIds);
+                                if (!mounted) return;
+                                setDialogState(() => isRegistering = false);
+                                int count = 0;
+                                Navigator.popUntil(
+                                  context,
+                                  (_) => count++ >= 2,
+                                );
+                              },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryColor,
+                      ),
+                      child:
+                          isRegistering
+                              ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                              : const Text(
+                                'Daftarkan Member',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  usernameController.clear();
-                  Navigator.of(context).pop();
-                },
-                child: const Text('Batal'),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  _registerMemberMultipleCourts(courtIds);
-                  Navigator.pushReplacement(context,
-                  MaterialPageRoute(builder: (context) => HalamanCustomers()));
-                },
-                style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
-                child: const Text(
-                  'Daftarkan Member',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ],
           ),
     );
   }
