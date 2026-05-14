@@ -96,7 +96,7 @@ class FirebaseUpdateTimeSlot {
                 'bookingDates',
               )
               as List<dynamic>?;
-      
+
       if (bookedDates == null || bookedDates.isEmpty) return;
 
       final slotsFutures =
@@ -112,58 +112,138 @@ class FirebaseUpdateTimeSlot {
       final updatesByDoc = {};
 
       for (int i = 0; i < bookedDates.length; i++) {
-      final date = bookedDates[i].toString();
-      final slots = allSlotsArrays[i];
-      
-      for (var slot in slots) {
-        if (slot.username == oldUsername) {
-          final key = '${slot.courtId}_${slot.date}';
-          
-          // Ambil dokumen Firestore-nya
-          if (!updatesByDoc.containsKey(key)) {
-            final docSnapshot = await firestore
-                .collection('time_slots')
-                .where('date', isEqualTo: slot.date)
-                .where('courtId', isEqualTo: slot.courtId)
-                .limit(1)
-                .get();
-            
-            if (docSnapshot.docs.isNotEmpty) {
-              final slotsData = docSnapshot.docs.first.data()['slots'];
-              updatesByDoc[key] = [
-                docSnapshot.docs.first,
-                List<Map<String, dynamic>>.from(slotsData ?? [])
-              ];
+        final date = bookedDates[i].toString();
+        final slots = allSlotsArrays[i];
+
+        for (var slot in slots) {
+          if (slot.username == oldUsername) {
+            final key = '${slot.courtId}_${slot.date}';
+
+            // Ambil dokumen Firestore-nya
+            if (!updatesByDoc.containsKey(key)) {
+              final docSnapshot =
+                  await firestore
+                      .collection('time_slots')
+                      .where('date', isEqualTo: slot.date)
+                      .where('courtId', isEqualTo: slot.courtId)
+                      .limit(1)
+                      .get();
+
+              if (docSnapshot.docs.isNotEmpty) {
+                final slotsData = docSnapshot.docs.first.data()['slots'];
+                updatesByDoc[key] = [
+                  docSnapshot.docs.first,
+                  List<Map<String, dynamic>>.from(slotsData ?? []),
+                ];
+              }
             }
-          }
-          
-          // Update slot di memory
-          final docData = updatesByDoc[key];
-          if (docData != null) {
-            final slotsList = docData[1] as List<Map<String, dynamic>>;
-            for (var timeSlot in slotsList) {
-              if (timeSlot['startTime'] == slot.startTime && 
-                  timeSlot['username'] == oldUsername) {
-                timeSlot['username'] = newUsername;
+
+            // Update slot di memory
+            final docData = updatesByDoc[key];
+            if (docData != null) {
+              final slotsList = docData[1] as List<Map<String, dynamic>>;
+              for (var timeSlot in slotsList) {
+                if (timeSlot['startTime'] == slot.startTime &&
+                    timeSlot['username'] == oldUsername) {
+                  timeSlot['username'] = newUsername;
+                }
               }
             }
           }
         }
       }
-    }
-    
-    // 4. 🔥 Batch update semua dokumen yang berubah
-    final batch = firestore.batch();
-    for (var entry in updatesByDoc.entries) {
-      final doc = entry.value[0] as DocumentSnapshot;
-      final updatedSlots = entry.value[1] as List;
-      batch.update(doc.reference, {'slots': updatedSlots});
-    }
-    
-    await batch.commit();
 
+      // 4. 🔥 Batch update semua dokumen yang berubah
+      final batch = firestore.batch();
+      for (var entry in updatesByDoc.entries) {
+        final doc = entry.value[0] as DocumentSnapshot;
+        final updatedSlots = entry.value[1] as List;
+        batch.update(doc.reference, {'slots': updatedSlots});
+      }
+
+      await batch.commit();
     } catch (e) {
       throw Exception('Failed to update username in time slots: $e');
+    }
+  }
+
+  Future<void> updateReportTimeSlots(
+    String username,
+    String startTime,
+    String endTime,
+    String catatan,
+    String keterangan,
+  ) async {
+    try {
+      final bookedDates =
+          await FirebaseGetUser().getUserData(username.trim(), 'bookingDates')
+              as List<dynamic>?;
+
+      if (bookedDates == null || bookedDates.isEmpty) return;
+
+      final slotsFutures =
+          bookedDates
+              .map(
+                (date) =>
+                    FirebaseGetTimeSlot().getTimeSlot(DateTime.parse(date)),
+              )
+              .toList();
+
+      final allSlotsArrays = await Future.wait(slotsFutures);
+
+      final updatesByDoc = {};
+
+      for (int i = 0; i < bookedDates.length; i++) {
+        final date = bookedDates[i].toString();
+        final slots = allSlotsArrays[i];
+
+        for (var slot in slots) {
+          if (slot.username == username && slot.startTime == startTime) {
+            final key = '${slot.courtId}_${slot.date}';
+
+            // Ambil dokumen Firestore-nya
+            if (!updatesByDoc.containsKey(key)) {
+              final docSnapshot =
+                  await firestore
+                      .collection('time_slots')
+                      .where('date', isEqualTo: slot.date)
+                      .where('courtId', isEqualTo: slot.courtId)
+                      .limit(1)
+                      .get();
+
+              if (docSnapshot.docs.isNotEmpty) {
+                final slotsData = docSnapshot.docs.first.data()['slots'];
+                updatesByDoc[key] = [
+                  docSnapshot.docs.first,
+                  List<Map<String, dynamic>>.from(slotsData ?? []),
+                ];
+              }
+
+              final docData = updatesByDoc[key];
+              if (docData != null) {
+                final slotsList = docData[1] as List<Map<String, dynamic>>;
+                for (var timeSlot in slotsList) {
+                  if (timeSlot['startTime'] == slot.startTime &&
+                      timeSlot['endTime'] == slot.endTime &&
+                      timeSlot['username'] == username) {
+                    timeSlot['catatan'] = catatan;
+                    timeSlot['keterangan'] = keterangan;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      final batch = firestore.batch();
+      for (var entry in updatesByDoc.entries) {
+        final doc = entry.value[0] as DocumentSnapshot;
+        final updatedSlots = entry.value[1] as List;
+        batch.update(doc.reference, {'slots': updatedSlots});
+      }
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to fetch time slots for report update: $e');
     }
   }
 }

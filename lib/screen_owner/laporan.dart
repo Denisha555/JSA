@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/model/time_slot_model.dart';
 import 'package:flutter_application_1/services/booking/firebase_get_booking.dart';
+import 'package:flutter_application_1/services/time_slot/firebase_update_time_slot.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 
@@ -41,108 +42,153 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
     {'label': 'Member', 'value': 'member'},
   ];
 
+  bool _isEditing = false;
+
   String? _selectedTahun;
   String? _selectedBulan;
   String? _selectedStatus;
 
-  final nonMemberColumns = <PlutoColumn>[
+  List<PlutoColumn> get nonMemberColumns => <PlutoColumn>[
     PlutoColumn(
       title: 'Nama Pelanggan',
       field: 'nama_pelanggan',
       type: PlutoColumnType.text(),
+      readOnly: true,
     ),
     PlutoColumn(
       title: 'Jadwal Main',
       field: 'jadwal_main',
       type: PlutoColumnType.text(),
+      readOnly: true,
     ),
     PlutoColumn(
       title: 'Total Hari',
       field: 'total_hari',
       type: PlutoColumnType.number(),
+      readOnly: true,
     ),
-    PlutoColumn(title: 'Jam', field: 'jam', type: PlutoColumnType.text()),
-    PlutoColumn(title: 'Durasi', field: 'durasi', type: PlutoColumnType.text()),
+    PlutoColumn(
+      title: 'Jam',
+      field: 'jam',
+      type: PlutoColumnType.text(),
+      readOnly: true,
+    ),
+    PlutoColumn(
+      title: 'Durasi',
+      field: 'durasi',
+      type: PlutoColumnType.text(),
+      readOnly: true,
+    ),
     PlutoColumn(
       title: 'Lapangan',
       field: 'lapangan',
       type: PlutoColumnType.text(),
+      readOnly: true,
     ),
     PlutoColumn(
       title: 'Jumlah Lapangan',
       field: 'jumlah_lapangan',
       type: PlutoColumnType.number(),
+      readOnly: true,
     ),
     PlutoColumn(
       title: 'Harga per Jam',
       field: 'harga_per_jam',
       type: PlutoColumnType.text(),
+      readOnly: true,
     ),
     PlutoColumn(
       title: 'Jumlah Harga',
       field: 'jumlah_harga',
       type: PlutoColumnType.text(),
+      readOnly: true,
     ),
     PlutoColumn(
       title: 'Keterangan',
       field: 'keterangan',
       type: PlutoColumnType.text(),
+      readOnly: _isEditing ? false : true,
     ),
     PlutoColumn(
       title: 'Catatan',
       field: 'catatan',
       type: PlutoColumnType.text(),
+      readOnly: _isEditing ? false : true,
     ),
   ];
 
-  final memberColumns = <PlutoColumn>[
+  List<PlutoColumn> get memberColumns => <PlutoColumn>[
     PlutoColumn(
       title: 'Nama Member',
       field: 'nama_member',
       type: PlutoColumnType.text(),
+      readOnly: true,
     ),
-    PlutoColumn(title: 'Kontak', field: 'kontak', type: PlutoColumnType.text()),
+    PlutoColumn(
+      title: 'Kontak',
+      field: 'kontak',
+      type: PlutoColumnType.text(),
+      readOnly: true,
+    ),
     PlutoColumn(
       title: 'Jadwal Main',
       field: 'jadwal_main',
       type: PlutoColumnType.text(),
+      readOnly: true,
     ),
     PlutoColumn(
       title: 'Total Hari',
       field: 'total_hari',
       type: PlutoColumnType.text(),
+      readOnly: true,
     ),
-    PlutoColumn(title: 'Jam', field: 'jam', type: PlutoColumnType.text()),
-    PlutoColumn(title: 'Durasi', field: 'durasi', type: PlutoColumnType.text()),
+    PlutoColumn(
+      title: 'Jam',
+      field: 'jam',
+      type: PlutoColumnType.text(),
+      readOnly: true,
+    ),
+    PlutoColumn(
+      title: 'Durasi',
+      field: 'durasi',
+      type: PlutoColumnType.text(),
+      readOnly: true,
+    ),
     PlutoColumn(
       title: 'Lapangan',
       field: 'lapangan',
       type: PlutoColumnType.text(),
+      readOnly: true,
     ),
     PlutoColumn(
       title: 'Jumlah Lapangan',
       field: 'jumlah_lapangan',
       type: PlutoColumnType.text(),
+      readOnly: true,
     ),
     PlutoColumn(
       title: 'Harga per Jam',
       field: 'harga_per_jam',
       type: PlutoColumnType.text(),
+      readOnly: true,
     ),
     PlutoColumn(
       title: 'Jumlah Harga',
       field: 'jumlah_harga',
       type: PlutoColumnType.text(),
+      readOnly: true,
     ),
     PlutoColumn(
       title: 'Keterangan',
       field: 'keterangan',
       type: PlutoColumnType.text(),
+      readOnly: _isEditing ? false : true,
     ),
     PlutoColumn(
       title: 'Catatan',
       field: 'catatan',
       type: PlutoColumnType.text(),
+      readOnly: _isEditing ? false : true,
     ),
   ];
 
@@ -295,7 +341,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                                       : () async {
                                         await _getLaporan();
                                       },
-                              
+
                               label: Text(
                                 _isLoading ? 'Memuat...' : 'Tampilkan Laporan',
                               ),
@@ -368,32 +414,119 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                         ],
                       ),
                       Expanded(
-                        child: PlutoGrid(
-                          key: _gridKey,
-                          columns:
-                              _laporanSummary![0].type == 'member'
-                                  ? memberColumns
-                                  : nonMemberColumns,
-                          rows: rows,
-                          onLoaded: (event) {
-                            _stateManager = event.stateManager;
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: PlutoGrid(
+                                key: _gridKey,
+                                columns:
+                                    _laporanSummary![0].type == 'member'
+                                        ? memberColumns
+                                        : nonMemberColumns,
+                                rows: rows,
+                                onLoaded: (event) {
+                                  _stateManager = event.stateManager;
 
-                            // Kalau originalWidths belum ada, simpan (hanya pertama kali)
-                            if (_originalColumnWidths.isEmpty) {
-                              _saveOriginalWidths();
-                            } else {
-                              // Grid rebuild karena zoom — terapkan ulang lebar sesuai scale
-                              for (var col in _stateManager!.columns) {
-                                final originalWidth =
-                                    _originalColumnWidths[col.field];
-                                if (originalWidth != null) {
-                                  col.width = (originalWidth * _zoomScale)
-                                      .clamp(40.0, double.infinity);
-                                }
-                              }
-                              _stateManager!.notifyListeners();
-                            }
-                          },
+                                  // Kalau originalWidths belum ada, simpan (hanya pertama kali)
+                                  if (_originalColumnWidths.isEmpty) {
+                                    _saveOriginalWidths();
+                                  } else {
+                                    // Grid rebuild karena zoom — terapkan ulang lebar sesuai scale
+                                    for (var col in _stateManager!.columns) {
+                                      final originalWidth =
+                                          _originalColumnWidths[col.field];
+                                      if (originalWidth != null) {
+                                        col.width = (originalWidth * _zoomScale)
+                                            .clamp(40.0, double.infinity);
+                                      }
+                                    }
+                                    _stateManager!.notifyListeners();
+                                  }
+                                },
+                              ),
+                            ),
+                            SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: () async {
+                                  if (_isEditing) {
+                                    setState(() {
+                                      _isEditing = false;
+                                    });
+                                    for (final column
+                                        in _stateManager!.columns) {
+                                      if (column.field == 'catatan' ||
+                                          column.field == 'keterangan') {
+                                        column.readOnly = true;
+                                      }
+                                    }
+
+                                    _stateManager!.notifyListeners();
+
+                                    final rows = _stateManager!.rows;
+                                    for (var row in rows) {
+                                      final username =
+                                          row.cells.containsKey('nama_member')
+                                              ? row.cells['nama_member']!.value
+                                              : row
+                                                  .cells['nama_pelanggan']!
+                                                  .value;
+
+                                      final startTime =
+                                          row.cells['jam']!.value.split(
+                                            ' - ',
+                                          )[0];
+                                      final endTime =
+                                          row.cells['jam']!.value.split(
+                                            ' - ',
+                                          )[1];
+                                      final catatan =
+                                          row.cells['catatan']!.value;
+                                      final keterangan =
+                                          row.cells['keterangan']!.value;
+                                      // await FirebaseUpdateTimeSlot()
+                                      //     .updateReportTimeSlots(
+                                      //       username,
+                                      //       startTime,
+                                      //       endTime,
+                                      //       catatan,
+                                      //       keterangan,
+                                      //     );
+                                    }
+                                  } else {
+                                    // Ubah ke mode edit
+                                    setState(() {
+                                      _isEditing = true;
+                                    });
+                                    for (final column
+                                        in _stateManager!.columns) {
+                                      if (column.field == 'catatan' ||
+                                          column.field == 'keterangan') {
+                                        column.readOnly = false;
+                                      }
+                                    }
+                                    _stateManager!.notifyListeners();
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                    horizontal: 24,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
+                                child:
+                                    _isEditing
+                                        ? const Text("Simpan Perubahan")
+                                        : const Text("Edit Laporan"),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -423,6 +556,8 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
       ),
     );
   }
+
+  void simpanData() {}
 
   /// Simpan lebar asli kolom sebagai referensi zoom
   void _saveOriginalWidths() {

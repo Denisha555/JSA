@@ -342,7 +342,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
         
                   _buildQuickAccessButton(
                     icon: 'user',
-                    label: 'Customers',
+                    label: 'Pelanggan',
                     onTap: () => _navigateToScreen(HalamanCustomers()),
                   ),
 

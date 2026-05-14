@@ -16,6 +16,8 @@ class TimeSlotModel {
   String jadwal;
   double price;
   double pricePerHour;
+  String catatan = '';
+  String keterangan = '';
 
   TimeSlotModel({
     this.slotId = '',
@@ -35,6 +37,8 @@ class TimeSlotModel {
     this.jadwal = '',
     this.price = 0.0,
     this.pricePerHour = 0.0,
+    this.catatan = '',
+    this.keterangan = '',
   });
 
   factory TimeSlotModel.fromJson(Map<String, dynamic> json, {int? index, String? courtId, String? date, double? price}) {
@@ -56,6 +60,8 @@ class TimeSlotModel {
       jadwal: json['jadwal'] ?? '',
       price: price ?? 0.0,
       pricePerHour: price ?? 0.0,
+      catatan: json['catatan'] ?? '',
+      keterangan: json['keterangan'] ?? '',
     );
   }
 
@@ -78,6 +84,8 @@ class TimeSlotModel {
       'totalHari': totalHari,
       'price': price,
       'pricePerHour': pricePerHour,
+      'catatan': catatan,
+      'keterangan': keterangan,
     };
   }
 }

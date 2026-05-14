@@ -429,7 +429,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      title: const Text("Customers"),
+      title: const Text("Pelanggan"),
       bottom: const TabBar(
         labelColor: Colors.white,
         unselectedLabelColor: Colors.white60,
