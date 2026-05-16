@@ -141,7 +141,15 @@ class FirebaseGetBooking {
         final slots = doc.data()['slots'] as List<dynamic>;
         for (var slot in slots) {
           if (slot["isAvailable"] == false) {
-            allSlots.add(TimeSlotModel.fromJson(slot, courtId: doc.id, date: formatStrToLongDate(DateFormat('yyyy-MM-dd').format(date))));
+            allSlots.add(
+              TimeSlotModel.fromJson(
+                slot,
+                courtId: doc.id,
+                date: formatStrToLongDate(
+                  DateFormat('yyyy-MM-dd').format(date),
+                ),
+              ),
+            );
           }
         }
       }
@@ -262,6 +270,7 @@ class FirebaseGetBooking {
 
           if (data['slots'] != null) {
             List<dynamic> slots = data['slots'];
+            String previousUsername = '';
 
             // Hitung slot yang sudah dibooking (username tidak kosong)
             for (var slot in slots) {
@@ -269,10 +278,20 @@ class FirebaseGetBooking {
                 String username = slot['username'] ?? '';
                 bool isAvailable = slot['isAvailable'] ?? true;
 
-                // Jika username ada (tidak kosong) atau isAvailable false, berarti sudah dibooking
-                if (username.isNotEmpty || !isAvailable) {
+                // slot terbooking
+                bool isBooked = username.isNotEmpty || !isAvailable;
+
+                // hanya hitung kalau:
+                // - memang booking
+                // - username beda dari sebelumnya
+                if (isBooked && username != previousUsername) {
                   dailyBookings++;
                 }
+
+                // simpan username sekarang
+                previousUsername = username;
+
+                print('Slot: $slot, isBooked: $isBooked, previousUsername: $previousUsername, dailyBookings: $dailyBookings');
               }
             }
           }
@@ -287,13 +306,18 @@ class FirebaseGetBooking {
     }
   }
 
-  Future<List<TimeSlotModel>> getBookingForReport(String startDate, String endDate, String status) async {
+  Future<List<TimeSlotModel>> getBookingForReport(
+    String startDate,
+    String endDate,
+    String status,
+  ) async {
     try {
       QuerySnapshot timeSlotsSnapshot =
-          await firestore.collection('time_slots')
-          .where('date', isGreaterThan: startDate)
-          .where('date', isLessThan: endDate)
-          .get();
+          await firestore
+              .collection('time_slots')
+              .where('date', isGreaterThan: startDate)
+              .where('date', isLessThan: endDate)
+              .get();
 
       if (timeSlotsSnapshot.docs.isEmpty) {
         return [];
@@ -304,14 +328,15 @@ class FirebaseGetBooking {
       for (var doc in timeSlotsSnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         final slots = data['slots'] as List<dynamic>? ?? [];
-        final filterSlots = slots.where((slot) {
-          if (status == "member") {
-            return slot["type"] == "member";
-          } else if (status == "nonMember") {
-            return slot["type"] == "nonMember";
-          }
-          return true;
-        }).toList();
+        final filterSlots =
+            slots.where((slot) {
+              if (status == "member") {
+                return slot["type"] == "member";
+              } else if (status == "nonMember") {
+                return slot["type"] == "nonMember";
+              }
+              return true;
+            }).toList();
 
         for (var slot in filterSlots) {
           if (slot["isAvailable"] == false) {
