@@ -740,8 +740,13 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
         result.add(first);
       }
 
+      for (var data in result) {
+        data.price = data.pricePerHour * data.totalHari;
+      }
+
       _laporanSummary = result;
     }
+
 
     // Reset zoom setiap kali generate laporan baru
     _zoomScale = 1.0;

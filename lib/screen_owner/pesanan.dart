@@ -142,11 +142,14 @@ class _HalamanPesananState extends State<HalamanPesanan> {
                           return Card(
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
-                              title: Text(booking.date),
+                              title: Text(booking.username),
                               subtitle: Text(
                                 'Time: ${booking.startTime} - ${booking.endTime}',
                               ),
-                              trailing: Text('Status: ${booking.type}'),
+                              trailing:
+                                  booking.type == 'nonMember'
+                                      ? const Text('Non Member')
+                                      : const Text('Member'),
                             ),
                           );
                         },
