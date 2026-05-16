@@ -223,9 +223,7 @@ class FirebaseUpdateTimeSlot {
               if (docData != null) {
                 final slotsList = docData[1] as List<Map<String, dynamic>>;
                 for (var timeSlot in slotsList) {
-                  if (timeSlot['startTime'] == slot.startTime &&
-                      timeSlot['endTime'] == slot.endTime &&
-                      timeSlot['username'] == username) {
+                  if (timeSlot['username'] == username) {
                     timeSlot['catatan'] = catatan;
                     timeSlot['keterangan'] = keterangan;
                   }

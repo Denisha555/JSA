@@ -451,6 +451,11 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                               child: ElevatedButton(
                                 onPressed: () async {
                                   if (_isEditing) {
+                                    _stateManager?.setEditing(false);
+                                    FocusScope.of(context).unfocus();
+
+                                    await Future.delayed(const Duration(milliseconds: 50));
+                                     
                                     setState(() {
                                       _isEditing = false;
                                     });
@@ -485,14 +490,15 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                                           row.cells['catatan']!.value;
                                       final keterangan =
                                           row.cells['keterangan']!.value;
-                                      // await FirebaseUpdateTimeSlot()
-                                      //     .updateReportTimeSlots(
-                                      //       username,
-                                      //       startTime,
-                                      //       endTime,
-                                      //       catatan,
-                                      //       keterangan,
-                                      //     );
+                                      print("Updating $username, $startTime - $endTime, catatan: $catatan, keterangan: $keterangan");
+                                      await FirebaseUpdateTimeSlot()
+                                          .updateReportTimeSlots(
+                                            username,
+                                            startTime,
+                                            endTime,
+                                            catatan,
+                                            keterangan,
+                                          );
                                     }
                                   } else {
                                     // Ubah ke mode edit
@@ -771,8 +777,8 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
               'jumlah_harga': PlutoCell(
                 value: 'Rp ${data.price.toStringAsFixed(0)}',
               ),
-              'keterangan': PlutoCell(value: ""),
-              'catatan': PlutoCell(value: ""),
+              'keterangan': PlutoCell(value: data.keterangan ?? ""),
+              'catatan': PlutoCell(value: data.catatan ?? ""),
             },
           );
         });
@@ -799,8 +805,8 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                   'jumlah_harga': PlutoCell(
                     value: 'Rp ${data.price.toStringAsFixed(0)}',
                   ),
-                  'keterangan': PlutoCell(value: ""),
-                  'catatan': PlutoCell(value: ""),
+                  'keterangan': PlutoCell(value: data.keterangan ?? ""),
+                  'catatan': PlutoCell(value: data.catatan ?? ""),
                 },
               );
             }).toList();

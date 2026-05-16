@@ -409,6 +409,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         await _buildBookingData(slots);
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => isLoading = false);
       if (!mounted) return;
       showErrorSnackBar(context, 'Gagal memuat data slot: $e');
