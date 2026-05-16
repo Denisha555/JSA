@@ -51,9 +51,8 @@ class _HalamanPesananState extends State<HalamanPesanan> {
     });
 
     try {
-      final newDetail = await FirebaseGetBooking().getBookingByDate(
-        _selectedDate,
-      );
+      List<TimeSlotModel> newDetail = await FirebaseGetBooking()
+          .getBookingByDate(_selectedDate);
       if (newDetail.isEmpty) {
         setState(() {
           detail = [];
@@ -61,8 +60,27 @@ class _HalamanPesananState extends State<HalamanPesanan> {
         });
         return;
       } else {
+        List<TimeSlotModel> mergedDetail = [];
+
+        for (var booking in newDetail) {
+          // kalau list kosong
+          if (mergedDetail.isEmpty) {
+            mergedDetail.add(booking);
+            continue;
+          }
+
+          final lastBooking = mergedDetail.last;
+
+          // username sama -> gabung
+          if (booking.username == lastBooking.username &&
+              booking.username.isNotEmpty) {
+            lastBooking.endTime = booking.endTime;
+          } else {
+            mergedDetail.add(booking);
+          }
+        }
         setState(() {
-          detail = newDetail;
+          detail = mergedDetail;
           _isLoading = false;
         });
       }
