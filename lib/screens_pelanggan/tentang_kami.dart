@@ -127,7 +127,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
             color: primaryColor,
             width: double.infinity,
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 15.0),
+              padding: const EdgeInsets.only(bottom: 15.0, left: 10.0, right: 10.0),
               child: Center(
                 child: Text(
                   "Jump, smash, and win! Rasakan serunya main badminton di Jump Smash Arena—lapangan kece, suasana oke!",
@@ -669,7 +669,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Note : Jam operasional dapat berubah selama hari libur, harap hubungi kami untuk informasi lebih lanjut.',
+                          'Jam operasional dapat berubah selama hari libur, harap hubungi kami untuk informasi lebih lanjut.',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

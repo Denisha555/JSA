@@ -349,7 +349,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         await BookingNonMember().addTotalBooking(username);
         await BookingNonMember().addBookingDates(username, [bookedDates[0]]);
 
-      // member booking
+        // member booking
       } else {
         final bookingDates = await FirebaseGetUser().getUserData(
           username,
@@ -416,7 +416,10 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
       if (!mounted) return;
       _safeNavigatorPop(context); // Tutup loading
-      showSuccessSnackBar(context, 'Berhasil booking untuk $username, lapangan $court pada tanggal $dateStr, pukul $startTime - $endTime');
+      showSuccessSnackBar(
+        context,
+        'Berhasil booking untuk $username, lapangan $court pada tanggal $dateStr, pukul $startTime - $endTime',
+      );
       await _loadOrCreateSlots(selectedDate);
     } catch (e) {
       if (!mounted) return;
@@ -539,21 +542,23 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               Text('Lapangan: $court'),
               Text('Jam Mulai: $startTime'),
               Text('Jam Selesai: $endTime'),
-              FutureBuilder(future: _memberOrNonMember(username).then((type) {
-                return type;
-              })
-              , builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Text('Memeriksa status user...');
-                } else if (snapshot.hasError) {
-                  return Text('Gagal memeriksa status user');
-                } else {
-                  final type = snapshot.data ?? 'nonMember';
-                  return Text(
-                    'Status: ${type == "member" ? "Member" : "Non Member"}',
-                  );
-                }
-              }),
+              FutureBuilder(
+                future: _memberOrNonMember(username).then((type) {
+                  return type;
+                }),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Text('Memeriksa status user...');
+                  } else if (snapshot.hasError) {
+                    return Text('Gagal memeriksa status user');
+                  } else {
+                    final type = snapshot.data ?? 'nonMember';
+                    return Text(
+                      'Status: ${type == "member" ? "Member" : "Non Member"}',
+                    );
+                  }
+                },
+              ),
               SizedBox(height: 8),
               FutureBuilder<double>(
                 future: _memberOrNonMember(username).then((type) {
@@ -644,6 +649,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     );
     String startTime = consecutiveSlots.first.split(' - ')[0];
     String endTime = consecutiveSlots.last.split(' - ')[1];
+    bool past = _isTimePast(time, selectedDate);
 
     try {
       await showDialog(
@@ -704,16 +710,18 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   onPressed: () => _safeNavigatorPop(dialogContext),
                   child: Text('Tutup'),
                 ),
-                TextButton(
-                  onPressed:
-                      () async => await _handleCancelBooking(
-                        dialogContext,
-                        time,
-                        court,
-                      ),
-                  style: TextButton.styleFrom(foregroundColor: Colors.red),
-                  child: Text('Batalkan Booking'),
-                ),
+                past
+                    ? SizedBox.shrink()
+                    : TextButton(
+                      onPressed:
+                          () async => await _handleCancelBooking(
+                            dialogContext,
+                            time,
+                            court,
+                          ),
+                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                      child: Text('Batalkan Booking'),
+                    ),
               ],
             ),
       );
@@ -1036,10 +1044,14 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
       try {
         if (isPast) {
-          showCustomSnackBar(
-            context,
-            'Waktu ini sudah lewat, tidak bisa dibooking',
-          );
+          if (username.isNotEmpty) {
+            await _showBookingDetails(time, court, type, username);
+          } else {
+            showCustomSnackBar(
+              context,
+              'Waktu ini sudah lewat, tidak bisa dibooking',
+            );
+          }
           return;
         }
 

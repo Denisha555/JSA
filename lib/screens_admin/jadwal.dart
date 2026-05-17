@@ -28,8 +28,8 @@ class _HalamanJadwalState extends State<HalamanJadwal>
   DateTime tanggalKhusus = DateTime.now().add(
     Duration(days: 1),
   ); // Default tomorrow
-  TimeOfDay jamMulaiKhusus = TimeOfDay(hour: 9, minute: 0);
-  TimeOfDay jamSelesaiKhusus = TimeOfDay(hour: 18, minute: 0);
+  TimeOfDay jamMulaiKhusus = TimeOfDay(hour: 7, minute: 0);
+  TimeOfDay jamSelesaiKhusus = TimeOfDay(hour: 23, minute: 0);
   bool isClose = false;
   bool isHoliday = false;
   String? editingDocId;
@@ -268,6 +268,17 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                           final picked = await showTimePicker(
                             context: context,
                             initialTime: jamMulaiKhusus,
+
+                            initialEntryMode: TimePickerEntryMode.inputOnly,
+
+                            builder: (context, child) {
+                              return MediaQuery(
+                                data: MediaQuery.of(
+                                  context,
+                                ).copyWith(alwaysUse24HourFormat: true),
+                                child: child!,
+                              );
+                            },
                           );
                           if (picked != null) {
                             setState(() => jamMulaiKhusus = picked);
@@ -281,7 +292,9 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                               suffixIcon: Icon(Icons.access_time),
                             ),
                             controller: TextEditingController(
-                              text: jamMulaiKhusus.format(context),
+                              text:
+                                  "${jamMulaiKhusus.hour.toString().padLeft(2, '0')}:"
+                                  "${jamMulaiKhusus.minute.toString().padLeft(2, '0')}",
                             ),
                             validator: (value) {
                               if (!isClose && value!.isEmpty) {
@@ -298,6 +311,17 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                           final picked = await showTimePicker(
                             context: context,
                             initialTime: jamSelesaiKhusus,
+
+                            initialEntryMode: TimePickerEntryMode.inputOnly,
+
+                            builder: (context, child) {
+                              return MediaQuery(
+                                data: MediaQuery.of(
+                                  context,
+                                ).copyWith(alwaysUse24HourFormat: true),
+                                child: child!,
+                              );
+                            },
                           );
                           if (picked != null) {
                             setState(() => jamSelesaiKhusus = picked);
@@ -311,7 +335,9 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                               suffixIcon: Icon(Icons.access_time),
                             ),
                             controller: TextEditingController(
-                              text: jamSelesaiKhusus.format(context),
+                              text:
+                                  "${jamSelesaiKhusus.hour.toString().padLeft(2, '0')}:"
+                                  "${jamSelesaiKhusus.minute.toString().padLeft(2, '0')}",
                             ),
                             validator: (value) {
                               if (!isClose && value!.isEmpty) {
