@@ -33,9 +33,8 @@ class AddHoliday {
                 .get();
       }
 
-      final List<Map<String, dynamic>> updatedSlots = [];
-
       for (var doc in existingSlots.docs) {
+        final List<Map<String, dynamic>> updatedSlots = [];
         final slots = doc.data()['slots'] as List<dynamic>;
         for (var slot in slots) {
           var updatedSlot = Map<String, dynamic>.from(slot);

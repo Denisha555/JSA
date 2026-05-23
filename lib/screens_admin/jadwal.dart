@@ -17,7 +17,7 @@ class HalamanJadwal extends StatefulWidget {
   const HalamanJadwal({super.key});
 
   @override
-  _HalamanJadwalState createState() => _HalamanJadwalState();
+  State<HalamanJadwal> createState() => _HalamanJadwalState();
 }
 
 class _HalamanJadwalState extends State<HalamanJadwal>

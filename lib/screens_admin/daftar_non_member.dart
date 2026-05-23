@@ -196,7 +196,6 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
         club: club,
         phoneNumber: noTelp,
       );
-
       if (!mounted) return;
       showSuccessSnackBar(context, 'Akun berhasil didaftarkan');
       Navigator.pop(context,1);
