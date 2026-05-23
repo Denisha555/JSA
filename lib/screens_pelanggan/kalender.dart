@@ -348,6 +348,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           await FirebaseFirestore.instance.collection('lapangan').get();
       courtIds =
           courtsSnapshot.docs.map((doc) => doc['nomor'].toString()).toList();
+      setState(() => courtIds = courtIds);
     } catch (e) {
       debugPrint('Error loading courts: $e');
       courtIds = [];
@@ -381,8 +382,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           type: slot.type,
         );
       }
-
-      debugPrint(tempData.toString());
 
       setState(() {
         bookingData = tempData;
@@ -996,10 +995,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     bool isClosed,
     bool isHoliday,
   ) {
-    debugPrint(
-      'username: $username, type: $type, isAvailable: $isAvailable, isClosed: $isClosed, isHoliday: $isHoliday',
-    );
-
     final isPast = _isTimePast(time, selectedDate);
     final cellKey = _getCellKey(time, court);
     final isProcessing = processingCells.contains(cellKey);
@@ -1014,9 +1009,15 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       displayText = 'Tutup';
     } else if (isAvailable) {
       if (isHoliday) {
-        backgroundColor = holidayColor;
-        textColor = Colors.black;
-        displayText = 'Hari Libur';
+        if (isAvailable) {
+          backgroundColor = holidayColor.withOpacity(0.7);
+          textColor = Colors.black;
+          displayText = 'Hari Libur';
+        } else {
+          backgroundColor = bookedColor;
+          textColor = Colors.blue;
+          displayText = username;
+        }
       } else {
         backgroundColor = availableColor;
         textColor = Colors.black;

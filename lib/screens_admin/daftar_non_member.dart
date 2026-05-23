@@ -201,7 +201,9 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
       showSuccessSnackBar(context, 'Akun berhasil didaftarkan');
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const HalamanCustomers()),
+        MaterialPageRoute(
+          builder: (context) => const HalamanCustomers(tabindex: 1),
+        ),
       );
     } catch (e) {
       showErrorSnackBar(context, 'Terjadi kesalahan: $e');

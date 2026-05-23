@@ -9,7 +9,8 @@ import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:flutter_application_1/services/user/firebase_delete_user.dart';
 
 class HalamanCustomers extends StatefulWidget {
-  const HalamanCustomers({super.key});
+  final int tabindex;
+  const HalamanCustomers({super.key, this.tabindex = 0});
 
   @override
   State<HalamanCustomers> createState() => _HalamanCustomersState();
@@ -46,11 +47,11 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
         'status': (user.role == 'member') ? 'member' : 'nonMember',
       };
     }
-    if (mounted)
-      setState(() {
-        userdata = tempData;
-        isLoading = false;
-      });
+
+    setState(() {
+      userdata = tempData;
+      isLoading = false;
+    });
   }
 
   void _navigateToUserInfo(String username) async {
@@ -380,7 +381,6 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                             padding: const EdgeInsets.symmetric(vertical: 13),
                           ),
                           onPressed: () async {
-                            // TODO: FirebaseUpdateUser().updateUser(...)
                             Navigator.of(ctx).pop(true);
                           },
                           child: const Text('Simpan'),
@@ -418,6 +418,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
+      initialIndex: widget.tabindex,
       child: Scaffold(
         backgroundColor: Colors.grey[100],
         appBar: _buildAppBar(),

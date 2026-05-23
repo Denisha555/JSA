@@ -1,17 +1,17 @@
-import 'package:flutter_application_1/screens_admin/customers.dart';
+
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/model/court_model.dart';
 import 'package:flutter_application_1/function/price/price.dart';
 import 'package:flutter_application_1/model/time_slot_model.dart';
+import 'package:flutter_application_1/screens_admin/customers.dart';
 import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/services/court/firebase_get_court.dart';
 import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 import 'package:flutter_application_1/services/user/firebase_update_user.dart';
 import 'package:flutter_application_1/services/booking/member/booking_member.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_check_time_slot.dart';
-import 'package:flutter_application_1/constants_file.dart';
 
 class HalamanMemberAdmin extends StatefulWidget {
   const HalamanMemberAdmin({super.key});
@@ -604,11 +604,18 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                                 ); // ✅ pakai setDialogState
                                 await _registerMemberMultipleCourts(courtIds);
                                 if (!mounted) return;
-                                setDialogState(() => isRegistering = false);
-                                int count = 0;
-                                Navigator.popUntil(
-                                  context,
-                                  (_) => count++ >= 2,
+                                // setDialogState(() => isRegistering = false);
+                                // int count = 0;
+                                // Navigator.popUntil(
+                                //   context,
+                                //   (_) => count++ >= 2,
+                                // );
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                      const HalamanCustomers(),
+                                    
+                                  ),
                                 );
                               },
                       style: ElevatedButton.styleFrom(

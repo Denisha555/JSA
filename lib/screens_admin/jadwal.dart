@@ -503,7 +503,11 @@ class _HalamanJadwalState extends State<HalamanJadwal>
       setState(() => _isLoading = true);
 
       if (editingDocId != null) {
-        await DeleteCloseDay().deleteCloseDay(editingDocId!);
+        if(isHoliday) {
+          await DeleteHoliday().deleteHoliday(editingDocId!);
+        } else if (isClose) {
+          await DeleteCloseDay().deleteCloseDay(editingDocId!);
+        } 
       }
 
       if (isHoliday) {
@@ -625,7 +629,19 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                             icon: Icon(Icons.edit, size: 18),
                             label: Text("Edit"),
                             onPressed:
-                                _isLoading ? null : () => _editJadwal(jadwal),
+                                _isLoading ? null : () {
+                                  if (DateTime.parse(jadwal.date).toString().split(' ')[0].trim() == DateTime.now().toString().split(' ')[0].trim()) {
+                                    _editJadwal(jadwal);
+                                    return;
+                                  } else if (DateTime.parse(jadwal.date).isBefore(DateTime.now())) {
+                                    showErrorSnackBar(
+                                      context,
+                                      'Tidak dapat mengedit jadwal yang sudah lewat',
+                                    );
+                                    return;
+                                  }
+                                  _editJadwal(jadwal);
+                                  } ,
                             style: TextButton.styleFrom(
                               foregroundColor: primaryColor,
                             ),
@@ -637,7 +653,19 @@ class _HalamanJadwalState extends State<HalamanJadwal>
                             onPressed:
                                 _isLoading
                                     ? null
-                                    : () => _showDeleteConfirmation(jadwal),
+                                    : () {
+                                  if (DateTime.parse(jadwal.date).toString().split(' ')[0].trim() == DateTime.now().toString().split(' ')[0].trim()) {
+                                    _deleteJadwal(jadwal);
+                                    return;
+                                  } else if (DateTime.parse(jadwal.date).isBefore(DateTime.now())) {
+                                    showErrorSnackBar(
+                                      context,
+                                      'Tidak dapat menghapus jadwal yang sudah lewat',
+                                    );
+                                    return;
+                                  }
+                                  _showDeleteConfirmation(jadwal);
+                                },
                             style: TextButton.styleFrom(
                               foregroundColor: Colors.red,
                             ),
