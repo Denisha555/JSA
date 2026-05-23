@@ -9,8 +9,8 @@ import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:flutter_application_1/services/user/firebase_delete_user.dart';
 
 class HalamanCustomers extends StatefulWidget {
-  final int tabindex;
-  const HalamanCustomers({super.key, this.tabindex = 0});
+  final int tabIndex;
+  const HalamanCustomers({super.key, this.tabIndex = 0});
 
   @override
   State<HalamanCustomers> createState() => _HalamanCustomersState();
@@ -20,10 +20,13 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
   Map<String, Map<String, String>> userdata = {};
   bool isLoading = true;
 
+  late int currentTab;
+
   @override
   void initState() {
     super.initState();
     _fetchUsers();
+    currentTab = widget.tabIndex;
   }
 
   Future<void> _fetchUsers() async {
@@ -418,7 +421,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
   Widget build(BuildContext context) {
     return DefaultTabController(
       length: 2,
-      initialIndex: widget.tabindex,
+      initialIndex: currentTab,
       child: Scaffold(
         backgroundColor: Colors.grey[100],
         appBar: _buildAppBar(),
@@ -563,22 +566,31 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                   },
                 ),
                 const SizedBox(height: 10),
-                _buildAddOption(
-                  title: 'Non Member',
-                  subtitle: 'Akun tanpa keanggotaan',
-                  icon: Icons.person_outline,
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const HalamanNonMemberAdmin(),
-                      ),
-                    ).then((_) {
-                      if (mounted) _fetchUsers();
-                    });
-                  },
-                ),
+_buildAddOption(
+  title: 'Non Member',
+  subtitle: 'Akun tanpa keanggotaan',
+  icon: Icons.person_outline,
+  onTap: () async {
+    Navigator.pop(ctx);
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const HalamanNonMemberAdmin(),
+      ),
+    );
+
+    if (mounted) {
+      _fetchUsers();
+    }
+
+    if (result != null) {
+      setState(() {
+        currentTab = result;
+      });
+    }
+  },
+),
               ],
             ),
           ),

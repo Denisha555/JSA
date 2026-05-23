@@ -61,6 +61,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Jump Smash Arena',
+      routes: {
+        '/halaman_utama_admin': (context) => const HalamanUtamaAdmin(),
+        '/halaman_utama_owner': (context) => const HalamanUtamaOwner(),
+        '/pilih_halaman_pelanggan': (context) => const PilihHalamanPelanggan(),
+      },
       theme: ThemeData(
         scaffoldBackgroundColor: backgroundColor,
         appBarTheme: const AppBarTheme(

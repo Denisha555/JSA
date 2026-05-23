@@ -601,22 +601,11 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                               : () async {
                                 setDialogState(
                                   () => isRegistering = true,
-                                ); // ✅ pakai setDialogState
+                                ); 
                                 await _registerMemberMultipleCourts(courtIds);
                                 if (!mounted) return;
-                                // setDialogState(() => isRegistering = false);
-                                // int count = 0;
-                                // Navigator.popUntil(
-                                //   context,
-                                //   (_) => count++ >= 2,
-                                // );
-                                Navigator.of(context).pushReplacement(
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                      const HalamanCustomers(),
-                                    
-                                  ),
-                                );
+                                Navigator.pop(context);
+                                Navigator.pop(context, 0);
                               },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,

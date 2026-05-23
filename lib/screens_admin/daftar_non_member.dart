@@ -199,12 +199,7 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
 
       if (!mounted) return;
       showSuccessSnackBar(context, 'Akun berhasil didaftarkan');
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HalamanCustomers(tabindex: 1),
-        ),
-      );
+      Navigator.pop(context,1);
     } catch (e) {
       showErrorSnackBar(context, 'Terjadi kesalahan: $e');
     } finally {
