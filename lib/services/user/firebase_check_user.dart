@@ -125,4 +125,17 @@ class FirebaseCheckUser {
       throw Exception('Error checking reward time: $e');
     }
   }
+
+  Future<List<String>> getUserBookingDates(String username) async {
+    try {
+      if (await checkExistence('username', username)) {
+        final userData = await FirebaseGetUser().getUserByUsername(username);
+        return userData[0].bookingDates;
+      } else {
+        throw Exception('User not found');
+      }
+    } catch (e) {
+      throw Exception('Error getting user booking dates: $e');
+    }
+  }
 }
