@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter_application_1/services/onesignal/onesignal_get_rest_api.dart';
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:http/http.dart' as http;
 
-
-class OneSignalSendNotification {
+class OneSignalSendNotificationAdmin {
   Future<void> sendBookingNotification(
     String username,
     String time,
@@ -11,7 +13,8 @@ class OneSignalSendNotification {
   ) async {
     try {
       final appId = 'c8e16b1c-cee5-46f2-972e-4e4a190af032';
-      final restApiKey = 'os_v2_app_zdqwwhgo4vdpffzojzfbscxqglydqlxrmxceza4zyzkzlom6wu6h5vxjrttfcuissukpjdlj6atlep6s7t2yqugaeba2bcky6dwscri';
+      final restApiKey =
+          'os_v2_app_zdqwwhgo4vdpffzojzfbscxqglydqlxrmxceza4zyzkzlom6wu6h5vxjrttfcuissukpjdlj6atlep6s7t2yqugaeba2bcky6dwscri';
 
       var url = Uri.parse('https://api.onesignal.com/notifications');
       var headers = {
@@ -21,7 +24,7 @@ class OneSignalSendNotification {
 
       var body = jsonEncode({
         "app_id": appId,
-        "included_segments": 'JSA Admin Segment',
+        "included_segments": ['JSA Admin Segment'],
         "headings": {"en": "Bookingan Baru"},
         "contents": {
           "en":
@@ -29,9 +32,11 @@ class OneSignalSendNotification {
         },
       });
 
-      await http.post(url, headers: headers, body: body);
+      final response = await http.post(url, headers: headers, body: body);
+      print(response.statusCode);
+      print(response.body);
     } catch (e) {
-        throw Exception('Faild to send notification: $e');
+      throw Exception('Faild to send notification: $e');
     }
   }
 
@@ -43,7 +48,7 @@ class OneSignalSendNotification {
   ) async {
     try {
       final appId = 'c8e16b1c-cee5-46f2-972e-4e4a190af032';
-      final restApiKey = 'os_v2_app_zdqwwhgo4vdpffzojzfbscxqglydqlxrmxceza4zyzkzlom6wu6h5vxjrttfcuissukpjdlj6atlep6s7t2yqugaeba2bcky6dwscri';
+      final restApiKey = await OneSignalGetRestApi().getRestApi();
 
       var url = Uri.parse('https://api.onesignal.com/notifications');
       var headers = {
@@ -53,7 +58,7 @@ class OneSignalSendNotification {
 
       var body = jsonEncode({
         "app_id": appId,
-        "included_segments": 'JSA Admin Segment',
+        "included_segments": ["JSA Admin Segment"],
         "headings": {"en": "Member Baru"},
         "contents": {
           "en":
@@ -61,9 +66,74 @@ class OneSignalSendNotification {
         },
       });
 
-    await http.post(url, headers: headers, body: body);
+      final response = await http.post(url, headers: headers, body: body);
+      print(response.statusCode);
+      print(response.body);
     } catch (e) {
-        throw Exception('Faild to send notification: $e');
+      throw Exception('Faild to send notification: $e');
+    }
+  }
+}
+
+class OnesignalSendNotificationCustomers {
+  Future<void> sendNotification(
+    String title,
+    String content,
+    String username,
+  ) async {
+    try {
+      final appId = 'c8e16b1c-cee5-46f2-972e-4e4a190af032';
+      final restApiKey = await OneSignalGetRestApi().getRestApi();
+
+      var url = Uri.parse('https://api.onesignal.com/notifications');
+      var headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic $restApiKey',
+      };
+
+      String notificationId = await FirebaseGetUser().getUserData(
+        username,
+        "notificationId",
+      );
+
+      var body = jsonEncode({
+        "app_id": appId,
+        "include_external_user_ids": [notificationId],
+        "headings": {"en": title},
+        "contents": {"en": content},
+      });
+
+      final response = await http.post(url, headers: headers, body: body);
+      print(response.statusCode);
+      print(response.body);
+    } catch (e) {
+      throw Exception('Faild to send notification: $e');
+    }
+  }
+
+  Future<void> sendNotificationToAll(String title, String content) async {
+    try {
+      final appId = 'c8e16b1c-cee5-46f2-972e-4e4a190af032';
+      final restApiKey = await OneSignalGetRestApi().getRestApi();
+
+      var url = Uri.parse('https://api.onesignal.com/notifications');
+      var headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic $restApiKey',
+      };
+
+      var body = jsonEncode({
+        "app_id": appId,
+        "included_segments": ["JSA All Segment"],
+        "headings": {"en": title},
+        "contents": {"en": content},
+      });
+
+      final response = await http.post(url, headers: headers, body: body);
+      print(response.statusCode);
+      print(response.body);
+    } catch (e) {
+      throw Exception('Faild to send notification: $e');
     }
   }
 }

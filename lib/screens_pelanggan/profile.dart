@@ -2,6 +2,7 @@
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/main.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/model/user_model.dart';
@@ -351,7 +352,10 @@ class _HalamanProfilState extends State<HalamanProfil> {
                 child: const Text('Batal'),
               ),
               TextButton(
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () async {
+                  await OneSignal.logout();
+                  Navigator.pop(context, true);
+                },
                 child: const Text('Keluar'),
               ),
             ],

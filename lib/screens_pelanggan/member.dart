@@ -221,7 +221,7 @@ class _HalamanMemberState extends State<HalamanMember> {
         prefs.setBool('isMember', true);
         prefs.setBool('isMemberUI', true);
 
-        await OneSignalSendNotification().sendNewMemberNotification(username, startTimeController.text, courts.toString(), _getWeekdayName(dates.first.weekday));
+        await OneSignalSendNotificationAdmin().sendNewMemberNotification(username, startTimeController.text, courts.toString(), _getWeekdayName(dates.first.weekday));
       }
     } catch (e) {
       if (mounted) {

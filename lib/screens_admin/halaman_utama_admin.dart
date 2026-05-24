@@ -474,7 +474,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                 onPressed: () async {
                   try {
                     if (!kIsWeb) {
-                       OnesignalDeleteNotification().deleteNotification(id!);
+                       OnesignalDeleteNotificationAdmin().deleteNotification(id!);
                     }
                     SharedPreferences prefs =
                         await SharedPreferences.getInstance();

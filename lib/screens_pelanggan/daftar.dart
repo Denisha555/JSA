@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
+import 'package:flutter_application_1/services/notification/onesignal_add_notification.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/screens_pelanggan/masuk.dart';
 import 'package:flutter_application_1/function/snackbar/snackbar.dart';
@@ -211,6 +213,10 @@ class _HalamanDaftarState extends State<HalamanDaftar>
         club: club,
         phoneNumber: noTelp,
       );
+
+      if (!kIsWeb) {
+        await OnesignalAddNotificationCustomer().addNotification(username);
+      }
 
       if (!mounted) return;
 

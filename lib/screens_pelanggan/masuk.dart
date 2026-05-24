@@ -134,7 +134,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
         var id = await OneSignal.User.getOnesignalId();
       await prefs.setString('admin_id', id!);
         OneSignal.User.addTagWithKey("role", "admin");
-      await OneSignalAddNotification().addNotification(id);
+      await OneSignalAddNotificationAdmin().addNotification(id);
       }
     
       if (mounted) {
@@ -228,6 +228,11 @@ class _HalamanMasukState extends State<HalamanMasuk>
           (route) => false,
         );
       }
+
+      if (!kIsWeb) {
+        
+      }
+
     } catch (e) {
       debugPrint('Customer login error: $e');
       if (!mounted) return;

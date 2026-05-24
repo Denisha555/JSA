@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class OnesignalGetNotification {
+class OnesignalGetNotificationAdmin {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
   Future<List<String>> getNotification() async {

@@ -602,7 +602,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
                           await _updateSlot(selectedDate);
 
-                          await OneSignalSendNotification()
+                          await OneSignalSendNotificationAdmin()
                               .sendBookingNotification(
                                 username,
                                 startTime,

@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/screens_admin/customers.dart';
 import 'package:flutter_application_1/function/snackbar/snackbar.dart';
+import 'package:flutter_application_1/services/notification/onesignal_add_notification.dart';
 import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 import 'package:flutter_application_1/services/user/firebase_add_user.dart';
 
@@ -196,6 +198,11 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
         club: club,
         phoneNumber: noTelp,
       );
+
+      if (!kIsWeb) {
+        OnesignalAddNotificationCustomer().addNotification(username);
+      }
+
       if (!mounted) return;
       showSuccessSnackBar(context, 'Akun berhasil didaftarkan');
       Navigator.pop(context,1);
