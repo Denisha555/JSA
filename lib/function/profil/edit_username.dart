@@ -39,7 +39,7 @@ class _EditUsernameState extends State<EditUsername> {
       SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString('username', newUsername.trim());
 
-      await FirebaseUpdateTimeSlot().updateUsernameTimeSlots(oldUsername, newUsername);
+      // await FirebaseUpdateTimeSlot().updateUsernameTimeSlots(oldUsername, newUsername);
     
       if (!mounted) return;
       showSuccessSnackBar(context, 'Username berhasil diperbarui!');

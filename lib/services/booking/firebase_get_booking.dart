@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/function/price/price.dart';
 import 'package:flutter_application_1/model/time_slot_model.dart';
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:intl/intl.dart';
 
 class FirebaseGetBooking {
@@ -17,6 +18,8 @@ class FirebaseGetBooking {
               .collection('users')
               .where('username', isEqualTo: username)
               .get();
+
+      String userId = userSnapshot.docs[0].id;
 
       final userData = userSnapshot.docs.first.data() as Map<String, dynamic>;
 
@@ -44,7 +47,7 @@ class FirebaseGetBooking {
         for (var doc in timeSlots.docs) {
           final slots = doc.data()['slots'] as List<dynamic>;
           for (var slot in slots) {
-            if (slot['username'] == username) {
+            if (slot['userId'] == userId) {
               allSlots.add(
                 TimeSlotModel.fromJson(
                   slot,
@@ -52,15 +55,10 @@ class FirebaseGetBooking {
                   courtId: doc.id.split('_')[0],
                 ),
               );
-              print(
-                'Found slot for $username on $date: ${slot['startTime']} - ${slot['endTime']}',
-              );
-              print('Court ID: ${doc.id.split('_')[0]}');
             }
           }
         }
       }
-      print('allSlots: ${allSlots.length}');
       return allSlots;
     } catch (e) {
       throw Exception('Failed to get time slots for $username: $e');
@@ -77,6 +75,8 @@ class FirebaseGetBooking {
               .collection('users')
               .where('username', isEqualTo: username)
               .get();
+
+      String userId = userSnapshot.docs[0].id;
 
       final userData = userSnapshot.docs.first.data() as Map<String, dynamic>;
 
@@ -106,7 +106,7 @@ class FirebaseGetBooking {
           final slots = doc.data()['slots'] as List<dynamic>;
           for (var slot in slots) {
             print('cancel slot: $slot');
-            if (slot['cancel'].contains(username)) {
+            if (slot['cancel'].contains(userId)) {
               allSlots.add(
                 TimeSlotModel.fromJson(
                   Map<String, dynamic>.from(slot),
@@ -141,6 +141,8 @@ class FirebaseGetBooking {
         final slots = doc.data()['slots'] as List<dynamic>;
         for (var slot in slots) {
           if (slot["isAvailable"] == false) {
+            String userId = slot['userId'] ?? '';
+            slot['username'] = await FirebaseGetUser().getUserData(userId, 'username');
             allSlots.add(
               TimeSlotModel.fromJson(
                 slot,
@@ -178,9 +180,9 @@ class FirebaseGetBooking {
         final data = doc.data() as Map<String, dynamic>;
         final slots = data['slots'] as List<dynamic>? ?? [];
         for (var slot in slots) {
-          final username = slot['username'] as String?;
-          if (username != null && username.isNotEmpty) {
-            customers.add(username);
+          final userId = slot['userId'] as String?;
+          if (userId != null && userId.isNotEmpty) {
+            customers.add(userId);
           }
         }
       }
@@ -205,8 +207,8 @@ class FirebaseGetBooking {
         final data = doc.data() as Map<String, dynamic>;
         final slots = data['slots'] as List<dynamic>? ?? [];
         for (var slot in slots) {
-          final username = slot['username'] as String?;
-          if (username != null && username.isNotEmpty) {
+          final userId = slot['userId'] as String?;
+          if (userId != null && userId.isNotEmpty) {
             var price = totalPrice(
               startTime: slot['startTime'] as String,
               endTime: slot['endTime'] as String,
@@ -270,28 +272,27 @@ class FirebaseGetBooking {
 
           if (data['slots'] != null) {
             List<dynamic> slots = data['slots'];
-            String previousUsername = '';
+            String previousUserId = '';
 
             // Hitung slot yang sudah dibooking (username tidak kosong)
             for (var slot in slots) {
               if (slot is Map<String, dynamic>) {
-                String username = slot['username'] ?? '';
+                String userId = slot['userId'] ?? '';
                 bool isAvailable = slot['isAvailable'] ?? true;
 
                 // slot terbooking
-                bool isBooked = username.isNotEmpty || !isAvailable;
+                bool isBooked = userId.isNotEmpty || !isAvailable;
 
                 // hanya hitung kalau:
                 // - memang booking
                 // - username beda dari sebelumnya
-                if (isBooked && username != previousUsername) {
+                if (isBooked && userId != previousUserId) {
                   dailyBookings++;
                 }
 
                 // simpan username sekarang
-                previousUsername = username;
+                previousUserId = userId;
 
-                print('Slot: $slot, isBooked: $isBooked, previousUsername: $previousUsername, dailyBookings: $dailyBookings');
               }
             }
           }
@@ -347,12 +348,15 @@ class FirebaseGetBooking {
               type: slot['type'] as String,
             );
 
+            final username = await FirebaseGetUser().getUserDataById(slot['userId'] ?? '', 'username');
+
             allSlots.add(
               TimeSlotModel.fromJson(
                 Map<String, dynamic>.from(slot),
                 courtId: doc.id.split('_')[0],
                 date: doc.id.split('_')[1],
                 price: price,
+                username: username,
               ),
             );
 

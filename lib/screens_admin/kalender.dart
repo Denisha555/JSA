@@ -309,7 +309,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         _safeNavigatorPop(context); // Tutup loading
         showErrorSnackBar(
           context,
-          'Username tidak ditemukan, silahkan lakukan pendaftaran terlebih dahulu',
+          'Username tidak ditemukan, pastikan username yang diinputkan benar atau lakukan pendaftaran terlebih dahulu',
         );
         return;
       }
@@ -348,6 +348,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
         await BookingNonMember().addTotalBooking(username);
         await BookingNonMember().addBookingDates(username, [bookedDates[0]]);
+        await FirebaseCheckUser().checkRewardTime(username, date: dateStr);
 
         // member booking
       } else {

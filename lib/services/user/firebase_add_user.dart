@@ -4,19 +4,23 @@ class FirebaseAddUser {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
   Future<void> addUser({
+    required String userId,
     required String userName,
     required String password,
     required String role,
+    String? startTimePoint,
     String? name,
     String? club,
     String? phoneNumber,
   }) async {
     try {
       CollectionReference users = firestore.collection('users');
-      await users.doc(userName).set({
+      await users.doc(userId).set({
+        'userId': userId,
         'username': userName,
         'password': password,
         'role': role,
+        'startTimePoint': startTimePoint ?? '',
         if (name != null) 'name': name,
         if (club != null) 'club': club,
         if (phoneNumber != null) 'phoneNumber': phoneNumber,

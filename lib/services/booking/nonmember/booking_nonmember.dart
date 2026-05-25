@@ -15,6 +15,14 @@ class BookingNonMember {
       final docId = '${courtId}_$dateStr';
       final doc = await firestore.collection('time_slots').doc(docId).get();
 
+      QuerySnapshot user =
+          await firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .get();
+      
+      String userId = user.docs[0].id;
+
       if (!doc.exists) {
         throw Exception('Slot not found');
       }
@@ -24,16 +32,10 @@ class BookingNonMember {
         (slot) => slot['startTime'] == startTime,
       );
 
-      if (slotIndex == -1 ||
-          !slots[slotIndex]['isAvailable'] ||
-          slots[slotIndex]['isClosed'] == true) {
-        throw Exception('Slot not available');
-      }
-
       var updatedSlot = List<Map<String, dynamic>>.from(slots);
       updatedSlot[slotIndex]['isAvailable'] = false;
       updatedSlot[slotIndex]['type'] = 'nonMember';
-      updatedSlot[slotIndex]['username'] = username;
+      updatedSlot[slotIndex]['userId'] = userId;
 
       await firestore.collection('time_slots').doc(docId).update({
         'slots': updatedSlot,
@@ -50,7 +52,13 @@ class BookingNonMember {
         username,
       );
       if (exist) {
-        await firestore.collection('users').doc(username).set({
+        QuerySnapshot user =
+            await firestore
+                .collection('users')
+                .where('username', isEqualTo: username)
+                .get();
+
+        await firestore.collection('users').doc(user.docs[0].id).set({
           'totalHour': FieldValue.increment(0.5),
           'point': FieldValue.increment(0.5),
         }, SetOptions(merge: true));
@@ -67,7 +75,13 @@ class BookingNonMember {
         username,
       );
       if (exist) {
-        await firestore.collection('users').doc(username).set({
+        QuerySnapshot user =
+            await firestore
+                .collection('users')
+                .where('username', isEqualTo: username)
+                .get();
+
+        await firestore.collection('users').doc(user.docs[0].id).set({
           'totalBooking': FieldValue.increment(1),
         }, SetOptions(merge: true));
       }
@@ -77,7 +91,13 @@ class BookingNonMember {
   }
 
   Future<void> addBookingDates(String username, List<String> dates) async {
-    final userDoc = firestore.collection('users').doc(username);
+    QuerySnapshot user =
+        await firestore
+            .collection('users')
+            .where('username', isEqualTo: username)
+            .get();
+
+    final userDoc = firestore.collection('users').doc(user.docs[0].id);
 
     final snapshot = await userDoc.get();
     List<String> currentDates = [];
@@ -90,9 +110,20 @@ class BookingNonMember {
       }
     }
 
-    // Tambahkan semua tanggal baru, termasuk yang sama (duplikat tetap masuk)
     currentDates.addAll(dates);
 
     await userDoc.set({'bookingDates': currentDates}, SetOptions(merge: true));
+  }
+
+  Future<void> addStartTimePoint(String username, String startTime) async {
+    QuerySnapshot user =
+        await firestore
+            .collection('users')
+            .where('username', isEqualTo: username)
+            .get();
+    final userDoc = firestore.collection('users').doc(user.docs[0].id);
+    await userDoc.set({
+      'startTimePoint': startTime,
+    }, SetOptions(merge: true));
   }
 }

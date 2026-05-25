@@ -52,6 +52,7 @@ class FirebaseCheckUser {
     try {
       if (await checkExistence('username', username)) {
         final userData = await FirebaseGetUser().getUserByUsername(username);
+
         if (userData[0].role == 'member') {
           final startDate = DateTime.parse(userData[0].startTimeMember);
           final finishDate = DateTime(startDate.year, startDate.month + 1, 0);
@@ -95,21 +96,30 @@ class FirebaseCheckUser {
     }
   }
 
-  Future<void> checkRewardTime(String username) async {
+  Future<void> checkRewardTime(String username, {String date = ''}) async {
     try {
       if (await checkExistence('username', username)) {
-        final userData = await FirebaseGetUser().getUserByUsername(username);
-        if (userData[0].startTimePoint != '') {
-          final startDate = DateTime.parse(userData[0].startTimePoint);
+        final startTimePoint = await FirebaseGetUser().getUserData(
+          username,
+          'startTimePoint',
+        );
+
+        print('start time point: $startTimePoint');
+
+        if (startTimePoint != '' && startTimePoint != null) {
+          final startDate = DateTime.parse(startTimePoint);
           final finishDate = DateTime(
             startDate.year,
             startDate.month + 1,
             startDate.day,
           );
+          print('finish date: $finishDate');
 
           final now = DateTime.now();
           final difference = finishDate.difference(now);
           final daysLeft = difference.inDays;
+
+          print('days left: $daysLeft');
 
           if (daysLeft <= 0) {
             await FirebaseUpdateUser().updateUser(
@@ -119,6 +129,13 @@ class FirebaseCheckUser {
             );
             await FirebaseUpdateUser().updateUser('point', username, 0);
           }
+        } else if (startTimePoint == '' || startTimePoint == null) {
+          print('setting new start time point');
+          await FirebaseUpdateUser().updateUser(
+            'startTimePoint',
+            username,
+            date,
+          );
         }
       }
     } catch (e) {

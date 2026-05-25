@@ -451,7 +451,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                               child: ElevatedButton(
                                 onPressed: () async {
                                   if (_isEditing) {
-                                    _stateManager?.setEditing(false);
+                                    try {_stateManager?.setEditing(false);
                                     FocusScope.of(context).unfocus();
 
                                     await Future.delayed(const Duration(milliseconds: 50));
@@ -499,6 +499,21 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                                             catatan,
                                             keterangan,
                                           );
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                            'Perubahan berhasil disimpan',
+                                          ),
+                                        ),
+                                      );
+                                    }} catch (e) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Gagal menyimpan perubahan: $e',
+                                          ),
+                                        ),
+                                      );
                                     }
                                   } else {
                                     // Ubah ke mode edit

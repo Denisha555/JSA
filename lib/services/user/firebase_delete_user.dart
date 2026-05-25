@@ -11,7 +11,15 @@ class FirebaseDeleteUser {
         userName,
       );
       if (exist) {
-        await firestore.collection('users').doc(userName).delete();
+        QuerySnapshot result =
+            await firestore
+                .collection('users')
+                .where('username', isEqualTo: userName)
+                .get();
+
+        var docId = result.docs[0].id;
+
+        await firestore.collection('users').doc(docId).delete();
       } else {
         throw Exception('User does not exist');
       }

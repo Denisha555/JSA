@@ -39,7 +39,6 @@ class CancelMember {
       );
 
       await FirebaseCheckUser().checkMembership(username);
-      await FirebaseCheckUser().checkRewardTime(username);
 
       var updatedSlot = List<Map<String, dynamic>>.from(slots);
 
@@ -47,10 +46,18 @@ class CancelMember {
         updatedSlot[slotIndex]['cancel'] ?? [],
       );
 
-      cancelList.add(username);
+      QuerySnapshot user =
+          await firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .get();
+
+      String userId = user.docs[0].id;
+
+      cancelList.add(userId);
 
       updatedSlot[slotIndex]['isAvailable'] = true;
-      updatedSlot[slotIndex]['username'] = '';
+      updatedSlot[slotIndex]['userId'] = '';
       updatedSlot[slotIndex]['type'] = '';
       updatedSlot[slotIndex]['cancel'] = cancelList;
 
@@ -66,7 +73,13 @@ class CancelMember {
 
   Future<void> updateUserCancel(String username, String dateStr) async {
     try {
-      final docRef = firestore.collection('users').doc(username);
+      QuerySnapshot user =
+          await firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .get();
+      String userId = user.docs[0].id;
+      final docRef = firestore.collection('users').doc(userId);
       final docSnapshot = await docRef.get();
 
       if (docSnapshot.exists) {

@@ -6,6 +6,8 @@ import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/services/notification/onesignal_add_notification.dart';
 import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 import 'package:flutter_application_1/services/user/firebase_add_user.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 class HalamanNonMemberAdmin extends StatefulWidget {
   const HalamanNonMemberAdmin({super.key});
@@ -188,9 +190,12 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
         showErrorSnackBar(context, 'Nomor telepon sudah digunakan');
         return;
       }
+    
+      var uuid = Uuid();
+      String userId = uuid.v4();
 
-      // Check if username is already registered
       await FirebaseAddUser().addUser(
+        userId: userId, 
         userName: username,
         password: hashPassword(password),
         role: 'nonMember',
@@ -198,10 +203,6 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
         club: club,
         phoneNumber: noTelp,
       );
-
-      if (!kIsWeb) {
-        OnesignalAddNotificationCustomer().addNotification(username);
-      }
 
       if (!mounted) return;
       showSuccessSnackBar(context, 'Akun berhasil didaftarkan');

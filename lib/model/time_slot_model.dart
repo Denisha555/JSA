@@ -8,7 +8,8 @@ class TimeSlotModel {
   final bool isAvailable;
   final bool isClosed;
   final bool isHoliday;
-  final String username;
+  String userId;
+  String username;
   String kontak;
   final String courtId;
   final String date;
@@ -29,6 +30,7 @@ class TimeSlotModel {
     this.isAvailable = true,
     this.isClosed = false,
     this.isHoliday = false,
+    this.userId = '',
     this.username = '',
     this.kontak = '',
     this.courtId = '',
@@ -41,7 +43,7 @@ class TimeSlotModel {
     this.keterangan = '',
   });
 
-  factory TimeSlotModel.fromJson(Map<String, dynamic> json, {int? index, String? courtId, String? date, double? price}) {
+  factory TimeSlotModel.fromJson(Map<String, dynamic> json, {int? index, String? courtId, String? date, double? price, String? username}) {
     return TimeSlotModel(
       slotId: json['slotId'] ?? '',
       startTime: json['startTime'] ?? '',
@@ -52,7 +54,8 @@ class TimeSlotModel {
       isAvailable: json['isAvailable'] ?? true,
       isClosed: json['isClosed'] ?? false,
       isHoliday: json['isHoliday'] ?? false,
-      username: json['username'] ?? '',
+      userId: json['userId'] ?? '',
+      username: username ?? json['username'] ?? '',
       kontak: json['kontak'] ?? '',
       courtId: courtId ?? '',
       date: date ?? json['date'] ?? '',
@@ -76,6 +79,7 @@ class TimeSlotModel {
       'isAvailable': isAvailable,
       'isClosed': isClosed,
       'isHoliday': isHoliday,
+      'userId': userId,
       'username': username,
       'kontak': kontak,
       'courtId': courtId,

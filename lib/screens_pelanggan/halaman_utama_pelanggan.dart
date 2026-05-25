@@ -16,6 +16,7 @@ import 'package:flutter_application_1/services/court/firebase_get_court.dart';
 import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 import 'package:flutter_application_1/services/booking/firebase_get_booking.dart';
 import 'package:flutter_application_1/services/event_promo/firebase_get_event_promo.dart';
+import 'package:uuid/uuid.dart';
 
 class HalamanUtamaPelanggan extends StatefulWidget {
   const HalamanUtamaPelanggan({super.key});
@@ -50,6 +51,10 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
     // Lakukan operasi async terlebih dahulu
     final courtsData = await FirebaseGetCourt().getAllLapanganToday();
 
+    for (int i = 0; i < 5; i++) {
+      print("Generating UUID: ${Uuid().v4()}");
+    }
+
     // Kemudian update state secara sinkron
     if (mounted) {
       setState(() {
@@ -66,7 +71,6 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
       if (userId != null) {
         await Future.wait([
           FirebaseCheckUser().checkMembership(userId),
-          FirebaseCheckUser().checkRewardTime(userId),
         ]);
         final userData = await FirebaseGetUser().getUserByUsername(userId);
 

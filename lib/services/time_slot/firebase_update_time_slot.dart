@@ -25,7 +25,7 @@ class FirebaseUpdateTimeSlot {
             'startTime': time,
             'endTime': calculateEndTimeUseStartTime(time),
             'isAvailable': true,
-            'username': '',
+            'userId': '',
             'cancel': [],
             'isClosed': false,
             'isHoliday': false,
@@ -45,7 +45,7 @@ class FirebaseUpdateTimeSlot {
 
   Future<void> updateMemberTimeSlots(String username) async {
     try {
-      final user =
+      QuerySnapshot user =
           await firestore
               .collection('users')
               .where('username', isEqualTo: username)
@@ -67,7 +67,7 @@ class FirebaseUpdateTimeSlot {
             for (var slot in timeSlots.docs) {
               final slots = slot.data()['slots'] as List<dynamic>;
               for (var slot in slots) {
-                if (slot['username'] == username) {
+                if (slot['userId'] == user.docs[0].id) {
                   slots[slots.indexOf(slot)] = {...slot, 'status': 'finish'};
                 }
               }
@@ -178,6 +178,12 @@ class FirebaseUpdateTimeSlot {
       final bookedDates =
           await FirebaseGetUser().getUserData(username.trim(), 'bookingDates')
               as List<dynamic>?;
+      
+      QuerySnapshot user =
+          await firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .get();
 
       if (bookedDates == null || bookedDates.isEmpty) return;
 
@@ -223,7 +229,7 @@ class FirebaseUpdateTimeSlot {
               if (docData != null) {
                 final slotsList = docData[1] as List<Map<String, dynamic>>;
                 for (var timeSlot in slotsList) {
-                  if (timeSlot['username'] == username) {
+                  if (timeSlot['userId'] == user.docs[0].id) {
                     timeSlot['catatan'] = catatan;
                     timeSlot['keterangan'] = keterangan;
                   }

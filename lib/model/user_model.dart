@@ -1,4 +1,5 @@
 class UserModel {
+  final String userId;
   final String username;
   final String name;
   final String password;
@@ -18,6 +19,7 @@ class UserModel {
   final String club;
 
   UserModel({
+    this.userId = '',
     this.username  = '',
     this.name = '',
     this.password = '',
@@ -39,6 +41,7 @@ class UserModel {
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
+      userId: json['userId'] ?? '',
       username: json['username'] ?? '',
       name: json['name'] ?? '',
       password: json['password'] ?? '',

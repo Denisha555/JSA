@@ -1,4 +1,5 @@
 import 'package:flutter_application_1/services/notification/onesignal_send_notification.dart';
+import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
@@ -464,6 +465,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       //   await BookingMember().addTotalBooking(username);
       //   await BookingMember().addBookingDates(username, [dateStr]);
       // }
+      await FirebaseCheckUser().checkRewardTime(username, date: dateStr);
     } catch (e) {
       debugPrint('Error performing booking: $e');
       rethrow;

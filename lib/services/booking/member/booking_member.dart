@@ -29,10 +29,18 @@ class BookingMember {
         throw Exception('Slot not available');
       }
 
+      QuerySnapshot user =
+          await firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .get();
+      
+      String userId = user.docs[0].id;
+
       var updatedSlot = List<Map<String, dynamic>>.from(slots);
       updatedSlot[slotIndex]['isAvailable'] = false;
       updatedSlot[slotIndex]['type'] = 'member';
-      updatedSlot[slotIndex]['username'] = username;
+      updatedSlot[slotIndex]['userId'] = userId;
 
       await firestore.collection('time_slots').doc(docId).update({
         'slots': updatedSlot,
@@ -56,7 +64,14 @@ class BookingMember {
         username,
       );
       if (exist) {
-        await firestore.collection('users').doc(username).set({
+        QuerySnapshot user =
+            await firestore
+                .collection('users')
+                .where('username', isEqualTo: username)
+                .get();
+        
+        String userId = user.docs[0].id;
+        await firestore.collection('users').doc(userId).set({
           'memberTotalBooking': FieldValue.increment(days),
           'memberCurrentTotalBooking': FieldValue.increment(days),
           'memberBookingLength': FieldValue.increment(length),
@@ -75,7 +90,13 @@ class BookingMember {
         username,
       );
       if (exist) {
-        await firestore.collection('users').doc(username).set({
+        QuerySnapshot user =
+            await firestore
+                .collection('users')
+                .where('username', isEqualTo: username)
+                .get();
+        String userId = user.docs[0].id;
+        await firestore.collection('users').doc(userId).set({
           'memberCurrentTotalBooking': FieldValue.increment(1),
         }, SetOptions(merge: true));
       }
@@ -85,7 +106,14 @@ class BookingMember {
   }
 
   Future<void> addBookingDates(String username, dynamic dates) async {
-    final userDoc = firestore.collection('users').doc(username);
+    QuerySnapshot user =
+        await firestore
+            .collection('users')
+            .where('username', isEqualTo: username)
+            .get();
+    String userId = user.docs[0].id;
+    
+    final userDoc = firestore.collection('users').doc(userId);
 
     final snapshot = await userDoc.get();
     List<dynamic> currentDates = [];

@@ -1,3 +1,4 @@
+import 'package:flutter_application_1/services/notification/onesignal_send_notification.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -539,6 +540,8 @@ class _HalamanJadwalState extends State<HalamanJadwal>
       // Refresh and switch to list tab
       await _fetchJadwalKhusus();
       _tabController.animateTo(1);
+
+      await OnesignalSendNotificationCustomers().sendNotificationToAll("Perubahan Jadwal", "Terdapat perubahan jadwal pada ${formatTanggal(tanggalKhusus)}. Silakan cek jadwal terbaru.");
     } catch (e) {
       if (mounted) {
         showErrorSnackBar(context, 'Gagal menyimpan jadwal: ${e.toString()}');

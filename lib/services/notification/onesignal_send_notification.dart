@@ -93,7 +93,7 @@ class OnesignalSendNotificationCustomers {
 
       String notificationId = await FirebaseGetUser().getUserData(
         username,
-        "notificationId",
+        "userId",
       );
 
       var body = jsonEncode({

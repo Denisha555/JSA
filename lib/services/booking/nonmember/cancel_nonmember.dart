@@ -49,7 +49,7 @@ class CancelNonMember {
       cancelList.add(username);
 
       updatedSlot[slotIndex]['isAvailable'] = true;
-      updatedSlot[slotIndex]['username'] = null;
+      updatedSlot[slotIndex]['userId'] = null;
       updatedSlot[slotIndex]['type'] = null;
       updatedSlot[slotIndex]['cancel'] = cancelList;
 

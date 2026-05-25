@@ -4,11 +4,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/services/notification/onesignal_add_notification.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/screens_pelanggan/masuk.dart';
 import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/services/user/firebase_add_user.dart';
 import 'package:flutter_application_1/services/user/firebase_check_user.dart';
+import 'package:uuid/uuid.dart';
 
 class HalamanDaftar extends StatefulWidget {
   const HalamanDaftar({super.key});
@@ -205,7 +207,11 @@ class _HalamanDaftarState extends State<HalamanDaftar>
         return;
       }
 
+      var uuid = Uuid();
+      String userId = uuid.v4();
+
       await FirebaseAddUser().addUser(
+        userId: userId,
         userName: username,
         password: hashPassword(password),
         role: 'nonMember',
@@ -213,10 +219,6 @@ class _HalamanDaftarState extends State<HalamanDaftar>
         club: club,
         phoneNumber: noTelp,
       );
-
-      if (!kIsWeb) {
-        await OnesignalAddNotificationCustomer().addNotification(username);
-      }
 
       if (!mounted) return;
 

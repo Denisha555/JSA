@@ -1,4 +1,6 @@
+import 'package:flutter_application_1/services/notification/onesignal_send_notification.dart';
 import 'package:flutter_application_1/services/user/firebase_check_user.dart';
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:flutter_application_1/services/user/firebase_update_user.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -48,7 +50,7 @@ class AddCloseDay {
         Map<String, double> totalBookingDeduction = {};
         Map<String, List<String>> removedBookingDates = {};
 
-        var beforeUsername = "";
+        var beforeUserId = "";
 
         for (int mins = startMins; mins < endMins; mins += 30) {
           String start = minutesToFormattedTime(mins);
@@ -62,53 +64,60 @@ class AddCloseDay {
             (slot) => slot['startTime'] == start,
           );
 
-          // if (slotIndex == -1 ||
-          //     slots[slotIndex]['isAvailable'] == false ||
-          //     slots[slotIndex]['isClosed'] == true ||
-          //     slots[slotIndex]['isHoliday'] == true) {
-          //   throw Exception('Slot not available');
-          // }
+          String userId = slots[slotIndex]['userId'] ?? "";
 
-          String username = slots[slotIndex]['username'] ?? "";
+          if (userId.isNotEmpty) {
+            pointDeduction[userId] = (pointDeduction[userId] ?? 0) + 0.5;
+            totalHourDeduction[userId] =
+                (totalHourDeduction[userId] ?? 0) + 0.5;
+            removedBookingDates[userId] =
+                (removedBookingDates[userId] ?? []) + [dateStr];
 
-          if (username.isNotEmpty) {
-            pointDeduction[username] = (pointDeduction[username] ?? 0) + 0.5;
-            totalHourDeduction[username] =
-                (totalHourDeduction[username] ?? 0) + 0.5;
-            removedBookingDates[username] =
-                (removedBookingDates[username] ?? []) + [dateStr];
-
-            if (beforeUsername != username) {
-              totalBookingDeduction[username] =
-                  (totalBookingDeduction[username] ?? 0) + 1;
+            if (beforeUserId != userId) {
+              totalBookingDeduction[userId] =
+                  (totalBookingDeduction[userId] ?? 0) + 1;
             }
 
-            beforeUsername = username;
+            beforeUserId = userId;
           }
           slots[slotIndex]['isClosed'] = true;
           slots[slotIndex]['isAvailable'] = false;
         }
 
-        for (var username in pointDeduction.keys) {
+        for (var userId in pointDeduction.keys) {
+          final username = await FirebaseGetUser().getUserDataById(
+            userId,
+            'username',
+          );
           await FirebaseUpdateUser().updateUser(
             'point',
             username,
-            FieldValue.increment(-pointDeduction[username]!),
+            FieldValue.increment(-pointDeduction[userId]!),
           );
           await FirebaseUpdateUser().updateUser(
             'totalHour',
             username,
-            FieldValue.increment(-totalHourDeduction[username]!),
+            FieldValue.increment(-totalHourDeduction[userId]!),
           );
           await FirebaseUpdateUser().updateUser(
             'totalBooking',
             username,
-            FieldValue.increment(-totalBookingDeduction[username]!),
+            FieldValue.increment(-totalBookingDeduction[userId]!),
           );
+          List<String> bookingDates = List<String>.from(await FirebaseGetUser().getUserData(username, 'bookingDates') ?? []);
+          String removedDate = removedBookingDates[userId]!.first;
+          bookingDates.remove(removedDate);
+          
           await FirebaseUpdateUser().updateUser(
             'bookingDates',
             username,
-            FieldValue.arrayRemove(removedBookingDates[username]!),
+            bookingDates,
+          );
+
+          await OnesignalSendNotificationCustomers().sendNotification(
+            "Perubahan Jadwal",
+            'Booking Anda pada tanggal $removedDate telah dibatalkan karena penutupan lapangan. Mohon maaf atas ketidaknyamananya',
+            username,
           );
         }
 
@@ -173,12 +182,12 @@ class AddCloseDay {
         Map<String, double> totalBookingDeduction = {};
         Map<String, List<String>> removedBookingDates = {};
 
-        var beforeUsername = "";
+        var beforeUserId = "";
         for (var slot in slots) {
           var updatedSlot = Map<String, dynamic>.from(slot);
-          String username = updatedSlot['username'] ?? "";
-          if (updatedSlot['username'] == "" ||
-              updatedSlot['username'] == null) {
+          String userId = updatedSlot['userId'] ?? "";
+          if (updatedSlot['userId'] == "" ||
+              updatedSlot['userId'] == null) {
             updatedSlot['isClosed'] = true;
             updatedSlot['isAvailable'] = false;
             updatedSlots.add(updatedSlot);
@@ -186,43 +195,58 @@ class AddCloseDay {
             updatedSlot['isClosed'] = true;
             updatedSlot['isAvailable'] = false;
 
-            pointDeduction[username] = (pointDeduction[username] ?? 0) + 0.5;
-            totalHourDeduction[username] =
-                (totalHourDeduction[username] ?? 0) + 0.5;
-            removedBookingDates[username] =
-                (removedBookingDates[username] ?? []) + [dateStr];
+            pointDeduction[userId] = (pointDeduction[userId] ?? 0) + 0.5;
+            totalHourDeduction[userId] =
+                (totalHourDeduction[userId] ?? 0) + 0.5;
+            removedBookingDates[userId] =
+                (removedBookingDates[userId] ?? []) + [dateStr];
 
-            if (beforeUsername != username && username.isNotEmpty) {
-              totalBookingDeduction[username] =
-                  (totalBookingDeduction[username] ?? 0) + 1;
+            if (beforeUserId != userId && userId.isNotEmpty) {
+              totalBookingDeduction[userId] =
+                  (totalBookingDeduction[userId] ?? 0) + 1;
             }
 
-            beforeUsername = username;
+            beforeUserId = userId;
 
             updatedSlots.add(updatedSlot);
           }
         }
 
-        for (var username in pointDeduction.keys) {
+        for (var userId in pointDeduction.keys) {
+          final username = await FirebaseGetUser().getUserDataById(
+            userId,
+            'username',
+          );
           await FirebaseUpdateUser().updateUser(
             'point',
             username,
-            FieldValue.increment(-pointDeduction[username]!),
+            FieldValue.increment(-pointDeduction[userId]!),
           );
           await FirebaseUpdateUser().updateUser(
             'totalHour',
             username,
-            FieldValue.increment(-totalHourDeduction[username]!),
+            FieldValue.increment(-totalHourDeduction[userId]!),
           );
           await FirebaseUpdateUser().updateUser(
             'totalBooking',
             username,
-            FieldValue.increment(-totalBookingDeduction[username]!),
+            FieldValue.increment(-totalBookingDeduction[userId]!),
           );
+
+          List<String> bookingDates = List<String>.from(await FirebaseGetUser().getUserData(username, 'bookingDates') ?? []);
+          String removedDate = removedBookingDates[userId]!.first;
+          bookingDates.remove(removedDate);
+          
           await FirebaseUpdateUser().updateUser(
             'bookingDates',
             username,
-            FieldValue.arrayRemove(removedBookingDates[username]!),
+            bookingDates,
+          );
+
+          await OnesignalSendNotificationCustomers().sendNotification(
+            "Perubahan Jadwal",
+            'Booking Anda pada tanggal $removedDate telah dibatalkan karena penutupan lapangan. Mohon maaf atas ketidaknyamananya',
+            username,
           );
         }
 

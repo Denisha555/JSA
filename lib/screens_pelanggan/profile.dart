@@ -56,7 +56,6 @@ class _HalamanProfilState extends State<HalamanProfil> {
     try {
       await _loadData();
       if (username != null && username!.isNotEmpty) {
-        await FirebaseCheckUser().checkRewardTime(username!);
         final type = await FirebaseCheckUser().checkUserType(username!);
         final result = type == 'member' ? true : false;
 
@@ -354,6 +353,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
               TextButton(
                 onPressed: () async {
                   await OneSignal.logout();
+                  await OneSignal.User.removeTag("role");
                   Navigator.pop(context, true);
                 },
                 child: const Text('Keluar'),

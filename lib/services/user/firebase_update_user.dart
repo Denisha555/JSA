@@ -11,14 +11,21 @@ class FirebaseUpdateUser {
         username,
       );
       if (exist) {
-        await firestore.collection('users').doc(username).update({
+        QuerySnapshot result =
+            await firestore
+                .collection('users')
+                .where('username', isEqualTo: username)
+                .get();
+        
+        var docId = result.docs[0].id;
+
+        await firestore.collection('users').doc(docId).update({
           field: value,
         });
-        
-        final doc = await firestore.collection('users').doc(username).get();
+
+        final doc = await firestore.collection('users').doc(docId).get();
         final data = doc.data()!;
-        await firestore.collection('users').doc(username).set(data);
-        
+        await firestore.collection('users').doc(docId).set(data);
       } else {
         throw Exception('User does not exist');
       }
@@ -34,14 +41,24 @@ class FirebaseUpdateUser {
     String phoneNumber,
   ) async {
     try {
-      final exist = await FirebaseCheckUser().checkExistence('username', username);
-      
+      final exist = await FirebaseCheckUser().checkExistence(
+        'username',
+        username,
+      );
+
       if (exist) {
-        await firestore.collection('users').doc(username).update({
-        'name': name,
-        'club': club,
-        'phoneNumber': phoneNumber,
-      });
+        QuerySnapshot result =
+            await firestore
+                .collection('users')
+                .where('username', isEqualTo: username)
+                .get();
+        var docId = result.docs[0].id;
+
+        await firestore.collection('users').doc(docId).update({
+          'name': name,
+          'club': club,
+          'phoneNumber': phoneNumber,
+        });
       } else {
         throw Exception('User does not exist');
       }

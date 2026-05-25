@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_1/services/notification/onesignal_send_notification.dart';
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 
 class DeleteHoliday {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
@@ -21,10 +23,13 @@ class DeleteHoliday {
               .collection('time_slots')
               .where('date', isEqualTo: selectedDate)
               .get();
+      
+      List<String> affectedUsers = [];
 
       if (docId.docs.isEmpty) {
         throw Exception('No time slots found for the selected date.');
       } else {
+        
         final List<Map<String, dynamic>> updatedSlots = [];
         for (var doc in docId.docs) {
           final slots = doc.data()['slots'] as List<dynamic>;
@@ -32,9 +37,21 @@ class DeleteHoliday {
             var updatedSlot = Map<String, dynamic>.from(slot);
             updatedSlot['isHoliday'] = false;
             updatedSlots.add(updatedSlot);
+            if (updatedSlot['userId'] != "" && updatedSlot['userId'] != null) {
+              affectedUsers.add(updatedSlot['userId']);
+            }
           }
           doc.reference.set({'slots': updatedSlots}, SetOptions(merge: true));
         }
+      }
+
+      for (var userId in affectedUsers.toSet()) {
+        final username = await FirebaseGetUser().getUserDataById(userId, 'username');
+        await OnesignalSendNotificationCustomers().sendNotification(
+          "Perubahan Jadwal",
+          'Terjadi perubahan jadwal booking Anda pada tanggal $selectedDate karena hari libur telah dihapus. Mohon cek kembali jadwal booking Anda.',
+          username,
+        );
       }
     } catch (e) {
       throw Exception('Failed to delete holiday: $e');

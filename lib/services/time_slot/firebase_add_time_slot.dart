@@ -33,7 +33,7 @@ class FirebaseAddTimeSlot {
                 'startTime': startTime,
                 'endTime': calculateEndTimeUseStartTime(startTime),
                 'isAvailable': true,
-                'username': '',
+                'userId': '',
                 'cancel': [],
                 'isClosed': false,
                 'isHoliday': false,

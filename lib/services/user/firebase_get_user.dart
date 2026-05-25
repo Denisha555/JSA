@@ -53,4 +53,19 @@ class FirebaseGetUser {
       throw Exception('Error Fetching User Data: $e');
     }
   }
+
+  Future<dynamic> getUserDataById(String userId, String field) async {
+    try {
+      DocumentSnapshot doc = await firestore.collection('users').doc(userId).get();
+
+      if (!doc.exists) {
+        throw Exception('User not found');
+      }
+      print('Data for userId $userId: ${doc.data()}');
+      print('Requested field: ${doc.get(field)}');
+      return doc.get(field);
+    } catch (e) {
+      throw Exception('Error Fetching User Data by ID: $e');
+    }
+  }
 }

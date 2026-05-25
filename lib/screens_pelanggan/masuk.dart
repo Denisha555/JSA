@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_application_1/screen_owner/halaman_utama_owner.dart';
 import 'package:flutter_application_1/screens_pelanggan/lupa_password.dart';
 import 'package:flutter_application_1/services/notification/onesignal_add_notification.dart';
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_application_1/function/snackbar/snackbar.dart';
@@ -119,6 +120,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
 
       if (!registered) {
         await FirebaseAddUser().addUser(
+          userId: usernameController.text,
           userName: usernameController.text,
           password: passwordController.text,
           role: 'admin',
@@ -159,6 +161,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
 
       if (!registered) {
         await FirebaseAddUser().addUser(
+          userId: usernameController.text,
           userName: usernameController.text,
           password: passwordController.text,
           role: 'owner',
@@ -230,7 +233,12 @@ class _HalamanMasukState extends State<HalamanMasuk>
       }
 
       if (!kIsWeb) {
-        
+        OneSignal.User.addTagWithKey("role", "customer");
+        String userId = await FirebaseGetUser().getUserData(
+          usernameController.text,
+          'userId',
+        );
+        await OneSignal.login(userId);
       }
 
     } catch (e) {

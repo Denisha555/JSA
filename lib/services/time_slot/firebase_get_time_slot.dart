@@ -1,3 +1,4 @@
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/constants_file.dart';
@@ -22,8 +23,6 @@ class FirebaseGetTimeSlot {
         return getTimeSlot(selectedDate);
       }
 
-      // await FirebaseCheckTimeSlot().isSlotReady(dateStr);
-
       List<TimeSlotModel> result = [];
       for (var doc in querySnapshot.docs) {
         final data = doc.data();
@@ -31,9 +30,19 @@ class FirebaseGetTimeSlot {
         final date = data['date'] as String;
         final slots = data['slots'] as List<dynamic>;
         result.addAll(
-          slots.map(
-            (slot) =>
-                TimeSlotModel.fromJson(slot, courtId: courtId, date: date),
+          await Future.wait(
+            slots.map((slot) async {
+              Map<String, dynamic> slotData = Map<String, dynamic>.from(slot);
+              if (slotData['userId'] != null && slotData['userId'] != '') {
+                String username = await FirebaseGetUser().getUserDataById(
+                  slotData['userId'],
+                  'username',
+                );
+                slotData['username'] = username;
+              }
+
+              return TimeSlotModel.fromJson(slotData, courtId: courtId, date: date);
+            }),
           ),
         );
       }

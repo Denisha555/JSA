@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter_application_1/services/notification/onesignal_send_notification.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -125,6 +126,11 @@ class _HalamanPromoEventState extends State<HalamanPromoEvent>
       showSuccessSnackBar(context, 'Promo berhasil diunggah');
       _resetForm();
       _tabController.animateTo(1);
+
+      await OnesignalSendNotificationCustomers().sendNotificationToAll(
+        "Promo Baru!",
+        "Cek promo terbaru di Jump Smash Arena sekarang juga!",
+      );
     } catch (e) {
       showErrorSnackBar(context, 'Gagal mengunggah promo: $e');
     } finally {

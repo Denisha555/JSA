@@ -1,3 +1,5 @@
+import 'package:flutter_application_1/services/notification/onesignal_send_notification.dart';
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_add_time_slot.dart';
@@ -33,6 +35,8 @@ class AddHoliday {
                 .get();
       }
 
+      List<String> affectedUsers = [];
+
       for (var doc in existingSlots.docs) {
         final List<Map<String, dynamic>> updatedSlots = [];
         final slots = doc.data()['slots'] as List<dynamic>;
@@ -40,8 +44,20 @@ class AddHoliday {
           var updatedSlot = Map<String, dynamic>.from(slot);
           updatedSlot['isHoliday'] = true;
           updatedSlots.add(updatedSlot);
+          if (updatedSlot['userId'] != "" && updatedSlot['userId'] != null) {
+            affectedUsers.add(updatedSlot['userId']);
+          }
         }
         doc.reference.set({'slots': updatedSlots}, SetOptions(merge: true));
+      }
+
+      for (var userId in affectedUsers.toSet()) {
+        final username = await FirebaseGetUser().getUserDataById(userId, 'username');
+        await OnesignalSendNotificationCustomers().sendNotification(
+          "Perubahan Jadwal",
+          'Terjadi perubahan jadwal booking Anda pada tanggal $dateStr karena hari libur. Mohon cek kembali jadwal booking Anda.',
+          username,
+        );
       }
 
       // Tambahkan catatan ke koleksi jadwal_khusus
