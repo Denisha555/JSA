@@ -142,7 +142,7 @@ class FirebaseGetBooking {
         for (var slot in slots) {
           if (slot["isAvailable"] == false) {
             String userId = slot['userId'] ?? '';
-            slot['username'] = await FirebaseGetUser().getUserData(userId, 'username');
+            slot['username'] = await FirebaseGetUser().getUserDataById(userId, 'username');
             allSlots.add(
               TimeSlotModel.fromJson(
                 slot,

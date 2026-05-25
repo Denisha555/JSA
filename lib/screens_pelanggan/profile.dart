@@ -342,6 +342,8 @@ class _HalamanProfilState extends State<HalamanProfil> {
               borderRadius: BorderRadius.circular(16),
             ),
             title: const Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [SizedBox(width: 8), Text('Konfirmasi Keluar')],
             ),
             content: const Text('Apakah kamu yakin ingin keluar?'),
