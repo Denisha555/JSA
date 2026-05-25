@@ -1,3 +1,4 @@
+import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
@@ -173,15 +174,16 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
 
     print('past booking: ${pastBookings.length}');
 
+    print('upcoming booking: ${upcomingBookings.length}');
+
     // Group consecutive bookings efficiently
-    final pastGroups = _groupConsecutiveBookings(pastBookings);
-    print('past groups: ${pastGroups.length}');
-    final upcomingGroups = _groupConsecutiveBookings(upcomingBookings);
+    final pastGroups = await _groupConsecutiveBookings(pastBookings);
+    final upcomingGroups = await _groupConsecutiveBookings(upcomingBookings);
 
     return {'past': pastGroups, 'upcoming': upcomingGroups};
   }
 
-  List<TimeSlotModel> _groupConsecutiveBookings(List<TimeSlotModel> bookings) {
+  Future<List<TimeSlotModel>> _groupConsecutiveBookings(List<TimeSlotModel> bookings) async {
     if (bookings.isEmpty) return [];
 
     // PERBAIKAN UTAMA: Group by date, court, username, DAN type
@@ -190,7 +192,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
 
     for (final booking in bookings) {
       // Key harus include courtId agar booking di lapangan berbeda tidak ter-group
-      final key = '${booking.date}_${booking.courtId}_${booking.username}';
+      final key = '${booking.date}_${booking.courtId}_${booking.userId}';
       print('key: $key');
       groups[key] ??= [];
       groups[key]!.add(booking);
@@ -202,12 +204,12 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     final result = <TimeSlotModel>[];
 
     for (final timeSlots in groups.values) {
-      // Filter hanya booking yang valid (ada username dan tidak available)
+      // Filter hanya booking yang valid (ada userId dan tidak available)
       final userBookings =
           timeSlots
               .where(
                 (slot) =>
-                    ((slot.username.isNotEmpty && !slot.isAvailable) ||
+                    ((slot.userId.isNotEmpty && !slot.isAvailable) ||
                         slot.cancel.isNotEmpty),
               )
               .toList();
@@ -218,7 +220,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
       userBookings.sort((a, b) => a.startTime.compareTo(b.startTime));
 
       // Create consecutive groups HANYA untuk slot di lapangan yang sama
-      final consecutiveGroups = _createConsecutiveGroups(userBookings);
+      final consecutiveGroups = await _createConsecutiveGroups(userBookings);
       result.addAll(consecutiveGroups);
     }
 
@@ -232,7 +234,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     return result;
   }
 
-  List<TimeSlotModel> _createConsecutiveGroups(List<TimeSlotModel> timeSlots) {
+  Future<List<TimeSlotModel>> _createConsecutiveGroups(List<TimeSlotModel> timeSlots) async {
     if (timeSlots.isEmpty) return [];
 
     final result = <TimeSlotModel>[];
@@ -249,14 +251,14 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
       // 3. Type yang sama
       // 4. Court yang sama (sudah dihandle di level grouping sebelumnya)
       if (_areTimesConsecutive(previous.endTime, current.startTime) &&
-          previous.username == current.username &&
+          previous.userId == current.userId &&
           previous.type == current.type &&
           previous.courtId == current.courtId) {
         currentGroup.add(current);
       } else {
         // Create grouped time slot and start new group
         if (currentGroup.isNotEmpty) {
-          result.add(_createGroupedTimeSlot(currentGroup));
+          result.add(await _createGroupedTimeSlot(currentGroup));
         }
         currentGroup.clear();
         currentGroup.add(current);
@@ -265,7 +267,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
 
     // Add the last group
     if (currentGroup.isNotEmpty) {
-      result.add(_createGroupedTimeSlot(currentGroup));
+      result.add(await _createGroupedTimeSlot(currentGroup));
     }
 
     return result;
@@ -285,9 +287,10 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     }
   }
 
-  TimeSlotModel _createGroupedTimeSlot(List<TimeSlotModel> group) {
+  Future<TimeSlotModel> _createGroupedTimeSlot(List<TimeSlotModel> group) async {
     final first = group.first;
     final last = group.last;
+    final username = await FirebaseGetUser().getUserDataById(first.userId, 'username');
 
     return TimeSlotModel(
       slotId: first.slotId,
@@ -296,7 +299,8 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
       startTime: first.startTime,
       endTime: last.endTime,
       type: first.type,
-      username: first.username,
+      userId: first.userId,
+      username: username,
       isAvailable: first.isAvailable,
       isClosed: first.isClosed,
       isHoliday: first.isHoliday,

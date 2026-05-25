@@ -51,10 +51,6 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
     // Lakukan operasi async terlebih dahulu
     final courtsData = await FirebaseGetCourt().getAllLapanganToday();
 
-    for (int i = 0; i < 5; i++) {
-      print("Generating UUID: ${Uuid().v4()}");
-    }
-
     // Kemudian update state secara sinkron
     if (mounted) {
       setState(() {
