@@ -1,3 +1,4 @@
+import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/services/notification/onesignal_send_notification.dart';
 import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:intl/intl.dart';
@@ -55,7 +56,7 @@ class AddHoliday {
         final username = await FirebaseGetUser().getUserDataById(userId, 'username');
         await OnesignalSendNotificationCustomers().sendNotification(
           "Perubahan Jadwal",
-          'Terjadi perubahan jadwal booking Anda pada tanggal $dateStr karena hari libur. Mohon cek kembali jadwal booking Anda.',
+          'Terjadi perubahan jadwal booking Anda pada tanggal ${formatDate(DateTime.parse(dateStr))} karena hari libur. Mohon cek kembali jadwal booking Anda.',
           username,
         );
       }

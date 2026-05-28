@@ -399,7 +399,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
             ),
             Container(height: 40, width: 1, color: Colors.grey[300]),
             _buildStatItem(
-              '${data.isNotEmpty ? data[0].totalHour.toStringAsFixed(1) : 0}',
+              '${data.isNotEmpty ? data[0].point.toStringAsFixed(1) : 0}',
               'Point',
             ),
           ],
@@ -764,7 +764,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                               Row(
                                 children: [
                                   Text(
-                                    '${data.isNotEmpty ? data[0].totalHour.toStringAsFixed(1) : 0} Poin',
+                                    '${data.isNotEmpty ? data[0].point.toStringAsFixed(1) : 0} Poin',
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 12,

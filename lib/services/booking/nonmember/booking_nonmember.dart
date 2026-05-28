@@ -20,7 +20,7 @@ class BookingNonMember {
               .collection('users')
               .where('username', isEqualTo: username)
               .get();
-      
+
       String userId = user.docs[0].id;
 
       if (!doc.exists) {
@@ -68,29 +68,13 @@ class BookingNonMember {
     }
   }
 
-  Future<void> addTotalBooking(String username) async {
-    try {
-      final exist = await FirebaseCheckUser().checkExistence(
-        'username',
-        username,
-      );
-      if (exist) {
-        QuerySnapshot user =
-            await firestore
-                .collection('users')
-                .where('username', isEqualTo: username)
-                .get();
-
-        await firestore.collection('users').doc(user.docs[0].id).set({
-          'totalBooking': FieldValue.increment(1),
-        }, SetOptions(merge: true));
-      }
-    } catch (e) {
-      throw Exception('Failed to add total booking: $e');
-    }
-  }
-
-  Future<void> addBookingDates(String username, List<String> dates) async {
+  Future<void> addBookingDates(
+    String username,
+    List<String> dates,
+    String court,
+    String startTime,
+    String endTime,
+  ) async {
     QuerySnapshot user =
         await firestore
             .collection('users')
@@ -100,30 +84,27 @@ class BookingNonMember {
     final userDoc = firestore.collection('users').doc(user.docs[0].id);
 
     final snapshot = await userDoc.get();
-    List<String> currentDates = [];
+     List<Map<String, dynamic>> currentDates = [];
 
     if (snapshot.exists && snapshot.data()!.containsKey('bookingDates')) {
       final data = snapshot.data()!['bookingDates'];
 
       if (data is List) {
-        currentDates = data.map((e) => e.toString()).toList();
+        currentDates = List<Map<String, dynamic>>.from(data);
       }
     }
 
-    currentDates.addAll(dates);
+    final bookingInfo = {
+      "date" : dates[0],
+      "court": court,
+      "startTime": startTime,
+      "endTime": endTime,
+      "id": '${court}_${dates[0]}',
+      "status": ""
+      };
+
+    currentDates.add(bookingInfo);
 
     await userDoc.set({'bookingDates': currentDates}, SetOptions(merge: true));
-  }
-
-  Future<void> addStartTimePoint(String username, String startTime) async {
-    QuerySnapshot user =
-        await firestore
-            .collection('users')
-            .where('username', isEqualTo: username)
-            .get();
-    final userDoc = firestore.collection('users').doc(user.docs[0].id);
-    await userDoc.set({
-      'startTimePoint': startTime,
-    }, SetOptions(merge: true));
   }
 }

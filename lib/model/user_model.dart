@@ -7,14 +7,14 @@ class UserModel {
   final String startTimePoint;
   final String startTimeMember;
   final double point;
-  final double totalHour;
+  final double hour;
   final int totalBooking;
   final int memberTotalBooking;
   final int memberCurrentTotalBooking;
   final int memberBookingLength;
   final int cancel;
   final List<String> cancelDate;
-  final List<String> bookingDates;
+  final List<Map<String, dynamic>> bookingDates;
   final String noTelp;
   final String club;
 
@@ -27,7 +27,7 @@ class UserModel {
     this.startTimePoint = '',
     this.startTimeMember = '',
     this.point = 0,
-    this.totalHour = 0,
+    this.hour = 0,
     this.totalBooking = 0,
     this.memberTotalBooking = 0,
     this.memberCurrentTotalBooking = 0,
@@ -49,14 +49,14 @@ class UserModel {
       startTimePoint: json['startTimePoint'] ?? '',
       startTimeMember: json['startTimeMember'] ?? '',
       point: (json['point'] ?? 0).toDouble(),
-      totalHour: (json['totalHour'] ?? 0).toDouble(),
+      hour: (json['hour'] ?? 0).toDouble(),
       totalBooking: (json['totalBooking'] ?? 0).toInt(),
       memberTotalBooking: (json['memberTotalBooking'] ?? 0).toInt(),
       memberCurrentTotalBooking: (json['memberCurrentTotalBooking'] ?? 0).toInt(),
       memberBookingLength: (json['memberBookingLenght'] ?? 0).toInt(),
       cancel: (json['cancel'] ?? 0).toInt(),
       cancelDate: List<String>.from(json['cancelDate'] ?? []),
-      bookingDates: List<String>.from(json['bookingDates'] ?? []),
+      bookingDates: List<Map<String, dynamic>>.from(json['bookingDates'] ?? []),
       noTelp: json['phoneNumber'] ?? '',
       club: json['club'] ?? '',
     );

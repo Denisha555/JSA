@@ -46,6 +46,8 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
 
     await getUserData();
 
+    await FirebaseCheckUser().checkUserPoint(user.isNotEmpty ? user[0].username : '');
+
     await Future.wait([_checkBooked(), _getPromoData()]);
 
     // Lakukan operasi async terlebih dahulu
@@ -104,7 +106,8 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
       }
     } catch (e) {
       if (!mounted) return;
-      showErrorSnackBar(context, 'Gagal memuat data pengguna');
+      showErrorSnackBar(context, 'Gagal memuat data pengguna: $e');
+      print('Error fetching user data: $e');
     }
   }
 

@@ -33,29 +33,29 @@ class FirebaseGetBooking {
         return [];
       }
 
-      final uniqueBookingDates = bookingDates.toSet().toList();
-
       List<TimeSlotModel> allSlots = [];
 
-      for (var date in uniqueBookingDates) {
+      for (var booking in bookingDates) {
+        final bookingMap = Map<String, dynamic>.from(booking);
+
+        final court = bookingMap['court'];
+        final date = bookingMap['date'];
+
         final timeSlots =
             await firestore
                 .collection('time_slots')
-                .where('date', isEqualTo: date)
+                .doc('${court}_$date')
                 .get();
 
-        for (var doc in timeSlots.docs) {
-          final slots = doc.data()['slots'] as List<dynamic>;
-          for (var slot in slots) {
-            if (slot['userId'] == userId) {
-              allSlots.add(
-                TimeSlotModel.fromJson(
-                  slot,
-                  date: date,
-                  courtId: doc.id.split('_')[0],
-                ),
-              );
-            }
+        if (!timeSlots.exists) continue;
+
+        final slots = timeSlots.data()?['slots'] as List<dynamic>;
+
+        for (var slot in slots) {
+          if (slot['userId'] == userId) {
+            allSlots.add(
+              TimeSlotModel.fromJson(slot, date: date, courtId: court),
+            );
           }
         }
       }
@@ -123,7 +123,7 @@ class FirebaseGetBooking {
 
       return allSlots;
     } catch (e) {
-      throw Exception('Failed to~ get cancel time slots for $username: $e');
+      throw Exception('Failed to get cancel time slots for $username: $e');
     }
   }
 
@@ -142,7 +142,10 @@ class FirebaseGetBooking {
         for (var slot in slots) {
           if (slot["isAvailable"] == false) {
             String userId = slot['userId'] ?? '';
-            slot['username'] = await FirebaseGetUser().getUserDataById(userId, 'username');
+            slot['username'] = await FirebaseGetUser().getUserDataById(
+              userId,
+              'username',
+            );
             allSlots.add(
               TimeSlotModel.fromJson(
                 slot,
@@ -292,7 +295,6 @@ class FirebaseGetBooking {
 
                 // simpan username sekarang
                 previousUserId = userId;
-
               }
             }
           }
@@ -348,7 +350,10 @@ class FirebaseGetBooking {
               type: slot['type'] as String,
             );
 
-            final username = await FirebaseGetUser().getUserDataById(slot['userId'] ?? '', 'username');
+            final username = await FirebaseGetUser().getUserDataById(
+              slot['userId'] ?? '',
+              'username',
+            );
 
             allSlots.add(
               TimeSlotModel.fromJson(

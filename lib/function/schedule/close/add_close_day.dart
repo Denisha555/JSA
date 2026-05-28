@@ -116,7 +116,7 @@ class AddCloseDay {
 
           await OnesignalSendNotificationCustomers().sendNotification(
             "Perubahan Jadwal",
-            'Booking Anda pada tanggal $removedDate telah dibatalkan karena penutupan lapangan. Mohon maaf atas ketidaknyamananya',
+            'Booking Anda pada tanggal ${formatDate(DateTime.parse(removedDate))} telah dibatalkan karena operasioanl JSA ditutup. Mohon maaf atas ketidaknyamananya',
             username,
           );
         }
@@ -245,7 +245,7 @@ class AddCloseDay {
 
           await OnesignalSendNotificationCustomers().sendNotification(
             "Perubahan Jadwal",
-            'Booking Anda pada tanggal $removedDate telah dibatalkan karena penutupan lapangan. Mohon maaf atas ketidaknyamananya',
+            'Booking Anda pada tanggal ${formatDate(DateTime.parse(removedDate))} telah dibatalkan karena operasional JSA ditutup. Mohon maaf atas ketidaknyamananya',
             username,
           );
         }

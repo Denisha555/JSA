@@ -341,14 +341,10 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
           bookedSlots.add(formattedTime);
 
-          await BookingNonMember().addTotalHour(username);
-
           bookedDates.add(dateStr);
         }
 
-        await BookingNonMember().addTotalBooking(username);
-        await BookingNonMember().addBookingDates(username, [bookedDates[0]]);
-        await FirebaseCheckUser().checkRewardTime(username, date: dateStr);
+        await BookingNonMember().addBookingDates(username, [bookedDates[0]], court, startTime, endTime);
 
         // member booking
       } else {

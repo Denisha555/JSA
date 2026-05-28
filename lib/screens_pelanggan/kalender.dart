@@ -447,7 +447,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           username,
           totalHours,
         );
-        await BookingNonMember().addTotalHour(username);
         //   } else {
         //     await BookingMember().bookSlotForMember(
         //       court,
@@ -459,13 +458,11 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       }
 
       // if (_cacheRole != 'member') {
-      await BookingNonMember().addTotalBooking(username);
-      await BookingNonMember().addBookingDates(username, [dateStr]);
+      await BookingNonMember().addBookingDates(username, [dateStr], court, startTime, endTime);
       // } else {
       //   await BookingMember().addTotalBooking(username);
       //   await BookingMember().addBookingDates(username, [dateStr]);
       // }
-      await FirebaseCheckUser().checkRewardTime(username, date: dateStr);
     } catch (e) {
       debugPrint('Error performing booking: $e');
       rethrow;

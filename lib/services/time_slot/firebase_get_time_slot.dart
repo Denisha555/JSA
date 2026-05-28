@@ -52,6 +52,40 @@ class FirebaseGetTimeSlot {
     }
   }
 
+  Future<List<TimeSlotModel>> getSpesificTimeSlots(
+    String selectedDate,
+    String courtId,
+  ) async {
+    try {
+      final docId = '${courtId}_$selectedDate';
+      final doc = await firestore.collection('time_slots').doc(docId).get();
+
+      if (!doc.exists) {
+        await FirebaseAddTimeSlot().addTimeSlot(DateTime.parse(selectedDate));
+        return getSpesificTimeSlots(selectedDate, courtId);
+      }
+
+      final slots = doc.data()!['slots'] as List<dynamic>;
+
+      return await Future.wait(
+        slots.map((slot) async {
+          Map<String, dynamic> slotData = Map<String, dynamic>.from(slot);
+          if (slotData['userId'] != null && slotData['userId'] != '') {
+            String username = await FirebaseGetUser().getUserDataById(
+              slotData['userId'],
+              'username',
+            );
+            slotData['username'] = username;
+          }
+
+          return TimeSlotModel.fromJson(slotData, courtId: courtId, date: selectedDate);
+        }),
+      );
+    } catch (e) {
+      throw Exception('Failed to get time slots by court: $e');
+    }
+  }
+
   Future<List<TimeSlotModel>> getAvailableSlots(
     DateTime selectedDate,
     String startTime,

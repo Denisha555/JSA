@@ -146,7 +146,6 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     for (final entry in bookingsByDate.entries) {
       final dateStr = entry.key;
       final bookings = entry.value;
-      print('Processing bookings for date: $dateStr');
       final bookingDate = DateFormat('yyyy-MM-dd').parse(dateStr);
 
       if (bookingDate.isBefore(today)) {
@@ -168,17 +167,12 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
       }
     }
 
-    print('cancel booking: ${cancelBookings.length}');
-    // Add all cancel bookings to past (they're already processed)
-    pastBookings.addAll(cancelBookings);
-
-    print('past booking: ${pastBookings.length}');
-
-    print('upcoming booking: ${upcomingBookings.length}');
-
     // Group consecutive bookings efficiently
     final pastGroups = await _groupConsecutiveBookings(pastBookings);
     final upcomingGroups = await _groupConsecutiveBookings(upcomingBookings);
+
+    print('pastGroups: $pastGroups');
+    print('upcomingGroups: $upcomingGroups');
 
     return {'past': pastGroups, 'upcoming': upcomingGroups};
   }
