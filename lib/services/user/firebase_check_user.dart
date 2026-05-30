@@ -175,12 +175,17 @@ class FirebaseCheckUser {
       if (startTimePoint.isEmpty) {
         bookings.sort((a, b) => DateTime.parse(a).compareTo(DateTime.parse(b)));
 
-        for (final date in bookings) {
-          final parsed = DateTime.parse(date);
+        for (final data in bookingDetails) {
+          final parsed = DateTime.parse(data["date"]);
+          final bookingEnd = DateTime.parse(
+            '${data["date"]} ${data["endTime"].replaceAll('.', ':')}',
+          );
 
           if (parsed.month == now.month && parsed.year == now.year) {
-            startTimePoint = date;
-            break;
+            if (data["status"] != "checked" && bookingEnd.isBefore(now)) {
+              startTimePoint = data["date"];
+              break;
+            }
           }
         }
 
@@ -260,7 +265,6 @@ class FirebaseCheckUser {
       }
 
       for (final booking in relevantBookingDetails) {
-        final court = booking['court'];
         String startTime = booking['startTime'];
         String endTime = booking['endTime'];
         final date = booking['date'];

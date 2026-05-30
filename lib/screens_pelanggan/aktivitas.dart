@@ -171,6 +171,9 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     final pastGroups = await _groupConsecutiveBookings(pastBookings);
     final upcomingGroups = await _groupConsecutiveBookings(upcomingBookings);
 
+    print('pastGroups: ${pastGroups.length}');
+    print('upcomingGroups: ${upcomingGroups.length}');
+
     print('pastGroups: $pastGroups');
     print('upcomingGroups: $upcomingGroups');
 
@@ -238,12 +241,6 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
       final current = timeSlots[i];
       final previous = currentGroup.last;
 
-      // PERBAIKAN: Validasi yang lebih strict untuk consecutive grouping
-      // Hanya group jika:
-      // 1. Waktu berurutan (end time previous = start time current)
-      // 2. User yang sama
-      // 3. Type yang sama
-      // 4. Court yang sama (sudah dihandle di level grouping sebelumnya)
       if (_areTimesConsecutive(previous.endTime, current.startTime) &&
           previous.userId == current.userId &&
           previous.type == current.type &&
