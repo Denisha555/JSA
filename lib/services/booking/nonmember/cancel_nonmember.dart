@@ -36,9 +36,6 @@ class CancelNonMember {
         throw Exception('user not found');
       }
 
-      await FirebaseCheckUser().checkMembership(username);
-      await FirebaseCheckUser().checkRewardTime(username);
-
       final userRef = userQuery.docs.first.reference;
 
       var updatedSlot = List<Map<String, dynamic>>.from(slots);

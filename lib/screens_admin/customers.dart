@@ -69,7 +69,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
     );
     try {
       await FirebaseCheckUser().checkMembership(username);
-      await FirebaseCheckUser().checkRewardTime(username);
+      await FirebaseCheckUser().checkUserPoint(username);
       final users = await FirebaseGetUser().getUserByUsername(username);
       if (!mounted) return;
       Navigator.of(context).pop(); // tutup loading

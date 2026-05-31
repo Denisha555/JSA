@@ -216,7 +216,8 @@ class _HalamanMasukState extends State<HalamanMasuk>
 
       // Save to shared preferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('username', usernameController.text);
+      final userId = await FirebaseGetUser().getUserData(usernameController.text, 'userId');
+      await prefs.setString('userId', userId);
 
       if (mounted) {
         // Add a small delay to ensure all async operations complete

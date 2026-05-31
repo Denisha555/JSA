@@ -65,12 +65,14 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
   Future<void> getUserData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final userId = prefs.getString('username');
-      if (userId != null) {
+      final userId = prefs.getString('userId');
+      final username = await FirebaseGetUser().getUserDataById(userId!, "username");
+      prefs.setString('username', username);
+      if (username != null) {
         await Future.wait([
-          FirebaseCheckUser().checkMembership(userId),
+          FirebaseCheckUser().checkMembership(username),
         ]);
-        final userData = await FirebaseGetUser().getUserByUsername(userId);
+        final userData = await FirebaseGetUser().getUserByUsername(username);
 
         if (mounted) {
           setState(() {

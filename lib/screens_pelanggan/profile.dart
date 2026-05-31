@@ -367,9 +367,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
     if (shouldLogout == true) {
       try {
         SharedPreferences prefs = await SharedPreferences.getInstance();
-        await prefs.remove('username');
-        await prefs.remove('isMember');
-        await prefs.remove('isMemberUI');
+        prefs.clear();
 
         if (!mounted) return;
         Navigator.pushReplacement(

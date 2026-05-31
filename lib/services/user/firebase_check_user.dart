@@ -1,5 +1,3 @@
-import 'dart:ffi';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_get_time_slot.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_update_time_slot.dart';
@@ -97,53 +95,6 @@ class FirebaseCheckUser {
       }
     } catch (e) {
       throw Exception('Error checking membership: $e');
-    }
-  }
-
-  Future<void> checkRewardTime(String username, {String date = ''}) async {
-    try {
-      if (await checkExistence('username', username)) {
-        final startTimePoint = await FirebaseGetUser().getUserData(
-          username,
-          'startTimePoint',
-        );
-
-        print('start time point: $startTimePoint');
-
-        if (startTimePoint != '' && startTimePoint != null) {
-          final startDate = DateTime.parse(startTimePoint);
-          final finishDate = DateTime(
-            startDate.year,
-            startDate.month + 1,
-            startDate.day,
-          );
-          print('finish date: $finishDate');
-
-          final now = DateTime.now();
-          final difference = finishDate.difference(now);
-          final daysLeft = difference.inDays;
-
-          print('days left: $daysLeft');
-
-          if (daysLeft <= 0) {
-            await FirebaseUpdateUser().updateUser(
-              'startTimePoint',
-              username,
-              '',
-            );
-            await FirebaseUpdateUser().updateUser('point', username, 0);
-          }
-        } else if (startTimePoint == '' || startTimePoint == null) {
-          print('setting new start time point');
-          await FirebaseUpdateUser().updateUser(
-            'startTimePoint',
-            username,
-            date,
-          );
-        }
-      }
-    } catch (e) {
-      throw Exception('Error checking reward time: $e');
     }
   }
 
