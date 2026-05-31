@@ -13,13 +13,12 @@ class OneSignalSendNotificationAdmin {
   ) async {
     try {
       final appId = 'c8e16b1c-cee5-46f2-972e-4e4a190af032';
-      final restApiKey =
-          'os_v2_app_zdqwwhgo4vdpffzojzfbscxqglydqlxrmxceza4zyzkzlom6wu6h5vxjrttfcuissukpjdlj6atlep6s7t2yqugaeba2bcky6dwscri';
+      final restApiKey = await OneSignalGetRestApi().getRestApi();
 
       var url = Uri.parse('https://api.onesignal.com/notifications');
       var headers = {
         'Content-Type': 'application/json',
-        'Authorization': 'Basic $restApiKey',
+        'Authorization': 'key $restApiKey',
       };
 
       var body = jsonEncode({
@@ -53,7 +52,7 @@ class OneSignalSendNotificationAdmin {
       var url = Uri.parse('https://api.onesignal.com/notifications');
       var headers = {
         'Content-Type': 'application/json',
-        'Authorization': 'Basic $restApiKey',
+        'Authorization': 'key $restApiKey',
       };
 
       var body = jsonEncode({
@@ -88,7 +87,7 @@ class OnesignalSendNotificationCustomers {
       var url = Uri.parse('https://api.onesignal.com/notifications');
       var headers = {
         'Content-Type': 'application/json',
-        'Authorization': 'Basic $restApiKey',
+        'Authorization': 'key $restApiKey',
       };
 
       String notificationId = await FirebaseGetUser().getUserData(
@@ -119,7 +118,7 @@ class OnesignalSendNotificationCustomers {
       var url = Uri.parse('https://api.onesignal.com/notifications');
       var headers = {
         'Content-Type': 'application/json',
-        'Authorization': 'Basic $restApiKey',
+        'Authorization': 'key $restApiKey',
       };
 
       var body = jsonEncode({

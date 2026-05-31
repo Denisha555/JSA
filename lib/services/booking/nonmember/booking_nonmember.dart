@@ -8,8 +8,8 @@ class BookingNonMember {
     String courtId,
     String dateStr,
     String startTime,
+    String endTime,
     String username,
-    double totalHours,
   ) async {
     try {
       final docId = '${courtId}_$dateStr';
@@ -28,14 +28,30 @@ class BookingNonMember {
       }
 
       final slots = doc.data()!['slots'] as List<dynamic>;
-      final slotIndex = slots.indexWhere(
-        (slot) => slot['startTime'] == startTime,
-      );
-
       var updatedSlot = List<Map<String, dynamic>>.from(slots);
-      updatedSlot[slotIndex]['isAvailable'] = false;
-      updatedSlot[slotIndex]['type'] = 'nonMember';
-      updatedSlot[slotIndex]['userId'] = userId;
+      bool inRange = false;
+
+      for (int i = 0; i < updatedSlot.length; i++) {
+        final slot = updatedSlot[i];
+
+        if (slot['startTime'] == startTime) {
+          inRange = true;
+        }
+
+        if (inRange) {
+          if (slot['isAvailable'] != true) {
+            throw Exception('Ada slot yang sudah dibooking');
+          }
+
+          updatedSlot[i]['isAvailable'] = false;
+          updatedSlot[i]['type'] = 'nonMember';
+          updatedSlot[i]['userId'] = userId;
+        }
+
+        if (slot['endTime'] == endTime && inRange) {
+          break;
+        }
+      }
 
       await firestore.collection('time_slots').doc(docId).update({
         'slots': updatedSlot,
@@ -84,7 +100,7 @@ class BookingNonMember {
     final userDoc = firestore.collection('users').doc(user.docs[0].id);
 
     final snapshot = await userDoc.get();
-     List<Map<String, dynamic>> currentDates = [];
+    List<Map<String, dynamic>> currentDates = [];
 
     if (snapshot.exists && snapshot.data()!.containsKey('bookingDates')) {
       final data = snapshot.data()!['bookingDates'];
@@ -95,13 +111,13 @@ class BookingNonMember {
     }
 
     final bookingInfo = {
-      "date" : dates[0],
+      "date": dates[0],
       "court": court,
       "startTime": startTime,
       "endTime": endTime,
       "id": '${court}_${dates[0]}',
-      "status": ""
-      };
+      "status": "",
+    };
 
     currentDates.add(bookingInfo);
 

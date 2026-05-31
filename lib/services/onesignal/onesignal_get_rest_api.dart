@@ -7,7 +7,7 @@ class OneSignalGetRestApi {
       final docSnapshot = await firestore.collection('onesignal').get();
       if (docSnapshot.docs.isNotEmpty) {
         final data = docSnapshot.docs[0].data();
-        return data['REST API'] as String?;
+        return data['API Key'] as String?;
       } else {
         throw Exception('No OneSignal configuration found');
       }

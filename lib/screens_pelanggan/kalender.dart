@@ -430,35 +430,56 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       final endTotalMinutes = timeToMinutes(endTime);
       double totalHours = (endTotalMinutes - startTotalMinutes) / 60.0;
 
-      // Book each 30-minute slot
-      for (
-        int minutes = startTotalMinutes;
-        minutes < endTotalMinutes;
-        minutes += 30
-      ) {
-        final formattedTime = minutesToFormattedTime(minutes);
+      print("startTotalMinutes: $startTotalMinutes");
+      print("endTotalMinutes: $endTotalMinutes");
+      print("totalHours: $totalHours");
 
-        // if (_cacheRole != 'member' ||
-        //     _memberCurrentTotalBooking! >= _memberTotalBooking!) {
-        await BookingNonMember().bookSlotForNonMember(
-          court,
-          dateStr,
-          formattedTime,
-          username,
-          totalHours,
-        );
-        //   } else {
-        //     await BookingMember().bookSlotForMember(
-        //       court,
-        //       dateStr,
-        //       formattedTime,
-        //       username,
-        //     );
-        //   }
-      }
+      print("startTime: $startTime");
+      print("endTime: $endTime");
+
+      await BookingNonMember().bookSlotForNonMember(
+        court,
+        dateStr,
+        startTime,
+        endTime,
+        username,
+      );
+
+      // Book each 30-minute slot
+      // for (
+      //   int minutes = startTotalMinutes;
+      //   minutes < endTotalMinutes;
+      //   minutes += 30
+      // ) {
+      //   final formattedTime = minutesToFormattedTime(minutes);
+      //   print("formattedTime: $formattedTime");
+
+      //   // if (_cacheRole != 'member' ||
+      //   //     _memberCurrentTotalBooking! >= _memberTotalBooking!) {
+      //   await BookingNonMember().bookSlotForNonMember(
+      //     court,
+      //     dateStr,
+      //     formattedTime,
+      //     username,
+      //   );
+      //   //   } else {
+      //   //     await BookingMember().bookSlotForMember(
+      //   //       court,
+      //   //       dateStr,
+      //   //       formattedTime,
+      //   //       username,
+      //   //     );
+      //   //   }
+      // }
 
       // if (_cacheRole != 'member') {
-      await BookingNonMember().addBookingDates(username, [dateStr], court, startTime, endTime);
+      await BookingNonMember().addBookingDates(
+        username,
+        [dateStr],
+        court,
+        startTime,
+        endTime,
+      );
       // } else {
       //   await BookingMember().addTotalBooking(username);
       //   await BookingMember().addBookingDates(username, [dateStr]);
@@ -599,7 +620,11 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                             username,
                           );
 
+                          final timeUpdateSlot = DateTime.now().millisecondsSinceEpoch;
+
                           await _updateSlot(selectedDate);
+
+                          print("Time Update Slot: ${DateTime.now().millisecondsSinceEpoch - timeUpdateSlot}");
 
                           await OneSignalSendNotificationAdmin()
                               .sendBookingNotification(
@@ -642,10 +667,15 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
   Future<void> _updateSlot(DateTime selectedDate) async {
     try {
+      final timeGetTimeSlot = DateTime.now().millisecondsSinceEpoch;
       final updatedSlots = await FirebaseGetTimeSlot().getTimeSlot(
         selectedDate,
       );
+      print("Time Get Time Slot: ${DateTime.now().millisecondsSinceEpoch - timeGetTimeSlot}");
+
+      final timeBuildData = DateTime.now().millisecondsSinceEpoch;
       await _buildBookingData(updatedSlots);
+      print("Time Build Data: ${DateTime.now().millisecondsSinceEpoch - timeBuildData}");
     } catch (e) {
       debugPrint('Error updating slot: $e');
       if (!mounted) return;

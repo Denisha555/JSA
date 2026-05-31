@@ -317,32 +317,41 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
       final startTotalMinutes = timeToMinutes(startTime);
       final endTotalMinutes = timeToMinutes(endTime);
-      double totalHours = (endTotalMinutes - startTotalMinutes) / 60.0;
 
       List<String> bookedSlots = [];
       List<String> bookedDates = [];
 
       // non member booking
       if (await FirebaseCheckUser().checkUserType(username) != 'member') {
-        for (
-          int minutes = startTotalMinutes;
-          minutes < endTotalMinutes;
-          minutes += 30
-        ) {
-          final formattedTime = minutesToFormattedTime(minutes);
+        // for (
+        //   int minutes = startTotalMinutes;
+        //   minutes < endTotalMinutes;
+        //   minutes += 30
+        // ) {
+        //   final formattedTime = minutesToFormattedTime(minutes);
 
-          await BookingNonMember().bookSlotForNonMember(
+        //   await BookingNonMember().bookSlotForNonMember(
+        //     court,
+        //     dateStr,
+        //     formattedTime,
+        //     username,
+        //   );
+
+        //   bookedSlots.add(formattedTime);
+
+        //   bookedDates.add(dateStr);
+        // }
+
+        await BookingNonMember().bookSlotForNonMember(
             court,
             dateStr,
-            formattedTime,
+            startTime,
+            endTime,
             username,
-            minutes == startTotalMinutes ? totalHours : 0,
           );
 
-          bookedSlots.add(formattedTime);
-
           bookedDates.add(dateStr);
-        }
+
 
         await BookingNonMember().addBookingDates(username, [bookedDates[0]], court, startTime, endTime);
 
@@ -362,22 +371,28 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         );
 
         if (currentBookingDates >= bookingDates) {
-          // Jika melebihi jumlah hari
-          for (
-            int minutes = startTotalMinutes;
-            minutes < endTotalMinutes;
-            minutes += 30
-          ) {
-            final formattedTime = minutesToFormattedTime(minutes);
-            await BookingNonMember().bookSlotForNonMember(
+          // // Jika melebihi jumlah hari
+          // for (
+          //   int minutes = startTotalMinutes;
+          //   minutes < endTotalMinutes;
+          //   minutes += 30
+          // ) {
+          //   final formattedTime = minutesToFormattedTime(minutes);
+          //   await BookingNonMember().bookSlotForNonMember(
+          //     court,
+          //     dateStr,
+          //     formattedTime,
+          //     username,
+          //   );
+          //   bookedSlots.add(formattedTime);
+          // }
+          await BookingNonMember().bookSlotForNonMember(
               court,
               dateStr,
-              formattedTime,
+              startTime,
+              endTime,
               username,
-              minutes == startTotalMinutes ? totalHours : 0,
             );
-            bookedSlots.add(formattedTime);
-          }
         } else {
           // Hitung jumlah slot
           int length = ((endTotalMinutes - startTotalMinutes) ~/ 30);
@@ -403,7 +418,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               formattedTime,
               username,
             );
-            bookedSlots.add(formattedTime);
+            // bookedSlots.add(formattedTime);
           }
 
           await BookingMember().addTotalBooking(username);

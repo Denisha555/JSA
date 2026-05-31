@@ -23,6 +23,27 @@ class FirebaseGetTimeSlot {
         return getTimeSlot(selectedDate);
       }
 
+      Set<String> userIds = {};
+      for (final doc in querySnapshot.docs) {
+        final slots = doc.data()['slots'] as List<dynamic>;
+
+        for (final slot in slots) {
+          final userId = slot['userId'];
+
+          if (userId != null && userId.toString().isNotEmpty) {
+            userIds.add(userId);
+          }
+        }
+      }
+
+      Map<String, String> userMap = {};
+      if (userIds.isNotEmpty) {
+        for (var id in userIds) {
+          final username = await FirebaseGetUser().getUserDataById(id, "username");
+          userMap[id] = username;
+        }
+      }
+
       List<TimeSlotModel> result = [];
       for (var doc in querySnapshot.docs) {
         final data = doc.data();
@@ -34,14 +55,15 @@ class FirebaseGetTimeSlot {
             slots.map((slot) async {
               Map<String, dynamic> slotData = Map<String, dynamic>.from(slot);
               if (slotData['userId'] != null && slotData['userId'] != '') {
-                String username = await FirebaseGetUser().getUserDataById(
-                  slotData['userId'],
-                  'username',
-                );
+                String username = userMap[slotData['userId']]!;
                 slotData['username'] = username;
               }
 
-              return TimeSlotModel.fromJson(slotData, courtId: courtId, date: date);
+              return TimeSlotModel.fromJson(
+                slotData,
+                courtId: courtId,
+                date: date,
+              );
             }),
           ),
         );
@@ -78,7 +100,11 @@ class FirebaseGetTimeSlot {
             slotData['username'] = username;
           }
 
-          return TimeSlotModel.fromJson(slotData, courtId: courtId, date: selectedDate);
+          return TimeSlotModel.fromJson(
+            slotData,
+            courtId: courtId,
+            date: selectedDate,
+          );
         }),
       );
     } catch (e) {
