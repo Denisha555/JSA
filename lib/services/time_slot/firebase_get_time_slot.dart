@@ -12,6 +12,7 @@ class FirebaseGetTimeSlot {
   Future<List<TimeSlotModel>> getTimeSlot(DateTime selectedDate) async {
     try {
       final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
+
       final querySnapshot =
           await firestore
               .collection('time_slots')
@@ -23,7 +24,9 @@ class FirebaseGetTimeSlot {
         return getTimeSlot(selectedDate);
       }
 
-      Set<String> userIds = {};
+      // Kumpulkan semua userId unik
+      final Set<String> userIds = {};
+
       for (final doc in querySnapshot.docs) {
         final slots = doc.data()['slots'] as List<dynamic>;
 
@@ -31,43 +34,56 @@ class FirebaseGetTimeSlot {
           final userId = slot['userId'];
 
           if (userId != null && userId.toString().isNotEmpty) {
-            userIds.add(userId);
+            userIds.add(userId.toString());
           }
         }
       }
 
+      // Buat map userId -> username
       Map<String, String> userMap = {};
+
       if (userIds.isNotEmpty) {
-        for (var id in userIds) {
-          final username = await FirebaseGetUser().getUserDataById(id, "username");
-          userMap[id] = username;
-        }
+        final usersSnapshot =
+            await firestore
+                .collection('users')
+                .where(FieldPath.documentId, whereIn: userIds.toList())
+                .get();
+
+        userMap = {
+          for (final doc in usersSnapshot.docs)
+            doc.id: doc.data()['username'] as String,
+        };
       }
 
+      // Generate result
       List<TimeSlotModel> result = [];
-      for (var doc in querySnapshot.docs) {
+
+      for (final doc in querySnapshot.docs) {
         final data = doc.data();
+
         final courtId = data['courtId'] as String;
         final date = data['date'] as String;
         final slots = data['slots'] as List<dynamic>;
-        result.addAll(
-          await Future.wait(
-            slots.map((slot) async {
-              Map<String, dynamic> slotData = Map<String, dynamic>.from(slot);
-              if (slotData['userId'] != null && slotData['userId'] != '') {
-                String username = userMap[slotData['userId']]!;
-                slotData['username'] = username;
-              }
 
-              return TimeSlotModel.fromJson(
-                slotData,
-                courtId: courtId,
-                date: date,
-              );
-            }),
-          ),
+        result.addAll(
+          slots.map((slot) {
+            final slotData = Map<String, dynamic>.from(slot);
+
+            final userId = slotData['userId'];
+
+            if (userId != null && userId.toString().isNotEmpty) {
+              slotData['username'] = userMap[userId.toString()] ?? '';
+            }
+
+            return TimeSlotModel.fromJson(
+              slotData,
+              courtId: courtId,
+              date: date,
+            );
+          }),
         );
       }
+
       return result;
     } catch (e) {
       throw Exception('Failed to get time slots: $e');
