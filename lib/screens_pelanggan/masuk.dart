@@ -130,7 +130,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
 
       // Save to shared preferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('username', usernameController.text);
+      await prefs.setString('userId', usernameController.text);
       
       if (!kIsWeb) {
         var id = await OneSignal.User.getOnesignalId();
@@ -169,7 +169,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
       }
 
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('username', usernameController.text);
+      await prefs.setString('userId', usernameController.text);
 
       if (mounted) {
         Navigator.pushAndRemoveUntil(

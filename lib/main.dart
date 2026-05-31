@@ -175,17 +175,17 @@ class _SplashScreenState extends State<SplashScreen> {
       await Future.delayed(const Duration(seconds: 2));
       
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      String username = prefs.getString('username') ?? '';
+      String userId = prefs.getString('userId') ?? '';
       
-      debugPrint('Retrieved username: $username');
+      debugPrint('Retrieved userId: $userId');
       debugPrint('Running on web: $kIsWeb');
       
       if (!mounted) return;
 
-      if (username.isNotEmpty) {
-        if (username == 'admin_1') {
+      if (userId.isNotEmpty) {
+        if (userId == 'admin_1') {
           navigateToReplace(context, HalamanUtamaAdmin());
-        } else if (username == 'owner_1') {
+        } else if (userId == 'owner_1') {
           navigateToReplace(context, HalamanUtamaOwner());
         } else {
           navigateToReplace(context, PilihHalamanPelanggan());
