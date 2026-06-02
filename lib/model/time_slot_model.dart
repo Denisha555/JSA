@@ -11,7 +11,7 @@ class TimeSlotModel {
   String userId;
   String username;
   String kontak;
-  final String courtId;
+  String courtId;
   final String date;
   int totalHari;
   String jadwal;

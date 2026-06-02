@@ -1,4 +1,3 @@
-
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
@@ -183,24 +182,22 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
   }
 
   Future<void> _findAvailableCourt() async {
-    if (courts.isEmpty) {
-      showErrorSnackBar(context, 'Data lapangan belum dimuat');
+    final isAvailable = await FirebaseCheckTimeSlot().isSlotAvailable(
+      courts.map((court) => court.courtId).toList(),
+      selectedDates
+          .map((date) => DateFormat('yyyy-MM-dd').format(date))
+          .toList(),
+      selectedStartTime,
+      selectedEndTime,
+    );
+
+    if (!isAvailable) {
+      if (!mounted) return;
+      showErrorSnackBar(context, 'Lapangan tidak tersedia');
+      setState(() {
+        isLoading = false;
+      });
       return;
-    }
-
-    final startMinutes = timeToMinutes(formatTime(jamMulai));
-    final endMinutes = timeToMinutes(formatTime(jamSelesai));
-
-    availableCourts.clear();
-
-    for (final court in courts) {
-      if (await _isCourtAvailableForAllDates(
-        court.courtId,
-        startMinutes,
-        endMinutes,
-      )) {
-        availableCourts.add(court);
-      }
     }
 
     availableCourts.sort((a, b) => a.courtId.compareTo(b.courtId));
@@ -208,37 +205,6 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
     setState(() {
       availableCourts = availableCourts;
     });
-  }
-
-  Future<bool> _isCourtAvailableForAllDates(
-    String courtId,
-    int startMinutes,
-    int endMinutes,
-  ) async {
-    final List<Future<bool>> checkFutures = [];
-
-    for (final date in selectedDates) {
-      final dateStr = formatDateStr(date);
-      for (
-        int slotStart = startMinutes;
-        slotStart < endMinutes;
-        slotStart += 30
-      ) {
-        final slotTime = minutesToFormattedTime(slotStart);
-
-        final futureCheck = FirebaseCheckTimeSlot().isSlotAvailable(
-          courtId,
-          dateStr,
-          slotTime,
-        );
-
-        checkFutures.add(futureCheck);
-      }
-    }
-
-    final results = await Future.wait(checkFutures);
-
-    return results.every((result) => result); // true kalau semua available
   }
 
   // Validation
@@ -599,9 +565,7 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                           isRegistering
                               ? null
                               : () async {
-                                setDialogState(
-                                  () => isRegistering = true,
-                                ); 
+                                setDialogState(() => isRegistering = true);
                                 await _registerMemberMultipleCourts(courtIds);
                                 if (!mounted) return;
                                 Navigator.pop(context);
@@ -697,22 +661,16 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
         for (final date in selectedDates) {
           final dateStr = formatDateStr(date);
           bookedDates.add(dateStr);
-          for (
-            int minute = startMinutes;
-            minute < endMinutes;
-            minute += _slotDurationMinutes
-          ) {
-            final slotTime = minutesToFormattedTime(minute);
 
-            await BookingMember().bookSlotForMember(
-              courtId,
-              dateStr,
-              slotTime,
-              username,
-            );
-            if (courtIds.first == courtId && selectedDates.first == date) {
-              length++;
-            }
+          await BookingMember().bookSlotForMember(
+            courtId,
+            dateStr,
+            selectedStartTime,
+            selectedEndTime,
+            username,
+          );
+          if (courtIds.first == courtId && selectedDates.first == date) {
+            length++;
           }
         }
       }
@@ -723,7 +681,13 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
         length,
       );
 
-      await BookingMember().addBookingDates(username, bookedDates);
+      await BookingMember().addBookingDates(
+        username,
+        bookedDates,
+        courtIds,
+        selectedStartTime,
+        selectedEndTime,
+      );
     } catch (e) {
       if (!mounted) return;
       showErrorSnackBar(context, 'Gagal mendaftarkan member: $e');

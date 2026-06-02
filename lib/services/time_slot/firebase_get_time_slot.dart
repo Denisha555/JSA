@@ -11,6 +11,7 @@ class FirebaseGetTimeSlot {
 
   Future<List<TimeSlotModel>> getTimeSlot(DateTime selectedDate) async {
     try {
+      int timeGetTimeSlot = DateTime.now().millisecondsSinceEpoch;
       final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
 
       final querySnapshot =
@@ -20,7 +21,9 @@ class FirebaseGetTimeSlot {
               .get();
 
       if (querySnapshot.docs.isEmpty) {
+        int timeAddTimeSlot = DateTime.now().millisecondsSinceEpoch;
         await FirebaseAddTimeSlot().addTimeSlot(selectedDate);
+        print('Time to add time slot: ${DateTime.now().millisecondsSinceEpoch - timeAddTimeSlot} ms');
         return getTimeSlot(selectedDate);
       }
 
@@ -83,7 +86,7 @@ class FirebaseGetTimeSlot {
           }),
         );
       }
-
+      print('Time to get time slot: ${DateTime.now().millisecondsSinceEpoch - timeGetTimeSlot} ms');
       return result;
     } catch (e) {
       throw Exception('Failed to get time slots: $e');

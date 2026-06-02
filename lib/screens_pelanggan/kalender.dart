@@ -1,5 +1,4 @@
 import 'package:flutter_application_1/services/notification/onesignal_send_notification.dart';
-import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +9,6 @@ import 'package:flutter_application_1/function/price/price.dart';
 import 'package:flutter_application_1/model/time_slot_model.dart';
 import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/function/calender/legend_item.dart';
-import 'package:flutter_application_1/services/booking/member/booking_member.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_get_time_slot.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_add_time_slot.dart';
 import 'package:flutter_application_1/services/booking/nonmember/booking_nonmember.dart';
@@ -47,7 +45,21 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   // Consolidated initialization method
   Future<void> _initializeData() async {
     await _loadUserData();
+    await _loadCourts();
     await _loadOrCreateSlots(selectedDate);
+  }
+
+  Future<void> _loadCourts() async {
+    try {
+      final courtsSnapshot =
+          await FirebaseFirestore.instance.collection('lapangan').get();
+      courtIds =
+          courtsSnapshot.docs.map((doc) => doc['nomor'].toString()).toList();
+      setState(() => courtIds = courtIds);
+    } catch (e) {
+      debugPrint('Error loading courts: $e');
+      courtIds = [];
+    }
   }
 
   // Cache user data to avoid repeated SharedPreferences calls
@@ -174,10 +186,15 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             children: [
               _buildDateNavigationButton(
                 icon: Icons.arrow_back,
-                onPressed:
-                    () => _changeDate(
-                      selectedDate.subtract(const Duration(days: 1)),
-                    ),
+                onPressed: () {
+                  if (selectedDate
+                      .subtract(const Duration(days: 1))
+                      .isBefore(DateTime.now())) {
+                    showErrorSnackBar(context, 'Tidak dapat memilih tanggal sebelum hari ini');
+                  } else {
+                    _changeDate(selectedDate.subtract(const Duration(days: 1)));
+                  }
+                },
                 isPrimary: false,
               ),
               const SizedBox(width: 16),
@@ -343,25 +360,10 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     _loadOrCreateSlots(date);
   }
 
-  Future<void> _loadCourts() async {
-    try {
-      final courtsSnapshot =
-          await FirebaseFirestore.instance.collection('lapangan').get();
-      courtIds =
-          courtsSnapshot.docs.map((doc) => doc['nomor'].toString()).toList();
-      setState(() => courtIds = courtIds);
-    } catch (e) {
-      debugPrint('Error loading courts: $e');
-      courtIds = [];
-    }
-  }
-
   Future<void> _buildBookingData(List<TimeSlotModel> slots) async {
     setState(() => isLoading = true);
 
     try {
-      await _loadCourts();
-
       Map<String, Map<String, TimeSlotModel>> tempData = {};
 
       for (final slot in slots) {
@@ -397,16 +399,21 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
   Future<void> _loadOrCreateSlots(DateTime selectedDate) async {
     setState(() => isLoading = true);
+    print('Loading or creating slots for ${formatDate(selectedDate)}');
 
     try {
       final slots = await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
 
       if (slots.isEmpty) {
         await FirebaseAddTimeSlot().addTimeSlot(selectedDate);
-        final newSlots = await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
+        final newSlots =
+    await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
         await _buildBookingData(newSlots);
       } else {
+        int timeToBuildBookingData = DateTime.now().millisecondsSinceEpoch;
+        print('Slots already exist for ${formatDate(selectedDate)}, building booking data');
         await _buildBookingData(slots);
+        print('Time to build booking data: ${DateTime.now().millisecondsSinceEpoch - timeToBuildBookingData} ms');
       }
     } catch (e) {
       if (!mounted) return;
@@ -429,13 +436,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       final startTotalMinutes = timeToMinutes(startTime);
       final endTotalMinutes = timeToMinutes(endTime);
       double totalHours = (endTotalMinutes - startTotalMinutes) / 60.0;
-
-      print("startTotalMinutes: $startTotalMinutes");
-      print("endTotalMinutes: $endTotalMinutes");
-      print("totalHours: $totalHours");
-
-      print("startTime: $startTime");
-      print("endTime: $endTime");
 
       await BookingNonMember().bookSlotForNonMember(
         court,
@@ -620,11 +620,14 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                             username,
                           );
 
-                          final timeUpdateSlot = DateTime.now().millisecondsSinceEpoch;
+                          final timeUpdateSlot =
+                              DateTime.now().millisecondsSinceEpoch;
 
                           await _updateSlot(selectedDate);
 
-                          print("Time Update Slot: ${DateTime.now().millisecondsSinceEpoch - timeUpdateSlot}");
+                          print(
+                            "Time Update Slot: ${DateTime.now().millisecondsSinceEpoch - timeUpdateSlot}",
+                          );
 
                           await OneSignalSendNotificationAdmin()
                               .sendBookingNotification(
@@ -667,15 +670,14 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
   Future<void> _updateSlot(DateTime selectedDate) async {
     try {
-      final timeGetTimeSlot = DateTime.now().millisecondsSinceEpoch;
+      
       final updatedSlots = await FirebaseGetTimeSlot().getTimeSlot(
         selectedDate,
       );
-      print("Time Get Time Slot: ${DateTime.now().millisecondsSinceEpoch - timeGetTimeSlot}");
-
-      final timeBuildData = DateTime.now().millisecondsSinceEpoch;
+     
+    
       await _buildBookingData(updatedSlots);
-      print("Time Build Data: ${DateTime.now().millisecondsSinceEpoch - timeBuildData}");
+     
     } catch (e) {
       debugPrint('Error updating slot: $e');
       if (!mounted) return;

@@ -116,6 +116,7 @@ class BookingNonMember {
       "startTime": startTime,
       "endTime": endTime,
       "id": '${court}_${dates[0]}',
+      "type": "nonMember",
       "status": "",
     };
 

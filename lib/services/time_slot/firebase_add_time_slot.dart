@@ -10,71 +10,34 @@ class FirebaseAddTimeSlot {
       final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
       print('Adding time slots for $dateStr');
 
-      final courts = await firestore.collection('lapangan').limit(10).get();
+      final courts = await firestore.collection('lapangan').get();
       if (courts.docs.isEmpty) throw Exception('No courts found');
 
-      var batch = firestore.batch();
-      List<String> createdDocIds = [];
-      int operationCount = 0;
-      const maxBatchSize = 1;
+      final existingSlots =
+          await firestore
+              .collection('time_slots')
+              .where('date', isEqualTo: dateStr)
+              .get();
+
+      final existingIds = existingSlots.docs.map((e) => e.id).toSet();
+
+      WriteBatch batch = firestore.batch();
 
       for (final court in courts.docs) {
-        final courtId = court['nomor'] as String?;
-        if (courtId == null) continue;
+        final docId = '${court['nomor']}_$dateStr';
 
-        final docId = '${courtId}_$dateStr';
-        final existingDoc =
-            await firestore.collection('time_slots').doc(docId).get();
-        if (existingDoc.exists) continue;
+        if (existingIds.contains(docId)) continue;
 
-        final slots =
-            timeSlots.map((startTime) {
-              return {
-                'startTime': startTime,
-                'endTime': calculateEndTimeUseStartTime(startTime),
-                'isAvailable': true,
-                'userId': '',
-                'cancel': [],
-                'isClosed': false,
-                'isHoliday': false,
-                'type': '',
-              };
-            }).toList();
-
-        // Step 1: Buat dengan status 'pending'
         batch.set(firestore.collection('time_slots').doc(docId), {
-          'courtId': courtId,
+          'courtId': court['nomor'],
           'date': dateStr,
-          'slots': slots,
-          'status': 'pending',
+          'slots': List.from(defaultTimeSlots),
+          'status': 'ready',
         });
-
-        createdDocIds.add(docId);
-        operationCount++;
-
-        if (operationCount >= maxBatchSize) {
-          await batch.commit();
-          batch = firestore.batch();
-          operationCount = 0;
-        }
       }
 
-      // Commit sisa batch
-      if (operationCount > 0) {
-        await batch.commit();
-      }
-
-      // Step 2: Update semua status ke 'ready' (pakai batch lagi)
-      print('Updating status to ready...');
-      batch = firestore.batch();
-      for (final docId in createdDocIds) {
-        final ref = firestore.collection('time_slots').doc(docId);
-        batch.update(ref, {'status': 'ready'});
-      }
-      await batch.commit();
-
-      print('All time slots successfully added and marked as ready.');
-    } catch (e) {
+      await batch.commit();   
+      } catch (e) {
       print('Error in addTimeSlot: $e');
       throw Exception('Failed to add time slots: $e');
     }

@@ -3,33 +3,74 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_add_time_slot.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_update_time_slot.dart';
 
-
 class FirebaseCheckTimeSlot {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
   Future<bool> isSlotAvailable(
-    String courtId,
-    String dateStr,
+    List<String> courtIds,
+    List<String> dateStrs,
     String startTime,
+    String endTime,
   ) async {
     try {
-      final docId = '${courtId}_$dateStr';
-      final doc = await firestore.collection('time_slots').doc(docId).get();
+      int timeCheckTimeSlot = DateTime.now().millisecondsSinceEpoch;
+      final futures = <Future<DocumentSnapshot>>[];
 
-      print(startTime);
-
-      if (!doc.exists) {
-        await FirebaseAddTimeSlot().addTimeSlot(DateTime.parse(dateStr));
-        return isSlotAvailable(courtId, dateStr, startTime);
+      for (final date in dateStrs) {
+        for (final court in courtIds) {
+          futures.add(
+            firestore.collection('time_slots').doc('${court}_$date').get(),
+          );
+        }
       }
 
-      final slots = doc.data()!['slots'] as List<dynamic>;
-      final slot = slots.firstWhere(
-        (slot) => slot['startTime'] == startTime,
-        orElse: () => throw Exception('Slot not found'),
-      );
+      final docs = await Future.wait(futures);
 
-      return slot['isAvailable'] && !(slot['isClosed'] ?? false);
+      final docsMap = <String, DocumentSnapshot>{};
+
+      for (final doc in docs) {
+        docsMap[doc.id] = doc;
+      }
+
+      for (final date in dateStrs) {
+        for (final court in courtIds) {
+          final docId = '${court}_$date';
+
+          final doc = docsMap[docId];
+
+          if (doc == null || !doc.exists) {
+            await FirebaseAddTimeSlot().addTimeSlot(DateTime.parse(date));
+            continue;
+          }
+
+          final slots = doc['slots'] as List<dynamic>;
+
+          bool inRange = false;
+
+          for (final slot in slots) {
+            if (slot['startTime'] == startTime) {
+              inRange = true;
+            }
+
+            if (inRange) {
+              final available =
+                  slot['isAvailable'] == true && slot['isClosed'] != true;
+
+              if (!available) {
+                return false;
+              }
+
+              if (slot['endTime'] == endTime) {
+                break;
+              }
+            }
+          }
+        }
+      }
+      print(
+        'Time check time slot: ${(DateTime.now().millisecondsSinceEpoch - timeCheckTimeSlot) / 1000} seconds',
+      );
+      return true;
     } catch (e) {
       throw Exception('Failed to check slot availability: $e');
     }

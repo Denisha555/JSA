@@ -343,17 +343,22 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         // }
 
         await BookingNonMember().bookSlotForNonMember(
-            court,
-            dateStr,
-            startTime,
-            endTime,
-            username,
-          );
+          court,
+          dateStr,
+          startTime,
+          endTime,
+          username,
+        );
 
-          bookedDates.add(dateStr);
+        bookedDates.add(dateStr);
 
-
-        await BookingNonMember().addBookingDates(username, [bookedDates[0]], court, startTime, endTime);
+        await BookingNonMember().addBookingDates(
+          username,
+          [bookedDates[0]],
+          court,
+          startTime,
+          endTime,
+        );
 
         // member booking
       } else {
@@ -387,12 +392,12 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           //   bookedSlots.add(formattedTime);
           // }
           await BookingNonMember().bookSlotForNonMember(
-              court,
-              dateStr,
-              startTime,
-              endTime,
-              username,
-            );
+            court,
+            dateStr,
+            startTime,
+            endTime,
+            username,
+          );
         } else {
           // Hitung jumlah slot
           int length = ((endTotalMinutes - startTotalMinutes) ~/ 30);
@@ -406,23 +411,17 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             return;
           }
 
-          for (
-            int minutes = startTotalMinutes;
-            minutes < endTotalMinutes;
-            minutes += 30
-          ) {
-            final formattedTime = minutesToFormattedTime(minutes);
-            await BookingMember().bookSlotForMember(
-              court,
-              dateStr,
-              formattedTime,
-              username,
-            );
-            // bookedSlots.add(formattedTime);
-          }
+          await BookingMember().bookSlotForMember(
+            court,
+            dateStr,
+            startTime,
+            endTime,
+            username,
+          );
+          // bookedSlots.add(formattedTime);
 
           await BookingMember().addTotalBooking(username);
-          await BookingMember().addBookingDates(username, dateStr);
+          await BookingMember().addBookingDates(username, dateStr, court, startTime, endTime);
         }
       }
 

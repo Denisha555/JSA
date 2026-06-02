@@ -8,39 +8,50 @@ class BookingMember {
     String courtId,
     String dateStr,
     String startTime,
+    String endTime,
     String username,
   ) async {
     try {
       final docId = '${courtId}_$dateStr';
       final doc = await firestore.collection('time_slots').doc(docId).get();
 
-      if (!doc.exists) {
-        throw Exception('Slot not found');
-      }
-
-      final slots = doc.data()!['slots'] as List<dynamic>;
-      final slotIndex = slots.indexWhere(
-        (slot) => slot['startTime'] == startTime,
-      );
-
-      if (slotIndex == -1 &&
-          slots[slotIndex]['isAvailable'] == false &&
-          slots[slotIndex]['isClosed'] == true) {
-        throw Exception('Slot not available');
-      }
-
       QuerySnapshot user =
           await firestore
               .collection('users')
               .where('username', isEqualTo: username)
               .get();
-      
+
       String userId = user.docs[0].id;
 
+      if (!doc.exists) {
+        throw Exception('Slot not found');
+      }
+
+      final slots = doc.data()!['slots'] as List<dynamic>;
       var updatedSlot = List<Map<String, dynamic>>.from(slots);
-      updatedSlot[slotIndex]['isAvailable'] = false;
-      updatedSlot[slotIndex]['type'] = 'member';
-      updatedSlot[slotIndex]['userId'] = userId;
+      bool inRange = false;
+
+      for (int i = 0; i < updatedSlot.length; i++) {
+        final slot = updatedSlot[i];
+
+        if (slot['startTime'] == startTime) {
+          inRange = true;
+        }
+
+        if (inRange) {
+          if (slot['isAvailable'] != true) {
+            throw Exception('Ada slot yang sudah dibooking');
+          }
+
+          updatedSlot[i]['isAvailable'] = false;
+          updatedSlot[i]['type'] = 'member';
+          updatedSlot[i]['userId'] = userId;
+        }
+
+        if (slot['endTime'] == endTime && inRange) {
+          break;
+        }
+      }
 
       await firestore.collection('time_slots').doc(docId).update({
         'slots': updatedSlot,
@@ -105,7 +116,7 @@ class BookingMember {
     }
   }
 
-  Future<void> addBookingDates(String username, dynamic dates) async {
+  Future<void> addBookingDates(String username, dynamic dates, dynamic courtId, String startTime, String endTime) async {
     QuerySnapshot user =
         await firestore
             .collection('users')
@@ -122,9 +133,20 @@ class BookingMember {
       currentDates = List<String>.from(snapshot.data()!['bookingDates']);
     }
 
-    // Tambahkan semua tanggal baru, termasuk yang sama (duplikat tetap masuk)
-    currentDates.addAll(dates);
-
+    for (var date in dates) {
+      for (var court in courtId) {
+        final bookingInfo = {
+          "date": date,
+          "court": court,
+          "startTime": startTime,
+          "endTime": endTime,
+          "id": '${court}_${date}',
+          "type": "member",
+          "status": "",
+        };
+        currentDates.add(bookingInfo);
+      }
+    }
     await userDoc.set({'bookingDates': currentDates}, SetOptions(merge: true));
   }
 }

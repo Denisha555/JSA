@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:crypto/crypto.dart';
+import 'package:flutter_application_1/model/time_slot_model.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 
@@ -48,6 +49,22 @@ const List<String> timeSlots = [
   '22:00',
   '22:30',
 ];
+
+List<Map<String, dynamic>> defaultTimeSlots =
+    timeSlots
+        .map(
+          (startTime) => {
+            'startTime': startTime,
+            'endTime': calculateEndTimeUseStartTime(startTime),
+            'isAvailable': true,
+            'userId': '',
+            'cancel': [],
+            'isClosed': false,
+            'isHoliday': false,
+            'type': '',
+          },
+        )
+        .toList();
 
 String namaHari(int weekday) {
   const hari = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
@@ -166,7 +183,7 @@ String getMonth(int month) {
     'Agustus',
     'Oktober',
     'November',
-    'Desember'
+    'Desember',
   ];
   return months[month];
 }
