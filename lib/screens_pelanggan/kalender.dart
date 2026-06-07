@@ -187,12 +187,18 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               _buildDateNavigationButton(
                 icon: Icons.arrow_back,
                 onPressed: () {
-                  if (selectedDate
-                      .subtract(const Duration(days: 1))
-                      .isBefore(DateTime.now())) {
-                    showErrorSnackBar(context, 'Tidak dapat memilih tanggal sebelum hari ini');
+                  final previousDate = selectedDate.subtract(
+                    const Duration(days: 1),
+                  );
+                  if (previousDate.isBefore(
+                    DateTime.now().subtract(const Duration(days: 1)),
+                  )) {
+                    showErrorSnackBar(
+                      context,
+                      'Tidak dapat memilih tanggal sebelum hari ini',
+                    );
                   } else {
-                    _changeDate(selectedDate.subtract(const Duration(days: 1)));
+                    _changeDate(previousDate);
                   }
                 },
                 isPrimary: false,
@@ -360,7 +366,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     _loadOrCreateSlots(date);
   }
 
-  Future<void> _buildBookingData(List<TimeSlotModel> slots) async {
+  void _buildBookingData(List<TimeSlotModel> slots) {
     setState(() => isLoading = true);
 
     try {
@@ -386,6 +392,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         );
       }
 
+
       setState(() {
         bookingData = tempData;
         isLoading = false;
@@ -403,17 +410,17 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
     try {
       final slots = await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
+      final expectedSlotCount =
+          courtIds.length * ((22 - 7 + 1) * 2); // 30 menit per jam
 
-      if (slots.isEmpty) {
+      bool isComplete = slots.length >= expectedSlotCount;
+
+      if (!isComplete) {
         await FirebaseAddTimeSlot().addTimeSlot(selectedDate);
-        final newSlots =
-    await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
-        await _buildBookingData(newSlots);
+        final newSlots = await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
+        _buildBookingData(newSlots);
       } else {
-        int timeToBuildBookingData = DateTime.now().millisecondsSinceEpoch;
-        print('Slots already exist for ${formatDate(selectedDate)}, building booking data');
-        await _buildBookingData(slots);
-        print('Time to build booking data: ${DateTime.now().millisecondsSinceEpoch - timeToBuildBookingData} ms');
+        _buildBookingData(slots);
       }
     } catch (e) {
       if (!mounted) return;
@@ -670,14 +677,11 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
   Future<void> _updateSlot(DateTime selectedDate) async {
     try {
-      
       final updatedSlots = await FirebaseGetTimeSlot().getTimeSlot(
         selectedDate,
       );
-     
-    
-      await _buildBookingData(updatedSlots);
-     
+
+      _buildBookingData(updatedSlots);
     } catch (e) {
       debugPrint('Error updating slot: $e');
       if (!mounted) return;
@@ -905,7 +909,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Tanggal: ${formatDate(selectedDate)}'),
+                  Text('Tanggal: ${formatLongDate(selectedDate)}'),
                   Text('Waktu mulai: $startTime'),
                   Text('Lapangan: $court'),
                   const SizedBox(height: 16),

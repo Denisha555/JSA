@@ -39,14 +39,14 @@ class FirebaseGetCourt {
         firestore.collection('lapangan').get(),
       ]);
 
-      final existingSlots = results[0] as QuerySnapshot;
-      final courtsSnapshot = results[1] as QuerySnapshot;
+      final existingSlots = results[0].docs;
+      final courtsSnapshot = results[1].docs;
 
       List<CourtModel> courtsToday = [];
 
-      if (existingSlots.docs.isEmpty) {
+      if (existingSlots.isEmpty) {
         await FirebaseAddTimeSlot().addTimeSlot(now);
-        for (var courtDoc in courtsSnapshot.docs) {
+        for (var courtDoc in courtsSnapshot) {
           final courtId = courtDoc.get('nomor').toString();
           courtsToday.add(
             CourtModel.fromJson({
@@ -55,11 +55,12 @@ class FirebaseGetCourt {
             }),
           );
         }
+        return courtsToday;
       }
 
       Map<String, List<QueryDocumentSnapshot>> courtSlots = {};
 
-      for (var courtDoc in courtsSnapshot.docs) {
+      for (var courtDoc in courtsSnapshot) {
         final courtId = courtDoc.get('nomor').toString();
 
         final slotDocs = courtSlots[courtId] ?? [];

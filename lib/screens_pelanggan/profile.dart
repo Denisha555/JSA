@@ -1,4 +1,4 @@
-
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/main.dart';
@@ -47,7 +47,6 @@ class _HalamanProfilState extends State<HalamanProfil> {
     loadPrefs();
   }
 
-
   Future<void> _init() async {
     setState(() {
       isLoading = true;
@@ -68,7 +67,10 @@ class _HalamanProfilState extends State<HalamanProfil> {
         if (result == true) {
           // kalau member, ambil preferensi user
           bool? userPreference = prefs.getBool('isMemberUI');
-          int memberTotalBooking = await FirebaseGetUser().getUserData(username!, 'memberTotalBooking');
+          int memberTotalBooking = await FirebaseGetUser().getUserData(
+            username!,
+            'memberTotalBooking',
+          );
 
           setState(() {
             isMemberDatabase = true;
@@ -221,9 +223,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
       for (var booking in memberBookings) {
         try {
           final dateKey =
-              '${DateTime.parse(
-                booking.date.toString(),
-              ).toIso8601String().split('T')[0]}_${booking.courtId}';
+              '${DateTime.parse(booking.date.toString()).toIso8601String().split('T')[0]}_${booking.courtId}';
 
           if (!groupedByDate.containsKey(dateKey)) {
             groupedByDate[dateKey] = [];
@@ -350,8 +350,10 @@ class _HalamanProfilState extends State<HalamanProfil> {
               ),
               TextButton(
                 onPressed: () async {
-                  await OneSignal.logout();
-                  await OneSignal.User.removeTag("role");
+                  if (!kIsWeb) {
+                    await OneSignal.logout();
+                    await OneSignal.User.removeTag("role");
+                  }
                   Navigator.pop(context, true);
                 },
                 child: const Text('Keluar'),
@@ -394,7 +396,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
             Container(height: 40, width: 1, color: Colors.grey[300]),
             _buildStatItem(
               '${data.isNotEmpty ? data[0].point.toStringAsFixed(1) : 0}',
-              'Point',
+              'Poin',
             ),
           ],
         ),
@@ -491,7 +493,6 @@ class _HalamanProfilState extends State<HalamanProfil> {
                         style: TextStyle(fontSize: 16),
                       );
                     } else {
-                      
                       final price = snapshot.data ?? 0;
                       final total = price * userbooked.length;
 
@@ -889,7 +890,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                           ),
                         ),
                         subtitle: const Text(
-                          'Upgrade untuk mendapatkan benefit lebih',
+                          'Ayo jadi member untuk keuntungan lebih',
                           style: TextStyle(fontSize: 12, color: Colors.grey),
                         ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -930,7 +931,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                         title: Text(
                           activity.isEmpty
                               ? 'Belum Ada Aktivitas'
-                              : 'Booked Court - Lapangan ${activity[0].courtId}',
+                              : 'Lapangan ${activity[0].courtId}',
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
@@ -939,7 +940,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                         subtitle:
                             activity.isEmpty
                                 ? const Text('Mulai booking lapangan sekarang!')
-                                : Text(activity[0].date),
+                                : Text(formatLongDate(DateTime.parse(activity[0].date))),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () {
                           Navigator.pushReplacement(
@@ -966,7 +967,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Progres Reward',
+                      'Progres Event',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 20,

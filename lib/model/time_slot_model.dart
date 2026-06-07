@@ -1,6 +1,6 @@
 class TimeSlotModel {
   final String slotId;
-  final String startTime;
+  String startTime;
   String endTime;
   final String type;
   final String status;

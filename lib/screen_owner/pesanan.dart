@@ -62,6 +62,8 @@ class _HalamanPesananState extends State<HalamanPesanan> {
       } else {
         List<TimeSlotModel> mergedDetail = [];
 
+        String startTime = newDetail[0].startTime;
+
         for (var booking in newDetail) {
           // kalau list kosong
           if (mergedDetail.isEmpty) {
@@ -69,15 +71,19 @@ class _HalamanPesananState extends State<HalamanPesanan> {
             continue;
           }
 
-          final lastBooking = mergedDetail.last;
+          String usernameBefore = "";
+          String endtimeBefore = "";
 
-          // username sama -> gabung
-          if (booking.username == lastBooking.username &&
-              booking.username.isNotEmpty) {
-            lastBooking.endTime = booking.endTime;
+          if (booking.username == usernameBefore &&
+              booking.username.isNotEmpty && 
+              booking.startTime == endtimeBefore ) {
+            mergedDetail.last.endTime = booking.endTime;
           } else {
             mergedDetail.add(booking);
+            startTime = booking.startTime;
           }
+          usernameBefore = booking.username;
+          endtimeBefore = booking.endTime;
         }
         setState(() {
           detail = mergedDetail;
@@ -131,7 +137,7 @@ class _HalamanPesananState extends State<HalamanPesanan> {
                       : detail.isEmpty
                       ? const Center(
                         child: Text(
-                          'No bookings found for this date',
+                          'Tidak ditemukan pesanan untuk tanggal ini.',
                           style: TextStyle(fontSize: 16),
                         ),
                       )
@@ -144,7 +150,7 @@ class _HalamanPesananState extends State<HalamanPesanan> {
                             child: ListTile(
                               title: Text(booking.username),
                               subtitle: Text(
-                                'Time: ${booking.startTime} - ${booking.endTime}',
+                                'Durasi: ${booking.startTime} - ${booking.endTime}',
                               ),
                               trailing:
                                   booking.type == 'nonMember'

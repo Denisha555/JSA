@@ -117,6 +117,36 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
     }
   }
 
+  Widget itemGaleri(String title, String image, VoidCallback onTap) {
+    return Expanded(
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: onTap,
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color.fromARGB(255, 217, 217, 217),
+                    width: 1.5,
+                  ),
+                  image: DecorationImage(
+                    image: AssetImage(image),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(title),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -127,7 +157,11 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
             color: primaryColor,
             width: double.infinity,
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 15.0, left: 10.0, right: 10.0),
+              padding: const EdgeInsets.only(
+                bottom: 15.0,
+                left: 10.0,
+                right: 10.0,
+              ),
               child: Center(
                 child: Text(
                   "Jump, smash, and win! Rasakan serunya main badminton di Jump Smash Arena—lapangan kece, suasana oke!",
@@ -139,7 +173,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
           ),
           const SizedBox(height: 16),
           Padding(
-            padding: const EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.start,
@@ -160,203 +194,66 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                 SizedBox(height: 5),
                 Row(
                   children: [
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const Lapangan(),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: MediaQuery.of(context).size.width * 0.3,
-                            height: MediaQuery.of(context).size.width * 0.3,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color.fromARGB(255, 217, 217, 217),
-                                width: 1.5,
-                              ),
-                              image: DecorationImage(
-                                image: AssetImage('assets/image/Lapangan1.jpg'),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
+                    itemGaleri("Lapangan", "assets/image/Lapangan1.jpg", () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const Lapangan(),
                         ),
-                        Text("Lapangan"),
-                      ],
-                    ),
-                    SizedBox(width: 9),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const SewaRaket(),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: MediaQuery.of(context).size.width * 0.3,
-                            height: MediaQuery.of(context).size.width * 0.3,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color.fromARGB(255, 217, 217, 217),
-                                width: 1.5,
-                              ),
-                              image: DecorationImage(
-                                image: AssetImage('assets/image/SewaRaket1.jpeg'),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
+                      );
+                    }),
+                    const SizedBox(width: 8),
+                    itemGaleri(
+                      "Sewa Raket",
+                      "assets/image/SewaRaket1.jpeg",
+                      () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const SewaRaket(),
                           ),
-                        ),
-                        Text("Sewa Raket"),
-                      ],
+                        );
+                      },
                     ),
-                    SizedBox(width: 9),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const Parkiran(),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: MediaQuery.of(context).size.width * 0.3,
-                            height: MediaQuery.of(context).size.width * 0.3,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color.fromARGB(255, 217, 217, 217),
-                                width: 1.5,
-                              ),
-                              image: DecorationImage(
-                                image: AssetImage('assets/image/Parkiran1.jpg'),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
+                    const SizedBox(width: 8),
+                    itemGaleri("Parkiran", "assets/image/Parkiran1.jpg", () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const Parkiran(),
                         ),
-                        Text("Parkiran"),
-                      ],
-                    ),
+                      );
+                    }),
                   ],
                 ),
-                SizedBox(height: 5),
+                SizedBox(height: 15),
                 Row(
                   children: [
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const Kantin(),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: MediaQuery.of(context).size.width * 0.3,
-                            height: MediaQuery.of(context).size.width * 0.3,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color.fromARGB(255, 217, 217, 217),
-                                width: 1.5,
-                              ),
-                              image: DecorationImage(
-                                image: AssetImage('assets/image/Kantin1.jpg'),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
+                    itemGaleri("Kantin", "assets/image/Kantin1.jpg", () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const Kantin()),
+                      );
+                    }),
+                    const SizedBox(width: 8),
+                    itemGaleri("Musholla", "assets/image/Musholla.jpeg", () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const Musholla(),
                         ),
-                        Text("Kantin"),
-                      ],
-                    ),
-                    SizedBox(width: 9),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: (){
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const Musholla(),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: MediaQuery.of(context).size.width * 0.3,
-                            height: MediaQuery.of(context).size.width * 0.3,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color.fromARGB(255, 217, 217, 217),
-                                width: 1.5,
-                              ),
-                              image: DecorationImage(
-                                image: AssetImage('assets/image/Musholla1.jpeg'),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Text("Musholla"),
-                      ],
-                    ),
-                    SizedBox(width: 9),
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        GestureDetector(
-                          onTap: (){
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const Toilet(),
-                              ),
-                            );
-                          },
-                          child: Container(
-                            width: MediaQuery.of(context).size.width * 0.3,
-                            height: MediaQuery.of(context).size.width * 0.3,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: const Color.fromARGB(255, 217, 217, 217),
-                                width: 1.5,
-                              ),
-                              image: DecorationImage(
-                                image: AssetImage('assets/image/Toilet1.jpeg'),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                        ),
-                        Text("Toilet"),
-                      ],
-                    ),
+                      );
+                    }),
+                    const SizedBox(width: 8),
+                    itemGaleri("Kantin", "assets/image/Toilet1.jpeg", () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const Toilet()),
+                      );
+                    }),
                   ],
                 ),
+
                 SizedBox(height: 20),
                 Row(
                   children: [
@@ -685,7 +582,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                 SizedBox(height: 15),
 
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(

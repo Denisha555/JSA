@@ -21,9 +21,7 @@ class FirebaseGetTimeSlot {
               .get();
 
       if (querySnapshot.docs.isEmpty) {
-        int timeAddTimeSlot = DateTime.now().millisecondsSinceEpoch;
         await FirebaseAddTimeSlot().addTimeSlot(selectedDate);
-        print('Time to add time slot: ${DateTime.now().millisecondsSinceEpoch - timeAddTimeSlot} ms');
         return getTimeSlot(selectedDate);
       }
 

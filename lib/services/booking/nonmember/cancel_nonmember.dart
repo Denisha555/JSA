@@ -54,11 +54,6 @@ class CancelNonMember {
         'slots': updatedSlot,
       }, SetOptions(merge: true));
 
-      batch.set(userRef, {
-        'totalHour': FieldValue.increment(-0.5),
-        'point': FieldValue.increment(-0.5),
-      }, SetOptions(merge: true));
-
       await batch.commit();
     } on FirebaseException catch (e) {
       throw 'Error canceling booking: ${e.code}';
@@ -85,7 +80,6 @@ class CancelNonMember {
 
         await docRef.set({
           'cancel': FieldValue.increment(1),
-          'totalBooking': FieldValue.increment(-1),
           'cancelDate': FieldValue.arrayUnion([dateStr]),
           'bookingDates': updatedDates,
         }, SetOptions(merge: true));

@@ -463,8 +463,8 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Konfirmasi Logout'),
-            content: const Text('Apakah kamu yakin ingin logout?'),
+            title: const Text('Konfirmasi Keluar'),
+            content: const Text('Apakah kamu yakin ingin keluar?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -485,11 +485,11 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                   } catch (e) {
                     if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error logging out: $e')),
+                      SnackBar(content: Text('Error saat keluar: $e')),
                     );
                   }
                 },
-                child: const Text('Logout'),
+                child: const Text('Keluar'),
               ),
             ],
           ),

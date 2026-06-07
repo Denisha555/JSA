@@ -23,8 +23,7 @@ class FirebaseGetBooking {
 
       final userData = userSnapshot.docs.first.data() as Map<String, dynamic>;
 
-      // Ambil daftar tanggal cancel dari field 'bookingDates'
-      final bookingDates = userData['bookingDates'];
+      dynamic bookingDates = userData['bookingDates'];
 
       print('Booking dates for $username: $bookingDates');
 
@@ -40,24 +39,18 @@ class FirebaseGetBooking {
 
         final court = bookingMap['court'];
         final date = bookingMap['date'];
+        final startTime = bookingMap['startTime'];
+        final endTime = bookingMap['endTime'];
 
-        final timeSlots =
-            await firestore
-                .collection('time_slots')
-                .doc('${court}_$date')
-                .get();
-
-        if (!timeSlots.exists) continue;
-
-        final slots = timeSlots.data()?['slots'] as List<dynamic>;
-
-        for (var slot in slots) {
-          if (slot['userId'] == userId) {
-            allSlots.add(
-              TimeSlotModel.fromJson(slot, date: date, courtId: court),
-            );
-          }
-        }
+        allSlots.add(
+          TimeSlotModel(
+            courtId: court,
+            date: date,
+            startTime: startTime,
+            endTime: endTime,
+            isAvailable: false,
+          ),
+        );
       }
       return allSlots;
     } catch (e) {

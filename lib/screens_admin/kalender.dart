@@ -165,12 +165,13 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Lapangan $court'),
-                        Text('Jam Mulai: $startTime'),
-                        Text('Jam Selesai: $endTime'),
+                        Text('Tanggal: ${formatLongDate(selectedDate)}'),
+                        Text('Waktu Mulai: $startTime'),
+                        Text('Waktu Selesai: $endTime'),
+                        Text('Lapangan: $court'),
                         SizedBox(height: 10),
                         Text(
-                          'Durasi:',
+                          'Durasi Booking:',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         DropdownButton<int>(
@@ -200,9 +201,16 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                                 String formattedEndTime =
                                     minutesToFormattedTime(totalMinutes);
 
+                                int startTotalMinutes =
+                                    startHour * 60 + startMinute;
+                                int durationMinutes =
+                                    totalMinutes - startTotalMinutes;
+
                                 return DropdownMenuItem(
                                   value: e,
-                                  child: Text(formattedEndTime),
+                                  child: Text(
+                                    "$formattedEndTime  ($durationMinutes menit)",
+                                  ),
                                 );
                               }).toList(),
                         ),
@@ -421,7 +429,13 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           // bookedSlots.add(formattedTime);
 
           await BookingMember().addTotalBooking(username);
-          await BookingMember().addBookingDates(username, dateStr, court, startTime, endTime);
+          await BookingMember().addBookingDates(
+            username,
+            dateStr,
+            court,
+            startTime,
+            endTime,
+          );
         }
       }
 
@@ -828,7 +842,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     String startTime = consecutiveSlots.first.split(' - ')[0];
     String endTime = consecutiveSlots.last.split(' - ')[1];
 
-    String? selectedCancelRange;
+    String CancelRange = '$startTime - $endTime';
 
     // Show confirmation with booking details
     bool? confirm = await showDialog<bool>(
@@ -844,24 +858,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 children: [
                   Text('Customer: $username'),
                   Text('Lapangan: $court'),
-                  Text('Pilih durasi pembatalan:'),
-                  DropdownButton<String>(
-                    value: selectedCancelRange,
-                    isExpanded: true,
-                    items:
-                        _generateCancelOptions(consecutiveSlots).map((range) {
-                          return DropdownMenuItem(
-                            value: range,
-                            child: Text(range),
-                          );
-                        }).toList(),
-                    onChanged: (value) {
-                      setStateDialog(() {
-                        selectedCancelRange = value;
-                      });
-                    },
-                  ),
-
+                  Text('Durasi pembatalan: $startTime - $endTime'),
                   SizedBox(height: 10),
                   Text(
                     'Apakah Anda yakin ingin membatalkan booking ini?',
@@ -897,22 +894,20 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
 
         if (timeSlotData.type == 'member') {
-          if (selectedCancelRange != null) {
-            String selectedEnd = selectedCancelRange!.split(' - ')[1];
-            int endIndex = consecutiveSlots.indexWhere(
-              (slot) => slot.split(' - ')[1] == selectedEnd,
-            );
+          String selectedEnd = CancelRange.split(' - ')[1];
+          int endIndex = consecutiveSlots.indexWhere(
+            (slot) => slot.split(' - ')[1] == selectedEnd,
+          );
 
-            for (int i = 0; i <= endIndex; i++) {
-              String timeSlot = consecutiveSlots[i];
-              await CancelMember().cancelBooking(
-                username,
-                dateStr,
-                court,
-                timeSlot.split(' - ')[0],
-                timeSlot.split(' - ')[1],
-              );
-            }
+          for (int i = 0; i <= endIndex; i++) {
+            String timeSlot = consecutiveSlots[i];
+            await CancelMember().cancelBooking(
+              username,
+              dateStr,
+              court,
+              timeSlot.split(' - ')[0],
+              timeSlot.split(' - ')[1],
+            );
           }
 
           await CancelMember().updateUserCancel(username, dateStr);
@@ -920,22 +915,20 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           if (!mounted) return;
           _safeNavigatorPop(context); // Close loading dialog
         } else {
-          if (selectedCancelRange != null) {
-            String selectedEnd = selectedCancelRange!.split(' - ')[1];
-            int endIndex = consecutiveSlots.indexWhere(
-              (slot) => slot.split(' - ')[1] == selectedEnd,
-            );
+          String selectedEnd = CancelRange.split(' - ')[1];
+          int endIndex = consecutiveSlots.indexWhere(
+            (slot) => slot.split(' - ')[1] == selectedEnd,
+          );
 
-            for (int i = 0; i <= endIndex; i++) {
-              String timeSlot = consecutiveSlots[i];
-              await CancelNonMember().cancelBooking(
-                username,
-                dateStr,
-                court,
-                timeSlot.split(' - ')[0],
-                timeSlot.split(' - ')[1],
-              );
-            }
+          for (int i = 0; i <= endIndex; i++) {
+            String timeSlot = consecutiveSlots[i];
+            await CancelNonMember().cancelBooking(
+              username,
+              dateStr,
+              court,
+              timeSlot.split(' - ')[0],
+              timeSlot.split(' - ')[1],
+            );
           }
 
           await CancelNonMember().updateUserCancel(username, dateStr);
@@ -947,7 +940,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         if (mounted) {
           showSuccessSnackBar(
             context,
-            'Berhasil membatalkan bookingan untuk $username, hari ${DateFormat('EEEE, d MMMM yyyy').format(selectedDate)}, pukul $selectedCancelRange',
+            'Berhasil membatalkan bookingan untuk $username, hari ${DateFormat('EEEE, d MMMM yyyy').format(selectedDate)}, pukul $CancelRange',
           );
 
           // Refresh data
@@ -1185,7 +1178,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 final picked = await showDatePicker(
                   context: context,
                   initialDate: selectedDate,
-                  firstDate: DateTime.now(),
+                  firstDate: DateTime(2026),
                   lastDate: DateTime(2101),
                 );
                 if (picked != null) {

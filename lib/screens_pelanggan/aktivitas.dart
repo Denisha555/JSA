@@ -83,7 +83,9 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
         FirebaseGetBooking().getCancelBookingByUsername(username),
       ]);
 
-      final allBookings = results[0];
+      List<TimeSlotModel> allBookings = results[0];
+      List<TimeSlotModel> allDates = allBookings.toSet().toList();
+
       for (var i = 0; i < allBookings.length; i++) {
         print(
           'allbooking: ${allBookings[i].date} ${allBookings[i].courtId} ${allBookings[i].startTime} ',
@@ -100,7 +102,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
 
       // Pre-calculate today once
       final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
+      final today = DateTime(now.year, now.month, now.day, now.hour, now.minute);
 
       // Process data in background using compute for heavy operations
       final processedData = await _processBookingData(
@@ -130,65 +132,64 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     List<TimeSlotModel> cancelBookings,
     DateTime today,
   ) async {
-    // Use Map for faster lookups instead of List operations
-    final Map<String, List<TimeSlotModel>> bookingsByDate = {};
 
-    // Group bookings by date first (faster than checking each one)
-    for (final booking in allBookings) {
-      bookingsByDate[booking.date] ??= [];
-      bookingsByDate[booking.date]!.add(booking);
-    }
+    List<TimeSlotModel> pastBookings = [];
+    List<TimeSlotModel> upcomingBookings = [];
+    
+    for (final entry in allBookings) {
+      final dateStr = entry.date;
+      final startTimeStr = entry.startTime;
+      final endTimeStr = entry.endTime;
+      
+      // Parse the booking date (only date part)
+      final bookingDateOnly = DateFormat('yyyy-MM-dd').parse(dateStr);
+      
+      // Parse start and end times
+      final startTime = DateFormat('HH:mm').parse(startTimeStr);
+      final endTime = DateFormat('HH:mm').parse(endTimeStr);
+      
+      // Create complete DateTime objects for start and end
+      final bookingStartDateTime = DateTime(
+        bookingDateOnly.year,
+        bookingDateOnly.month,
+        bookingDateOnly.day,
+        startTime.hour,
+        startTime.minute,
+      );
+      
+      final bookingEndDateTime = DateTime(
+        bookingDateOnly.year,
+        bookingDateOnly.month,
+        bookingDateOnly.day,
+        endTime.hour,
+        endTime.minute,
+      );
 
-    final pastBookings = <TimeSlotModel>[];
-    final upcomingBookings = <TimeSlotModel>[];
-
-    // Process each date group
-    for (final entry in bookingsByDate.entries) {
-      final dateStr = entry.key;
-      final bookings = entry.value;
-      final bookingDate = DateFormat('yyyy-MM-dd').parse(dateStr);
-
-      if (bookingDate.isBefore(today)) {
-        // All bookings on this date are past
-        pastBookings.addAll(bookings);
-      } else if (bookingDate.isAfter(today)) {
-        // All bookings on this date are upcoming
-        upcomingBookings.addAll(bookings);
+      if (bookingEndDateTime.isBefore(today)) {
+        // Booking ended before today - past booking
+        pastBookings.add(entry);
+      } else if (bookingDateOnly.isAfter(today)) {
+        // Booking date is after today - upcoming booking
+        upcomingBookings.add(entry);
       } else {
-        // Today - need to check individual times
-        for (final booking in bookings) {
-          if (_isTimeInPast(booking.startTime) &&
-              _isTimeInPast(booking.endTime)) {
-            pastBookings.add(booking);
-          } else {
-            upcomingBookings.add(booking);
-          }
+        // Booking is today - check if it has already ended
+        if (bookingEndDateTime.isBefore(DateTime.now())) {
+          pastBookings.add(entry);
+        } else {
+          upcomingBookings.add(entry);
         }
-      }
+      } 
     }
 
-    // Group consecutive bookings efficiently
-    final pastGroups = await _groupConsecutiveBookings(pastBookings);
-    final upcomingGroups = await _groupConsecutiveBookings(upcomingBookings);
-
-    print('pastGroups: ${pastGroups.length}');
-    print('upcomingGroups: ${upcomingGroups.length}');
-
-    print('pastGroups: $pastGroups');
-    print('upcomingGroups: $upcomingGroups');
-
-    return {'past': pastGroups, 'upcoming': upcomingGroups};
+    return {'past': pastBookings, 'upcoming': upcomingBookings};
   }
 
   Future<List<TimeSlotModel>> _groupConsecutiveBookings(List<TimeSlotModel> bookings) async {
     if (bookings.isEmpty) return [];
 
-    // PERBAIKAN UTAMA: Group by date, court, username, DAN type
-    // Ini memastikan hanya booking di lapangan yang SAMA yang bisa di-group
     final Map<String, List<TimeSlotModel>> groups = {};
 
     for (final booking in bookings) {
-      // Key harus include courtId agar booking di lapangan berbeda tidak ter-group
       final key = '${booking.date}_${booking.courtId}_${booking.userId}';
       print('key: $key');
       groups[key] ??= [];
@@ -201,8 +202,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     final result = <TimeSlotModel>[];
 
     for (final timeSlots in groups.values) {
-      // Filter hanya booking yang valid (ada userId dan tidak available)
-      final userBookings =
+      List<TimeSlotModel> userBookings =
           timeSlots
               .where(
                 (slot) =>
@@ -213,12 +213,10 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
 
       if (userBookings.isEmpty) continue;
 
-      // Sort by start time
       userBookings.sort((a, b) => a.startTime.compareTo(b.startTime));
+      userBookings = await _createConsecutiveGroups(userBookings);
 
-      // Create consecutive groups HANYA untuk slot di lapangan yang sama
-      final consecutiveGroups = await _createConsecutiveGroups(userBookings);
-      result.addAll(consecutiveGroups);
+      result.addAll(userBookings);
     }
 
     // Sort final result by date and time
@@ -247,7 +245,6 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
           previous.courtId == current.courtId) {
         currentGroup.add(current);
       } else {
-        // Create grouped time slot and start new group
         if (currentGroup.isNotEmpty) {
           result.add(await _createGroupedTimeSlot(currentGroup));
         }
@@ -540,7 +537,6 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
                 itemCount: riwayats.length,
                 itemBuilder: (context, index) {
                   final booking = riwayats[index];
-                  print(booking.cancel);
                   return booking.cancel.isEmpty
                       ? GestureDetector(
                         onTap: () => _showDetailDialog(booking),

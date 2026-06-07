@@ -23,6 +23,7 @@ class FirebaseAddUser {
         'point': 0,
         'hour': 0,
         'totalBooking': 0,
+        'bookingDates': [],
         if (name != null) 'name': name,
         if (club != null) 'club': club,
         if (phoneNumber != null) 'phoneNumber': phoneNumber,

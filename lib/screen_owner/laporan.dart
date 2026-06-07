@@ -24,18 +24,18 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
     for (var i = 2020; i <= DateTime.now().year; i++) i.toString(),
   ];
   List<String> bulanList = [
-    'January',
-    'February',
-    'March',
+    'Januari',
+    'Februari',
+    'Maret',
     'April',
-    'May',
-    'June',
-    'July',
-    'August',
+    'Mei',
+    'Juni',
+    'Juli',
+    'Agustus',
     'September',
-    'October',
+    'Oktober',
     'November',
-    'December',
+    'Desember',
   ];
   final List<Map<String, String>> statusList = [
     {'label': 'Non Member', 'value': 'nonMember'},
@@ -211,6 +211,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
     _selectedTahun = DateTime.now().year.toString();
     _selectedBulan = bulanList[DateTime.now().month - 1];
     _selectedStatus = statusList[0]['value'];
+    _getLaporan();
   }
 
   @override
@@ -577,8 +578,6 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
       ),
     );
   }
-
-  void simpanData() {}
 
   /// Simpan lebar asli kolom sebagai referensi zoom
   void _saveOriginalWidths() {

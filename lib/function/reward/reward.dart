@@ -68,7 +68,7 @@ class _RewardState extends State<Reward> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Your Reward Progress',
+            'Progress Eventmu',
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
@@ -86,14 +86,14 @@ class _RewardState extends State<Reward> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${currentReward.currentHours.toDouble()} h played',
+                '${currentReward.currentHours.toDouble()} jam bermain',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w500,
                 ),
               ),
               Text(
-                '${hoursToNext.toDouble()} h left',
+                'sisa ${hoursToNext.toDouble()} jam',
                 style: const TextStyle(color: Colors.white70),
               ),
             ],
