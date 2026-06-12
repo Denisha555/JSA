@@ -62,28 +62,21 @@ class _HalamanPesananState extends State<HalamanPesanan> {
       } else {
         List<TimeSlotModel> mergedDetail = [];
 
-        String startTime = newDetail[0].startTime;
-
-        for (var booking in newDetail) {
-          // kalau list kosong
+        for (final booking in newDetail) {
           if (mergedDetail.isEmpty) {
             mergedDetail.add(booking);
             continue;
           }
 
-          String usernameBefore = "";
-          String endtimeBefore = "";
+          final last = mergedDetail.last;
 
-          if (booking.username == usernameBefore &&
-              booking.username.isNotEmpty && 
-              booking.startTime == endtimeBefore ) {
-            mergedDetail.last.endTime = booking.endTime;
+          if (last.username == booking.username &&
+              last.courtId == booking.courtId &&
+              last.endTime == booking.startTime) {
+            last.endTime = booking.endTime;
           } else {
             mergedDetail.add(booking);
-            startTime = booking.startTime;
           }
-          usernameBefore = booking.username;
-          endtimeBefore = booking.endTime;
         }
         setState(() {
           detail = mergedDetail;
@@ -150,7 +143,7 @@ class _HalamanPesananState extends State<HalamanPesanan> {
                             child: ListTile(
                               title: Text(booking.username),
                               subtitle: Text(
-                                'Durasi: ${booking.startTime} - ${booking.endTime}',
+                                'Waktu: ${booking.startTime} - ${booking.endTime}',
                               ),
                               trailing:
                                   booking.type == 'nonMember'

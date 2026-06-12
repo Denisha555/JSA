@@ -136,7 +136,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   lastDate: DateTime(2101),
                 );
                 if (picked != null) {
-                  _changeDate(picked);
+                  await _changeDate(picked);
                 }
               } catch (e) {
                 print('DatePicker error: $e');
@@ -186,7 +186,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             children: [
               _buildDateNavigationButton(
                 icon: Icons.arrow_back,
-                onPressed: () {
+                onPressed: () async {
                   final previousDate = selectedDate.subtract(
                     const Duration(days: 1),
                   );
@@ -198,7 +198,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                       'Tidak dapat memilih tanggal sebelum hari ini',
                     );
                   } else {
-                    _changeDate(previousDate);
+                    await _changeDate(previousDate);
                   }
                 },
                 isPrimary: false,
@@ -206,15 +206,17 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               const SizedBox(width: 16),
               _buildDateNavigationButton(
                 text: 'Hari Ini',
-                onPressed: () => _changeDate(DateTime.now()),
+                onPressed: () async {
+                  _changeDate(DateTime.now());
+                },
                 isPrimary: true,
               ),
               const SizedBox(width: 16),
               _buildDateNavigationButton(
                 icon: Icons.arrow_forward,
-                onPressed:
-                    () =>
-                        _changeDate(selectedDate.add(const Duration(days: 1))),
+                onPressed: () async {
+                  _changeDate(selectedDate.add(const Duration(days: 1)));
+                },
                 isPrimary: false,
               ),
             ],
@@ -359,39 +361,52 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     return courtIds.toList()..sort((a, b) => a.compareTo(b));
   }
 
-  void _changeDate(DateTime date) {
+  Future<void> _changeDate(DateTime date) async {
     setState(() {
       selectedDate = date;
     });
-    _loadOrCreateSlots(date);
+    await _loadOrCreateSlots(date);
   }
 
   void _buildBookingData(List<TimeSlotModel> slots) {
     setState(() => isLoading = true);
 
     try {
+      final allCourtIds = slots.map((s) => s.courtId).toSet();
       Map<String, Map<String, TimeSlotModel>> tempData = {};
 
       for (final slot in slots) {
-        final timeRange = '${slot.startTime} - ${slot.endTime}';
+        String timeRange = '${slot.startTime} - ${slot.endTime}';
+        print(
+          'SEBELUM --'
+          'court=${slot.courtId}, '
+          'time=${slot.startTime}-${slot.endTime}, '
+          'available=${slot.isAvailable}, '
+          'user=${slot.username}',
+        );
 
         tempData.putIfAbsent(
           timeRange,
           () => {
-            for (var courtId in courtIds)
+            for (var courtId in allCourtIds)
               courtId: TimeSlotModel(isAvailable: true, isClosed: false),
           },
         );
 
-        tempData[timeRange]![slot.courtId] = TimeSlotModel(
+        tempData[timeRange]?[slot.courtId] = TimeSlotModel(
           isAvailable: slot.isAvailable,
           isClosed: slot.isClosed,
           isHoliday: slot.isHoliday,
           username: slot.username,
           type: slot.type,
         );
-      }
 
+        print(
+          'SESUDAH --'
+          '${tempData[timeRange]![slot.courtId]?.isAvailable} '
+          '${tempData[timeRange]![slot.courtId]?.username}',
+        );
+      }
 
       setState(() {
         bookingData = tempData;
@@ -400,7 +415,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     } catch (e) {
       setState(() => isLoading = false);
       if (!mounted) return;
-      showErrorSnackBar(context, 'Gagal memuat data booking');
+      showErrorSnackBar(context, 'Gagal memuat data booking: $e');
     }
   }
 
@@ -1038,26 +1053,50 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     Color textColor;
     String displayText;
 
+    // if (isClosed) {
+    //   backgroundColor = Colors.grey;
+    //   textColor = Colors.black;
+    //   displayText = 'Tutup';
+    // } else if (isAvailable) {
+    //   if (isHoliday) {
+    //     if (isAvailable) {
+    //       backgroundColor = holidayColor.withOpacity(0.7);
+    //       textColor = Colors.black;
+    //       displayText = 'Hari Libur';
+    //     } else {
+    //       backgroundColor = bookedColor;
+    //       textColor = Colors.blue;
+    //       displayText = username;
+    //     }
+    //   } else {
+    //     backgroundColor = availableColor;
+    //     textColor = Colors.black;
+    //     displayText = 'Tersedia';
+    //   }
+    // } else {
+    //   backgroundColor = bookedColor;
+    //   textColor = type == 'member' ? Colors.blue : Colors.red;
+    //   displayText = username;
+    // }
     if (isClosed) {
-      backgroundColor = Colors.grey;
+      backgroundColor = closedColor;
       textColor = Colors.black;
       displayText = 'Tutup';
-    } else if (isAvailable) {
-      if (isHoliday) {
-        if (isAvailable) {
-          backgroundColor = holidayColor.withOpacity(0.7);
-          textColor = Colors.black;
-          displayText = 'Hari Libur';
-        } else {
-          backgroundColor = bookedColor;
-          textColor = Colors.blue;
-          displayText = username;
-        }
-      } else {
-        backgroundColor = availableColor;
+    } else if (isHoliday) {
+      if (isAvailable) {
+        backgroundColor = holidayColor.withOpacity(0.7);
         textColor = Colors.black;
-        displayText = 'Tersedia';
+        displayText = 'Hari Libur';
+      } else {
+        // Holiday tapi sudah di-booking
+        backgroundColor = bookedColor;
+        textColor = type == 'member' ? Colors.blue : Colors.red;
+        displayText = username;
       }
+    } else if (isAvailable) {
+      backgroundColor = availableColor;
+      textColor = Colors.black;
+      displayText = 'Tersedia';
     } else {
       backgroundColor = bookedColor;
       textColor = type == 'member' ? Colors.blue : Colors.red;

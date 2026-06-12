@@ -19,18 +19,35 @@ class FirebaseUpdateUser {
         
         var docId = result.docs[0].id;
 
-        await firestore.collection('users').doc(docId).update({
+        await firestore.collection('users').doc(docId).set({
           field: value,
-        });
+      }, SetOptions(merge: true));
 
-        final doc = await firestore.collection('users').doc(docId).get();
-        final data = doc.data()!;
-        await firestore.collection('users').doc(docId).set(data);
+        // final doc = await firestore.collection('users').doc(docId).get();
+        // final data = doc.data()!;
+        // await firestore.collection('users').doc(docId).set(data);
       } else {
         throw Exception('User does not exist');
       }
     } catch (e) {
       throw Exception('Error Checking User: $e');
+    }
+  }
+
+  Future<void> updateManyData(Map<String, dynamic> data, String username) async {
+    try {
+      final result = await firestore
+          .collection('users')
+          .where('username', isEqualTo: username)
+          .get();
+
+      var docId = result.docs[0].id;
+
+      await firestore.collection('users').doc(docId).set(
+        data, SetOptions(merge: true),
+      );
+    } catch (e) {
+      throw Exception('Error update many data user: $e');
     }
   }
 

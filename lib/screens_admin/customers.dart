@@ -5,8 +5,8 @@ import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/screens_admin/daftar_member.dart';
 import 'package:flutter_application_1/screens_admin/daftar_non_member.dart';
 import 'package:flutter_application_1/services/user/firebase_check_user.dart';
+import 'package:flutter_application_1/services/user/firebase_update_user.dart';
 import 'package:flutter_application_1/services/user/firebase_get_user.dart';
-import 'package:flutter_application_1/services/user/firebase_delete_user.dart';
 
 class HalamanCustomers extends StatefulWidget {
   final int tabIndex;
@@ -140,10 +140,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                         ),
                         const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 3,
-                          ),
+                          
                           decoration: BoxDecoration(
                             color:
                                 isMember ? Colors.blue[50] : Colors.grey[100],
@@ -245,13 +242,10 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                 onPressed: () => Navigator.of(ctx).pop(false),
                 child: const Text('Batal'),
               ),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                ),
+              TextButton(
                 onPressed: () async {
-                  await FirebaseDeleteUser().deleteUser(username);
+                  // await FirebaseDeleteUser().deleteUser(username);
+                  await FirebaseUpdateUser().updateUser("status", username, "nonaktif");
                   if (!ctx.mounted) return;
                   Navigator.of(ctx).pop(true);
                 },
@@ -287,6 +281,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
     final cancelController = TextEditingController(
       text: user.cancel.toString(),
     );
+    final _formKey = GlobalKey<FormState>();
 
     final saved = await showModalBottomSheet<bool>(
       context: context,
@@ -303,95 +298,90 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
               MediaQuery.of(ctx).viewInsets.bottom + 24,
             ),
             child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 36,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.grey[300],
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'Edit pengguna',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    user.username,
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                  ),
-                  const SizedBox(height: 16),
-                  TextField(
-                    controller: clubController,
-                    decoration: _inputDecor('Club'),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: notelpController,
-                    decoration: _inputDecor('No. Telepon'),
-                    keyboardType: TextInputType.phone,
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: waktuPointController,
-                    decoration: _inputDecor('Waktu mulai (point)'),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: waktuMemberController,
-                    decoration: _inputDecor('Waktu mulai (member)'),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: pointController,
-                    decoration: _inputDecor('Poin'),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: cancelController,
-                    decoration: _inputDecor('Cancel'),
-                    keyboardType: TextInputType.number,
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.of(ctx).pop(false),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                          ),
-                          child: const Text('Batal'),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[300],
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryColor,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                          ),
-                          onPressed: () async {
-                            Navigator.of(ctx).pop(true);
-                          },
-                          child: const Text('Simpan'),
-                        ),
+                    ),
+                    Text(
+                      'Edit pengguna',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      user.username,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: clubController,
+                      decoration: _inputDecor('Club'),
+                    ),
+                    const SizedBox(height: 10),
+                    TextFormField(
+                      controller: notelpController,
+                      decoration: _inputDecor('No. Telepon'),
+                      keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'No. Telepon tidak boleh kosong';
+                        } else if (!RegExp(r'^[0-9]+$').hasMatch(value)) {
+                          return 'No. Telepon hanya boleh berisi angka';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(ctx).pop(false),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                            ),
+                            child: const Text('Batal'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                            ),
+                            onPressed: () async {
+                              if (!_formKey.currentState!.validate()) return;
+                              await FirebaseUpdateUser().updateManyData({
+                                "club": clubController.text,
+                                "phoneNumber": notelpController.text,
+                              }, username);
+                              Navigator.of(ctx).pop(true);
+                              showSuccessSnackBar(context, "Data berhasil diubah");
+                            },
+                            child: const Text('Simpan'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

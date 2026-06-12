@@ -86,12 +86,6 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
       readOnly: true,
     ),
     PlutoColumn(
-      title: 'Jumlah Lapangan',
-      field: 'jumlah_lapangan',
-      type: PlutoColumnType.number(),
-      readOnly: true,
-    ),
-    PlutoColumn(
       title: 'Harga per Jam',
       field: 'harga_per_jam',
       type: PlutoColumnType.text(),
@@ -157,12 +151,6 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
     PlutoColumn(
       title: 'Lapangan',
       field: 'lapangan',
-      type: PlutoColumnType.text(),
-      readOnly: true,
-    ),
-    PlutoColumn(
-      title: 'Jumlah Lapangan',
-      field: 'jumlah_lapangan',
       type: PlutoColumnType.text(),
       readOnly: true,
     ),
@@ -789,7 +777,6 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                     '${(timeToMinutes(data.endTime) - timeToMinutes(data.startTime)) / 60} jam',
               ),
               'lapangan': PlutoCell(value: data.courtId),
-              'jumlah_lapangan': PlutoCell(value: 1),
               'harga_per_jam': PlutoCell(
                 value: 'Rp ${data.pricePerHour.toStringAsFixed(0)}',
               ),
@@ -817,7 +804,6 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                         '${(timeToMinutes(data.endTime) - timeToMinutes(data.startTime)) / 60} jam',
                   ),
                   'lapangan': PlutoCell(value: data.courtId),
-                  'jumlah_lapangan': PlutoCell(value: 1),
                   'harga_per_jam': PlutoCell(
                     value: 'Rp ${data.pricePerHour.toStringAsFixed(0)}',
                   ),

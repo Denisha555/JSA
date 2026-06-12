@@ -17,7 +17,7 @@ class HalamanEditProfil extends StatefulWidget {
 }
 
 class _HalamanEditProfilState extends State<HalamanEditProfil> {
-  bool _isLoading = false;
+  bool _isLoading = true;
   final TextEditingController namaController = TextEditingController();
   final TextEditingController noTelpController = TextEditingController();
   final TextEditingController clubController = TextEditingController();

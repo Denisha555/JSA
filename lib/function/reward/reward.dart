@@ -68,7 +68,7 @@ class _RewardState extends State<Reward> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Progress Eventmu',
+            'Progres Eventmu',
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,

@@ -40,6 +40,18 @@ class FirebaseCheckUser {
     }
   }
 
+  Future<bool> checkExistenceAndActive(String field, dynamic value) async {
+    final snapshot =
+        await firestore
+            .collection('users')
+            .where(field, isEqualTo: value)
+            .where('status', isEqualTo: '')
+            .limit(1)
+            .get();
+    print(snapshot.docs.isEmpty);
+    return snapshot.docs.isNotEmpty;
+  }
+
   Future<bool> checkExistence(String field, dynamic value) async {
     final snapshot =
         await firestore
@@ -63,7 +75,7 @@ class FirebaseCheckUser {
           final difference = finishDate.difference(now);
           final daysLeft = difference.inDays;
 
-          if (daysLeft <= 0) {
+          if (daysLeft < 0) {
             await FirebaseUpdateUser().updateUser(
               'role',
               username,
@@ -89,7 +101,9 @@ class FirebaseCheckUser {
               username,
               FieldValue.delete(),
             );
-            await FirebaseUpdateTimeSlot().updateMemberTimeSlots(username);
+            // await FirebaseUpdateTimeSlot().updateMemberTimeSlots(username);
+
+            
           }
         }
       }
@@ -99,208 +113,185 @@ class FirebaseCheckUser {
   }
 
   Future<void> checkUserPoint(String username) async {
-  try {
-    if (!await checkExistence('username', username)) return;
+    try {
+      if (!await checkExistence('username', username)) return;
 
-    double point = 0;
-    int totalBooking = 0;
-    double hour = 0.0;
+      double point = 0;
+      int totalBooking = 0;
+      double hour = 0.0;
 
-    List<dynamic> bookingDetails = await FirebaseGetUser().getUserData(
-      username,
-      'bookingDates',
-    );
+      List<dynamic> bookingDetails = await FirebaseGetUser().getUserData(
+        username,
+        'bookingDates',
+      );
 
-    List<dynamic> bookingDetailsNeed =
-        bookingDetails.where((e) => e['type'] == 'nonMember').toList();
+      List<dynamic> bookingDetailsNeed =
+          bookingDetails.where((e) => e['type'] == 'nonMember').toList();
 
-    bookingDetailsNeed.sort(
-      (a, b) => DateTime.parse(
-        a['date'],
-      ).compareTo(DateTime.parse(b['date'])),
-    );
+      bookingDetailsNeed.sort(
+        (a, b) =>
+            DateTime.parse(a['date']).compareTo(DateTime.parse(b['date'])),
+      );
 
-    String startTimePoint =
-        await FirebaseGetUser().getUserData(
-          username,
-          'startTimePoint',
-        ) ??
-        '';
+      String startTimePoint =
+          await FirebaseGetUser().getUserData(username, 'startTimePoint') ?? '';
 
-    final now = DateTime.now();
+      final now = DateTime.now();
 
-    List<dynamic> relevantBookingDetails = [];
-    List<dynamic> needCheckBookings = [];
+      List<dynamic> relevantBookingDetails = [];
+      List<dynamic> needCheckBookings = [];
 
-    // cari startTimePoint jika kosong
-    if (startTimePoint.isEmpty) {
-      for (final booking in bookingDetailsNeed) {
-        final bookingEnd = DateTime.parse(
-          '${booking["date"]} ${booking["endTime"].replaceAll(".", ":")}',
-        );
+      // cari startTimePoint jika kosong
+      if (startTimePoint.isEmpty) {
+        for (final booking in bookingDetailsNeed) {
+          final bookingEnd = DateTime.parse(
+            '${booking["date"]} ${booking["endTime"].replaceAll(".", ":")}',
+          );
 
-        if (booking['status'] != 'checked' &&
-            bookingEnd.isBefore(now)) {
-          startTimePoint = booking['date'];
-          break;
+          if (booking['status'] != 'checked' && bookingEnd.isBefore(now)) {
+            startTimePoint = booking['date'];
+            break;
+          }
+        }
+
+        if (startTimePoint.isEmpty) {
+          await FirebaseUpdateUser().updateUser('point', username, 0);
+          return;
         }
       }
 
-      if (startTimePoint.isEmpty) {
-        await FirebaseUpdateUser().updateUser(
-          'point',
-          username,
-          0,
-        );
-        return;
+      DateTime startDate = DateTime.parse(startTimePoint);
+      DateTime finishDate = startDate.add(const Duration(days: 30));
+
+      // periode selesai
+      if (now.isAfter(finishDate)) {
+        startTimePoint = '';
+
+        for (final booking in bookingDetailsNeed) {
+          if (booking['status'] == 'checked') continue;
+
+          final bookingDate = DateTime.parse(booking['date']);
+
+          if (bookingDate.isAfter(finishDate)) {
+            startTimePoint = booking['date'];
+            break;
+          }
+        }
+
+        if (startTimePoint.isEmpty) {
+          await FirebaseUpdateUser().updateUser('point', username, 0);
+          return;
+        }
+
+        startDate = DateTime.parse(startTimePoint);
+        finishDate = startDate.add(const Duration(days: 30));
+
+        await FirebaseUpdateUser().updateUser('point', username, 0);
       }
-    }
-
-    DateTime startDate = DateTime.parse(startTimePoint);
-    DateTime finishDate = startDate.add(const Duration(days: 30));
-
-    // periode selesai
-    if (now.isAfter(finishDate)) {
-      startTimePoint = '';
 
       for (final booking in bookingDetailsNeed) {
         if (booking['status'] == 'checked') continue;
 
         final bookingDate = DateTime.parse(booking['date']);
 
-        if (bookingDate.isAfter(finishDate)) {
-          startTimePoint = booking['date'];
-          break;
+        final bookingEnd = DateTime.parse(
+          '${booking["date"]} ${booking["endTime"].replaceAll(".", ":")}',
+        );
+
+        // booking belum selesai
+        if (bookingEnd.isAfter(now)) continue;
+
+        // masuk periode aktif
+        if ((bookingDate.isAtSameMomentAs(startDate) ||
+                bookingDate.isAfter(startDate)) &&
+            (bookingDate.isAtSameMomentAs(finishDate) ||
+                bookingDate.isBefore(finishDate))) {
+          relevantBookingDetails.add(booking);
+        }
+        // booking lama yang belum pernah diproses
+        else if (bookingDate.isBefore(startDate)) {
+          needCheckBookings.add(booking);
         }
       }
 
-      if (startTimePoint.isEmpty) {
+      // booking periode aktif
+      for (final booking in relevantBookingDetails) {
+        String startTime = booking['startTime'].toString().replaceAll('.', ':');
+
+        String endTime = booking['endTime'].toString().replaceAll('.', ':');
+
+        final date = booking['date'];
+
+        final start = DateTime.parse('$date $startTime');
+        final end = DateTime.parse('$date $endTime');
+
+        final durationInHours = end.difference(start).inMinutes / 60;
+
+        point += durationInHours;
+        hour += durationInHours;
+        totalBooking++;
+
+        booking['status'] = 'checked';
+      }
+
+      // booking lama yang tertinggal
+      for (final booking in needCheckBookings) {
+        String startTime = booking['startTime'].toString().replaceAll('.', ':');
+
+        String endTime = booking['endTime'].toString().replaceAll('.', ':');
+
+        final date = booking['date'];
+
+        final start = DateTime.parse('$date $startTime');
+        final end = DateTime.parse('$date $endTime');
+
+        final durationInHours = end.difference(start).inMinutes / 60;
+
+        hour += durationInHours;
+        totalBooking++;
+
+        booking['status'] = 'checked';
+      }
+
+      await FirebaseUpdateUser().updateUser(
+        'bookingDates',
+        username,
+        bookingDetails,
+      );
+
+      if (point > 0) {
         await FirebaseUpdateUser().updateUser(
           'point',
           username,
-          0,
+          FieldValue.increment(point),
         );
-        return;
       }
 
-      startDate = DateTime.parse(startTimePoint);
-      finishDate = startDate.add(const Duration(days: 30));
-
-      await FirebaseUpdateUser().updateUser(
-        'point',
-        username,
-        0,
-      );
-    }
-
-    for (final booking in bookingDetailsNeed) {
-      if (booking['status'] == 'checked') continue;
-
-      final bookingDate = DateTime.parse(booking['date']);
-
-      final bookingEnd = DateTime.parse(
-        '${booking["date"]} ${booking["endTime"].replaceAll(".", ":")}',
-      );
-
-      // booking belum selesai
-      if (bookingEnd.isAfter(now)) continue;
-
-      // masuk periode aktif
-      if (!bookingDate.isAtSameMomentAs(startDate) &&
-          bookingDate.isBefore(finishDate)) {
-        relevantBookingDetails.add(booking);
+      if (hour > 0) {
+        await FirebaseUpdateUser().updateUser(
+          'hour',
+          username,
+          FieldValue.increment(hour),
+        );
       }
 
-      // booking lama yang belum pernah diproses
-      else if (bookingDate.isBefore(startDate)) {
-        needCheckBookings.add(booking);
+      if (totalBooking > 0) {
+        await FirebaseUpdateUser().updateUser(
+          'totalBooking',
+          username,
+          FieldValue.increment(totalBooking),
+        );
       }
-    }
 
-    // booking periode aktif
-    for (final booking in relevantBookingDetails) {
-      String startTime =
-          booking['startTime'].toString().replaceAll('.', ':');
-
-      String endTime =
-          booking['endTime'].toString().replaceAll('.', ':');
-
-      final date = booking['date'];
-
-      final start = DateTime.parse('$date $startTime');
-      final end = DateTime.parse('$date $endTime');
-
-      final durationInHours =
-          end.difference(start).inMinutes / 60;
-
-      point += durationInHours;
-      hour += durationInHours;
-      totalBooking++;
-
-      booking['status'] = 'checked';
-    }
-
-    // booking lama yang tertinggal
-    for (final booking in needCheckBookings) {
-      String startTime =
-          booking['startTime'].toString().replaceAll('.', ':');
-
-      String endTime =
-          booking['endTime'].toString().replaceAll('.', ':');
-
-      final date = booking['date'];
-
-      final start = DateTime.parse('$date $startTime');
-      final end = DateTime.parse('$date $endTime');
-
-      final durationInHours =
-          end.difference(start).inMinutes / 60;
-
-      hour += durationInHours;
-      totalBooking++;
-
-      booking['status'] = 'checked';
-    }
-
-    await FirebaseUpdateUser().updateUser(
-      'bookingDates',
-      username,
-      bookingDetails,
-    );
-
-    if (point > 0) {
       await FirebaseUpdateUser().updateUser(
-        'point',
+        'startTimePoint',
         username,
-        FieldValue.increment(point),
+        startTimePoint,
       );
+    } catch (e) {
+      throw Exception('Error checking user point: $e');
     }
-
-    if (hour > 0) {
-      await FirebaseUpdateUser().updateUser(
-        'hour',
-        username,
-        FieldValue.increment(hour),
-      );
-    }
-
-    if (totalBooking > 0) {
-      await FirebaseUpdateUser().updateUser(
-        'totalBooking',
-        username,
-        FieldValue.increment(totalBooking),
-      );
-    }
-
-    await FirebaseUpdateUser().updateUser(
-      'startTimePoint',
-      username,
-      startTimePoint,
-    );
-  } catch (e) {
-    throw Exception('Error checking user point: $e');
   }
-}
 
   Future<List<String>> getUserBookingDates(String username) async {
     try {

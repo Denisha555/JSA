@@ -17,6 +17,7 @@ class UserModel {
   final List<Map<String, dynamic>> bookingDates;
   final String noTelp;
   final String club;
+  final String status;
 
   UserModel({
     this.userId = '',
@@ -37,6 +38,7 @@ class UserModel {
     this.bookingDates = const [],
     this.noTelp = '',
     this.club = '',
+    this.status = '',
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -59,6 +61,7 @@ class UserModel {
       bookingDates: List<Map<String, dynamic>>.from(json['bookingDates'] ?? []),
       noTelp: json['phoneNumber'] ?? '',
       club: json['club'] ?? '',
+      status: json['status'] ?? '',
     );
   }
 }

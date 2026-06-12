@@ -478,8 +478,8 @@ class _HalamanUtamaOwnerState extends State<HalamanUtamaOwner> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Konfirmasi Logout'),
-            content: const Text('Apakah kamu yakin ingin logout?'),
+            title: const Text('Konfirmasi Keluar'),
+            content: const Text('Apakah kamu yakin ingin keluar?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -490,7 +490,7 @@ class _HalamanUtamaOwnerState extends State<HalamanUtamaOwner> {
                   if (!context.mounted) return;
                   Navigator.pop(context, true);
                 },
-                child: const Text('Logout'),
+                child: const Text('Keluar'),
               ),
             ],
           ),

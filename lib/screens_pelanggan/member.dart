@@ -127,7 +127,7 @@ class _HalamanMemberState extends State<HalamanMember> {
   }
 
   Future<void> _findAvailableCourt() async {
-    final isAvailable = await FirebaseCheckTimeSlot().isSlotAvailable(
+    final getCourt = await FirebaseCheckTimeSlot().isSlotAvailable(
       courts.map((court) => court.courtId).toList(),
       selectedDates
           .map((date) => DateFormat('yyyy-MM-dd').format(date))
@@ -136,7 +136,7 @@ class _HalamanMemberState extends State<HalamanMember> {
       selectedEndTime,
     );
 
-    if (!isAvailable) {
+    if (getCourt.isEmpty) {
       if (!mounted) return;
       showErrorSnackBar(context, 'Lapangan tidak tersedia');
       setState(() {
@@ -144,7 +144,7 @@ class _HalamanMemberState extends State<HalamanMember> {
       });
       return;
     }
-    availableCourts = courts.toList(); 
+    availableCourts = getCourt.toList(); 
 
     availableCourts.sort((a, b) => a.courtId.compareTo(b.courtId));
 
@@ -198,12 +198,7 @@ class _HalamanMemberState extends State<HalamanMember> {
     List<String> courtIds,
     String username,
   ) async {
-    print('book all slots');
-    final startMinutes = timeToMinutes(selectedStartTime);
-    final endMinutes = timeToMinutes(selectedEndTime);
     int length = 0;
-
-    print('selectedDates: $selectedDates');
 
     final selectedDatesStr =
         selectedDates

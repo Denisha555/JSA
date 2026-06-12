@@ -182,7 +182,7 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
   }
 
   Future<void> _findAvailableCourt() async {
-    final isAvailable = await FirebaseCheckTimeSlot().isSlotAvailable(
+    final getCourt = await FirebaseCheckTimeSlot().isSlotAvailable(
       courts.map((court) => court.courtId).toList(),
       selectedDates
           .map((date) => DateFormat('yyyy-MM-dd').format(date))
@@ -191,14 +191,19 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
       selectedEndTime,
     );
 
-    if (!isAvailable) {
+    if (getCourt.isEmpty) {
       if (!mounted) return;
+      print("court not available");
       showErrorSnackBar(context, 'Lapangan tidak tersedia');
       setState(() {
         isLoading = false;
       });
       return;
+    } else {
+      print("court available");
     }
+
+    availableCourts = getCourt.toList(); 
 
     availableCourts.sort((a, b) => a.courtId.compareTo(b.courtId));
 
@@ -827,7 +832,8 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                       if (picked != null) {
                         setState(() {
                           jamMulai = picked;
-                          selectedStartTime = jamMulai.format(context);
+                          // selectedStartTime = jamMulai.format(context);
+                          selectedStartTime = formatTimeOfDay24(jamMulai);
                         });
                       }
                       print(selectedStartTime);
@@ -864,7 +870,8 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                       if (picked != null) {
                         setState(() {
                           jamSelesai = picked;
-                          selectedEndTime = jamSelesai.format(context);
+                          // selectedEndTime = jamSelesai.format(context);
+                          selectedEndTime = formatTimeOfDay24(jamSelesai);
                         });
                       }
                       print(selectedEndTime);

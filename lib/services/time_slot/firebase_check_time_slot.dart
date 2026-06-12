@@ -1,3 +1,4 @@
+import 'package:flutter_application_1/model/court_model.dart';
 import 'package:intl/intl.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/services/time_slot/firebase_add_time_slot.dart';
@@ -6,14 +7,14 @@ import 'package:flutter_application_1/services/time_slot/firebase_update_time_sl
 class FirebaseCheckTimeSlot {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  Future<bool> isSlotAvailable(
+  Future<List<CourtModel>> isSlotAvailable(
     List<String> courtIds,
     List<String> dateStrs,
     String startTime,
     String endTime,
   ) async {
     try {
-      int timeCheckTimeSlot = DateTime.now().millisecondsSinceEpoch;
+      Map<String, int> courtMap = {};
       final futures = <Future<DocumentSnapshot>>[];
 
       for (final date in dateStrs) {
@@ -54,23 +55,26 @@ class FirebaseCheckTimeSlot {
 
             if (inRange) {
               final available =
-                  slot['isAvailable'] == true && slot['isClosed'] != true;
+                  slot['isAvailable'] == true && slot['isClosed'] == false;
 
               if (!available) {
-                return false;
+                break;
               }
 
               if (slot['endTime'] == endTime) {
+                courtMap[court] = (courtMap[court] ?? 0) + 1;
                 break;
               }
             }
           }
         }
       }
-      print(
-        'Time check time slot: ${(DateTime.now().millisecondsSinceEpoch - timeCheckTimeSlot) / 1000} seconds',
-      );
-      return true;
+
+      return courtMap.entries
+          .where((entry) => entry.value == dateStrs.length)
+          .map((entry) => CourtModel(courtId: entry.key))
+          .toList();
+          
     } catch (e) {
       throw Exception('Failed to check slot availability: $e');
     }

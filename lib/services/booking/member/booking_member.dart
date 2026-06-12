@@ -80,7 +80,7 @@ class BookingMember {
                 .collection('users')
                 .where('username', isEqualTo: username)
                 .get();
-        
+
         String userId = user.docs[0].id;
         await firestore.collection('users').doc(userId).set({
           'memberTotalBooking': FieldValue.increment(days),
@@ -116,21 +116,29 @@ class BookingMember {
     }
   }
 
-  Future<void> addBookingDates(String username, dynamic dates, dynamic courtId, String startTime, String endTime) async {
-    QuerySnapshot user =
+  Future<void> addBookingDates(
+    String username,
+    dynamic dates,
+    dynamic courtId,
+    String startTime,
+    String endTime,
+  ) async {
+    try {
+      QuerySnapshot user =
         await firestore
             .collection('users')
             .where('username', isEqualTo: username)
             .get();
+
     String userId = user.docs[0].id;
-    
+
     final userDoc = firestore.collection('users').doc(userId);
 
     final snapshot = await userDoc.get();
     List<dynamic> currentDates = [];
 
     if (snapshot.exists && snapshot.data()!.containsKey('bookingDates')) {
-      currentDates = List<String>.from(snapshot.data()!['bookingDates']);
+      currentDates = List<dynamic>.from(snapshot.data()!['bookingDates']);
     }
 
     for (var date in dates) {
@@ -140,7 +148,7 @@ class BookingMember {
           "court": court,
           "startTime": startTime,
           "endTime": endTime,
-          "id": '${court}_${date}',
+          "id": '${court}_$date',
           "type": "member",
           "status": "",
         };
@@ -148,5 +156,9 @@ class BookingMember {
       }
     }
     await userDoc.set({'bookingDates': currentDates}, SetOptions(merge: true));
+    } catch (e) {
+      throw Exception('Failed to add booking dates: $e');
+    }
+    
   }
 }

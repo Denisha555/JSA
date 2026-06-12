@@ -55,7 +55,8 @@ class _HalamanProfilState extends State<HalamanProfil> {
     try {
       await _loadData();
       if (username != null && username!.isNotEmpty) {
-        final type = await FirebaseCheckUser().checkUserType(username!);
+        await FirebaseCheckUser().checkUserPoint(username!);
+        final type = data[0].role;
         final result = type == 'member' ? true : false;
 
         SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -67,11 +68,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
         if (result == true) {
           // kalau member, ambil preferensi user
           bool? userPreference = prefs.getBool('isMemberUI');
-          int memberTotalBooking = await FirebaseGetUser().getUserData(
-            username!,
-            'memberTotalBooking',
-          );
-
+          int memberTotalBooking = data[0].memberTotalBooking;
           setState(() {
             isMemberDatabase = true;
             memberTotalBooking = memberTotalBooking;
@@ -110,15 +107,19 @@ class _HalamanProfilState extends State<HalamanProfil> {
                 endTime = 0;
                 userbooked = [];
               });
-              await FirebaseUpdateUser().updateUser(
-                'role',
-                username!,
-                'nonMember',
+              await FirebaseUpdateUser().updateManyData(
+                {"role": "nonMember", "startTimeMember": "", "memberTotalBooking": 0, "memberBookingLength": 0, "memberCurrentTotalBooking": 0}, username!
               );
+              
+              List<Map<String, dynamic>> bookingData = data[0].bookingDates;
+              for (var booking in bookingData) {
+                if (booking["type"] == 'member' && DateTime.parse((booking["date"])).month < DateTime.now().month) {
+                  booking["status"] = 'finish';
+                }
+              }
+
               await FirebaseUpdateUser().updateUser(
-                'startTimeMember',
-                username!,
-                '',
+                "bookingDates", username!, bookingData
               );
 
               SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -180,15 +181,15 @@ class _HalamanProfilState extends State<HalamanProfil> {
     try {
       if (username == null) return;
 
-      final temp = await FirebaseGetBooking().getBookingByUsername(username!);
+      final temp = data[0].bookingDates;
 
       List<TimeSlotModel> memberBookings = [];
 
       for (var booking in temp) {
         try {
           // Cek apakah booking masih berlaku dan merupakan booking member
-          if (booking.type == 'member' && booking.status != 'finish') {
-            memberBookings.add(booking);
+          if (booking["type"] == 'member' && booking["status"] != 'finish') {
+            memberBookings.add(TimeSlotModel.fromJson(booking));
           }
         } catch (e) {
           if (!mounted) return;
@@ -196,91 +197,91 @@ class _HalamanProfilState extends State<HalamanProfil> {
         }
       }
 
-      // Sort bookings by date and time (ascending)
-      memberBookings.sort((a, b) {
-        try {
-          final dateA = DateTime.parse(a.date.toString());
-          final dateB = DateTime.parse(b.date.toString());
+      // // Sort bookings by date and time (ascending)
+      // memberBookings.sort((a, b) {
+      //   try {
+      //     final dateA = DateTime.parse(a.date.toString());
+      //     final dateB = DateTime.parse(b.date.toString());
 
-          int dateComparison = dateA.compareTo(dateB);
-          if (dateComparison != 0) {
-            return dateComparison;
-          }
+      //     int dateComparison = dateA.compareTo(dateB);
+      //     if (dateComparison != 0) {
+      //       return dateComparison;
+      //     }
 
-          // Jika tanggal sama, sort berdasarkan startTime
-          return a.startTime.toString().compareTo(b.startTime.toString());
-        } catch (e) {
-          showErrorSnackBar(context, 'Failed to load booking data');
-          return 0;
-        }
-      });
+      //     // Jika tanggal sama, sort berdasarkan startTime
+      //     return a.startTime.toString().compareTo(b.startTime.toString());
+      //   } catch (e) {
+      //     showErrorSnackBar(context, 'Failed to load booking data');
+      //     return 0;
+      //   }
+      // });
 
-      // Group bookings by date dan combine jam
-      List<TimeSlotModel> consolidatedBookings = [];
-      Map<String, List<TimeSlotModel>> groupedByDate = {};
+      // // Group bookings by date dan combine jam
+      // List<TimeSlotModel> consolidatedBookings = [];
+      // Map<String, List<TimeSlotModel>> groupedByDate = {};
 
-      // Group booking berdasarkan tanggal
-      for (var booking in memberBookings) {
-        try {
-          final dateKey =
-              '${DateTime.parse(booking.date.toString()).toIso8601String().split('T')[0]}_${booking.courtId}';
+      // // Group booking berdasarkan tanggal
+      // for (var booking in memberBookings) {
+      //   try {
+      //     final dateKey =
+      //         '${DateTime.parse(booking.date.toString()).toIso8601String().split('T')[0]}_${booking.courtId}';
 
-          if (!groupedByDate.containsKey(dateKey)) {
-            groupedByDate[dateKey] = [];
-          }
-          groupedByDate[dateKey]!.add(booking);
-        } catch (e) {
-          debugPrint('Error grouping bookings: $e');
-        }
-      }
+      //     if (!groupedByDate.containsKey(dateKey)) {
+      //       groupedByDate[dateKey] = [];
+      //     }
+      //     groupedByDate[dateKey]!.add(booking);
+      //   } catch (e) {
+      //     debugPrint('Error grouping bookings: $e');
+      //   }
+      // }
 
-      // Combine bookings untuk setiap tanggal
-      for (var dateEntry in groupedByDate.entries) {
-        List<TimeSlotModel> dayBookings = dateEntry.value;
+      // // Combine bookings untuk setiap tanggal
+      // for (var dateEntry in groupedByDate.entries) {
+      //   List<TimeSlotModel> dayBookings = dateEntry.value;
 
-        if (dayBookings.isNotEmpty) {
-          // Sort berdasarkan startTime untuk hari ini
-          dayBookings.sort(
-            (a, b) => a.startTime.toString().compareTo(b.startTime.toString()),
-          );
+      //   if (dayBookings.isNotEmpty) {
+      //     // Sort berdasarkan startTime untuk hari ini
+      //     dayBookings.sort(
+      //       (a, b) => a.startTime.toString().compareTo(b.startTime.toString()),
+      //     );
 
-          // Ambil booking pertama sebagai base
-          TimeSlotModel consolidatedBooking = dayBookings.first;
+      //     // Ambil booking pertama sebagai base
+      //     TimeSlotModel consolidatedBooking = dayBookings.first;
 
-          // Update endTime dengan endTime dari booking terakhir di hari yang sama
-          if (dayBookings.length > 1) {
-            consolidatedBooking = TimeSlotModel(
-              // Copy semua properti dari booking pertama
-              username: consolidatedBooking.username,
-              courtId: consolidatedBooking.courtId,
-              date: consolidatedBooking.date,
-              startTime:
-                  consolidatedBooking.startTime, // Jam mulai dari yang pertama
-              endTime:
-                  dayBookings.last.endTime, // Jam selesai dari yang terakhir
-              type: consolidatedBooking.type,
-              // Tambahkan properti lain sesuai dengan struktur AllBookedUser Anda
-            );
-          }
+      //     // Update endTime dengan endTime dari booking terakhir di hari yang sama
+      //     if (dayBookings.length > 1) {
+      //       consolidatedBooking = TimeSlotModel(
+      //         // Copy semua properti dari booking pertama
+      //         username: consolidatedBooking.username,
+      //         courtId: consolidatedBooking.courtId,
+      //         date: consolidatedBooking.date,
+      //         startTime:
+      //             consolidatedBooking.startTime, // Jam mulai dari yang pertama
+      //         endTime:
+      //             dayBookings.last.endTime, // Jam selesai dari yang terakhir
+      //         type: consolidatedBooking.type,
+      //         // Tambahkan properti lain sesuai dengan struktur AllBookedUser Anda
+      //       );
+      //     }
 
-          consolidatedBookings.add(consolidatedBooking);
-        }
-      }
+      //     consolidatedBookings.add(consolidatedBooking);
+      //   }
+      // }
 
-      // Sort consolidated bookings by date
-      consolidatedBookings.sort((a, b) {
-        try {
-          final dateA = DateTime.parse(a.date.toString());
-          final dateB = DateTime.parse(b.date.toString());
-          return dateA.compareTo(dateB);
-        } catch (e) {
-          debugPrint('Error sorting consolidated bookings: $e');
-          return 0;
-        }
-      });
+      // // Sort consolidated bookings by date
+      // consolidatedBookings.sort((a, b) {
+      //   try {
+      //     final dateA = DateTime.parse(a.date.toString());
+      //     final dateB = DateTime.parse(b.date.toString());
+      //     return dateA.compareTo(dateB);
+      //   } catch (e) {
+      //     debugPrint('Error sorting consolidated bookings: $e');
+      //     return 0;
+      //   }
+      // });
 
       setState(() {
-        userbooked = consolidatedBookings;
+        userbooked = memberBookings;
       });
     } catch (e) {
       debugPrint('Error loading member bookings: $e');
@@ -321,10 +322,10 @@ class _HalamanProfilState extends State<HalamanProfil> {
   Future<void> getLastActivity() async {
     try {
       if (username != null) {
-        final temp = await FirebaseGetBooking().getBookingByUsername(username!);
-        if (temp.isNotEmpty && mounted) {
-          setState(() {
-            activity = temp;
+        final bookingDates = data[0].bookingDates;
+        if (bookingDates.isNotEmpty && mounted) {
+          setState(() { 
+            activity = List<TimeSlotModel>.from(bookingDates);
           });
         }
       }

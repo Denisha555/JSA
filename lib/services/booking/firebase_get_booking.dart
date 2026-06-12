@@ -41,6 +41,7 @@ class FirebaseGetBooking {
         final date = bookingMap['date'];
         final startTime = bookingMap['startTime'];
         final endTime = bookingMap['endTime'];
+        final type = bookingMap['type'];
 
         allSlots.add(
           TimeSlotModel(
@@ -48,6 +49,7 @@ class FirebaseGetBooking {
             date: date,
             startTime: startTime,
             endTime: endTime,
+            type: type,
             isAvailable: false,
           ),
         );

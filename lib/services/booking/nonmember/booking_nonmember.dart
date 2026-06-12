@@ -91,37 +91,43 @@ class BookingNonMember {
     String startTime,
     String endTime,
   ) async {
-    QuerySnapshot user =
-        await firestore
-            .collection('users')
-            .where('username', isEqualTo: username)
-            .get();
+    try {
+      QuerySnapshot user =
+          await firestore
+              .collection('users')
+              .where('username', isEqualTo: username)
+              .get();
 
-    final userDoc = firestore.collection('users').doc(user.docs[0].id);
+      final userDoc = firestore.collection('users').doc(user.docs[0].id);
 
-    final snapshot = await userDoc.get();
-    List<Map<String, dynamic>> currentDates = [];
+      final snapshot = await userDoc.get();
+      List<Map<String, dynamic>> currentDates = [];
 
-    if (snapshot.exists && snapshot.data()!.containsKey('bookingDates')) {
-      final data = snapshot.data()!['bookingDates'];
+      if (snapshot.exists && snapshot.data()!.containsKey('bookingDates')) {
+        final data = snapshot.data()!['bookingDates'];
 
-      if (data is List) {
-        currentDates = List<Map<String, dynamic>>.from(data);
+        if (data is List) {
+          currentDates = List<Map<String, dynamic>>.from(data);
+        }
       }
+
+      final bookingInfo = {
+        "date": dates[0],
+        "court": court,
+        "startTime": startTime,
+        "endTime": endTime,
+        "id": '${court}_${dates[0]}',
+        "type": "nonMember",
+        "status": "",
+      };
+
+      currentDates.add(bookingInfo);
+
+      await userDoc.set({
+        'bookingDates': currentDates,
+      }, SetOptions(merge: true));
+    } catch (e) {
+      throw Exception('Failed to add booking dates: $e');
     }
-
-    final bookingInfo = {
-      "date": dates[0],
-      "court": court,
-      "startTime": startTime,
-      "endTime": endTime,
-      "id": '${court}_${dates[0]}',
-      "type": "nonMember",
-      "status": "",
-    };
-
-    currentDates.add(bookingInfo);
-
-    await userDoc.set({'bookingDates': currentDates}, SetOptions(merge: true));
   }
 }

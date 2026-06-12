@@ -187,7 +187,7 @@ class _HalamanMasukState extends State<HalamanMasuk>
   Future<void> _handleCustomerLogin() async {
     try {
       // Check if user is registered
-      bool registered = await FirebaseCheckUser().checkExistence(
+      bool registered = await FirebaseCheckUser().checkExistenceAndActive(
         'username',
         usernameController.text,
       );
@@ -198,7 +198,6 @@ class _HalamanMasukState extends State<HalamanMasuk>
           context,
           'Username belum terdaftar, silahkan daftar terlebih dahulu.',
         );
-
         return;
       }
 

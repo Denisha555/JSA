@@ -74,6 +74,7 @@ class FirebaseGetTimeSlot {
 
             if (userId != null && userId.toString().isNotEmpty) {
               slotData['username'] = userMap[userId.toString()] ?? '';
+              slotData['userId'] = userId;
             }
 
             return TimeSlotModel.fromJson(

@@ -7,7 +7,7 @@ class FirebaseGetUser {
   Future<List<UserModel>> getUsers() async {
     List<UserModel> userList = [];
     try {
-      QuerySnapshot snapshot = await firestore.collection('users').get();
+      QuerySnapshot snapshot = await firestore.collection('users').where("status", isNotEqualTo: "nonActive").get();
 
       for (DocumentSnapshot doc in snapshot.docs) {
         userList.add(UserModel.fromJson(doc.data() as Map<String, dynamic>));

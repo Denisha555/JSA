@@ -20,14 +20,13 @@ class DeleteCloseDay {
           .collection('time_slots')
           .where('date', isEqualTo: selectedDate)
           .get();
-
-      List<Map<String, dynamic>> updatedSlots = [];
       
       if (docId.docs.isEmpty) {
         throw Exception('No time slots found for the selected date.');
       } else {
         for (var doc in docId.docs) {
           final slots = doc.data()['slots'] as List<dynamic>;
+          List<Map<String, dynamic>> updatedSlots = [];
           for (var slot in slots) {
             var updatedSlot = Map<String, dynamic>.from(slot);
             updatedSlot['isClosed'] = false;

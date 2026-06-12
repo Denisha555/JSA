@@ -61,6 +61,11 @@ class AddHoliday {
         );
       }
 
+      await OnesignalSendNotificationCustomers().sendNotificationToAll(
+        "Perubahan Jadwal",
+        'Terjadi perubahan jadwal pada tanggal ${formatDate(DateTime.parse(dateStr))}. Mohon cek kembali jadwal booking Anda.'
+      );
+
       // Tambahkan catatan ke koleksi jadwal_khusus
       await firestore.collection('jadwal_khusus').add({
         'date': dateStr,

@@ -19,6 +19,8 @@ class FirebaseDeleteUser {
 
         var docId = result.docs[0].id;
 
+     
+
         await firestore.collection('users').doc(docId).delete();
       } else {
         throw Exception('User does not exist');

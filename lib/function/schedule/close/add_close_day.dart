@@ -127,6 +127,11 @@ class AddCloseDay {
         batch.set(timeSlotRef, {'slots': slots}, SetOptions(merge: true));
       }
 
+      await OnesignalSendNotificationCustomers().sendNotificationToAll(
+        "Perubahan Jadwal",
+        "Terjadi perubahan jadwal pada tanggal ${formatDate(selectedDate)}. Silakan cek kembali jadwal booking Anda.",
+      );
+
       final closeDayRef = firestore.collection('jadwal_khusus').doc();
       batch.set(closeDayRef, {
         'date': dateStr,

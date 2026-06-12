@@ -8,7 +8,7 @@ import 'package:flutter_application_1/model/reward_model.dart';
 import 'package:flutter_application_1/function/reward/reward.dart';
 import 'package:flutter_application_1/model/event_promo_model.dart';
 import 'package:flutter_application_1/screens_pelanggan/price.dart';
-import 'package:flutter_application_1/screens_pelanggan/Kalender.dart';
+import 'package:flutter_application_1/screens_pelanggan/kalender.dart';
 import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/screens_pelanggan/tentang_kami.dart';
 import 'package:flutter_application_1/services/user/firebase_get_user.dart';
