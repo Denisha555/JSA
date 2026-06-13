@@ -294,7 +294,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ),
             const SizedBox(height: 16),
             const Text(
-              'Loading...',
+              'Memuat...',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.grey,

@@ -117,6 +117,23 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
     return startMinutes < endMinutes;
   }
 
+  bool isInOperationTime() {
+    final start = DateFormat.Hm().parse('07:00');
+    final end = DateFormat.Hm().parse('23:00');
+    final selectedStart = DateFormat.Hm().parse(selectedStartTime);
+    final selectedEnd = DateFormat.Hm().parse(selectedEndTime);
+
+    return (selectedStart.isAfter(start) ||
+            selectedStart.isAtSameMomentAs(start)) &&
+        (selectedEnd.isBefore(end) || selectedEnd.isAtSameMomentAs(end));
+  }
+
+  bool isValidHalfHour() {
+    String startMinute = selectedStartTime.split(":")[1];
+    String endMinute = selectedEndTime.split(":")[1];
+    return (startMinute == "0" || startMinute == "30") && (endMinute == "0" || endMinute == "30");
+  }
+
   int timeToMinutes(String time) {
     final finalTime = time.split(' ');
     final parts = finalTime[0].split(':');
@@ -203,7 +220,7 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
       print("court available");
     }
 
-    availableCourts = getCourt.toList(); 
+    availableCourts = getCourt.toList();
 
     availableCourts.sort((a, b) => a.courtId.compareTo(b.courtId));
 
@@ -215,12 +232,25 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
   // Validation
   bool _validateSelections() {
     if (selectedDates.isEmpty) {
-      showCustomSnackBar(context, 'Pilih hari terlebih dahulu');
+      showErrorSnackBar(context, 'Pilih hari terlebih dahulu');
       return false;
     }
 
     if (!_isValidTimeRange(selectedStartTime, selectedEndTime)) {
-      showCustomSnackBar(context, 'Jam selesai harus setelah jam mulai');
+      showErrorSnackBar(context, 'Jam selesai harus setelah jam mulai');
+      return false;
+    }
+
+    if (!isInOperationTime()) {
+      showErrorSnackBar(
+        context,
+        "Harap pilih waktu yang sesuai dengan jam operasional (07:00 - 23:00)",
+      );
+      return false;
+    }
+
+    if (!isValidHalfHour()) {
+      showErrorSnackBar(context, 'Jam booking harus dalam interval 30 menit (08:00, 08:30, 09:00, dst)');
       return false;
     }
 
@@ -827,16 +857,25 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                       final picked = await showTimePicker(
                         context: context,
                         initialTime: jamMulai,
+                        initialEntryMode: TimePickerEntryMode.inputOnly,
+
+                        builder: (context, child) {
+                          return MediaQuery(
+                            data: MediaQuery.of(
+                              context,
+                            ).copyWith(alwaysUse24HourFormat: true),
+                            child: child!,
+                          );
+                        },
                       );
-                      print(picked);
+
                       if (picked != null) {
                         setState(() {
                           jamMulai = picked;
-                          // selectedStartTime = jamMulai.format(context);
-                          selectedStartTime = formatTimeOfDay24(jamMulai);
+                          selectedStartTime =
+                              "${jamMulai.hour.toString().padLeft(2, '0')}:${jamMulai.minute.toString().padLeft(2, '0')}";
                         });
                       }
-                      print(selectedStartTime);
                     },
                     child: AbsorbPointer(
                       child: TextFormField(
@@ -846,14 +885,9 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                           suffixIcon: Icon(Icons.access_time),
                         ),
                         controller: TextEditingController(
-                          text: jamMulai.format(context),
+                          text:
+                              "${jamMulai.hour.toString().padLeft(2, '0')}:${jamMulai.minute.toString().padLeft(2, '0')}",
                         ),
-                        validator: (value) {
-                          if (value!.isEmpty) {
-                            return 'Jam mulai harus diisi';
-                          }
-                          return null;
-                        },
                       ),
                     ),
                   ),
@@ -865,16 +899,23 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                       final picked = await showTimePicker(
                         context: context,
                         initialTime: jamSelesai,
+                        initialEntryMode: TimePickerEntryMode.inputOnly,
+                        builder: (context, child) {
+                          return MediaQuery(
+                            data: MediaQuery.of(
+                              context,
+                            ).copyWith(alwaysUse24HourFormat: true),
+                            child: child!,
+                          );
+                        },
                       );
-                      print(picked);
                       if (picked != null) {
                         setState(() {
                           jamSelesai = picked;
-                          // selectedEndTime = jamSelesai.format(context);
-                          selectedEndTime = formatTimeOfDay24(jamSelesai);
+                          selectedEndTime =
+                              "${jamSelesai.hour.toString().padLeft(2, '0')}:${jamSelesai.minute.toString().padLeft(2, '0')}";
                         });
                       }
-                      print(selectedEndTime);
                     },
                     child: AbsorbPointer(
                       child: TextFormField(
@@ -884,17 +925,9 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                           suffixIcon: Icon(Icons.access_time),
                         ),
                         controller: TextEditingController(
-                          text: jamSelesai.format(context),
+                          text:
+                              "${jamSelesai.hour.toString().padLeft(2, '0')}:${jamSelesai.minute.toString().padLeft(2, '0')}",
                         ),
-                        validator: (value) {
-                          if (value!.isEmpty) {
-                            return 'Jam selesai harus diisi';
-                          }
-                          if (isTimeValid()) {
-                            return 'Jam selesai harus setelah jam mulai';
-                          }
-                          return null;
-                        },
                       ),
                     ),
                   ),

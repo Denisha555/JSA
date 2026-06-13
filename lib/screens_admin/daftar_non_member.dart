@@ -366,8 +366,8 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscureText
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
                               color: Colors.grey,
                             ),
                             onPressed: () {
@@ -429,8 +429,8 @@ class _HalamanNonMemberAdminState extends State<HalamanNonMemberAdmin>
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscureText2
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
                               color: Colors.grey,
                             ),
                             onPressed: () {

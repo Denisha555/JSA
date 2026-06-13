@@ -228,7 +228,7 @@ class _RewardState extends State<Reward> {
                 Text('Kamu mendapatkan $rewardText!'),
                 const SizedBox(height: 12),
                 const Text(
-                  'Catatan: Reward ini dapat digunakan pada booking selanjutnya dengan konfirmasi admin.',
+                  'Catatan: Hadiah ini dapat digunakan pada booking selanjutnya dengan konfirmasi admin.',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
@@ -248,9 +248,9 @@ class _RewardState extends State<Reward> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: const Text('Reward Terkunci'),
+            title: const Text('Hadiah Terkunci'),
             content: Text(
-              'Mainkan hingga $hoursRequired untuk membuka reward ini.',
+              'Mainkan hingga $hoursRequired untuk membuka Hadiah ini.',
             ),
             actions: [
               TextButton(

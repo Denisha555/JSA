@@ -354,7 +354,6 @@ class _HalamanLapanganState extends State<HalamanLapangan>
                         ),
                       ),
                     ),
-                    keyboardType: TextInputType.number,
                   ),
                   const SizedBox(height: 16),
                   TextField(

@@ -48,7 +48,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
             children: [
               CircularProgressIndicator(),
               SizedBox(height: 16),
-              Text('Loading booking data...'),
+              Text('Memuat data booking...'),
             ],
           ),
         ),
@@ -65,7 +65,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
               Icon(Icons.error_outline, size: 48, color: Colors.red),
               SizedBox(height: 16),
               Text(
-                'Error loading data',
+                'Error memuat data',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 8),
@@ -85,7 +85,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
       children: [
         InteractiveViewer(
           panEnabled: true, // bisa drag ke kiri/kanan/atas/bawah
-          scaleEnabled: false, 
+          scaleEnabled: false,
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Padding(
@@ -177,7 +177,6 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
         _processBookingData(slots);
       }
     } catch (e) {
-      debugPrint('Error loading slots: $e');
       if (mounted) {
         setState(() {
           hasError = true;
@@ -297,7 +296,9 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                     : username),
             style: TextStyle(
               color:
-                  !isAvailable
+                  isClosed
+                      ? Colors.black
+                      : !isAvailable
                       ? type == 'member'
                           ? Colors.blue
                           : Colors.red
@@ -339,7 +340,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                     onTap: () => _navigateToScreen(HalamanJadwal()),
                   ),
                   SizedBox(width: 5),
-        
+
                   _buildQuickAccessButton(
                     icon: 'user',
                     label: 'Pelanggan',
@@ -352,14 +353,14 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                     label: "Lapangan",
                     onTap: () => _navigateToScreen(HalamanLapangan()),
                   ),
-        
+
                   SizedBox(width: 6),
                   _buildQuickAccessButton(
                     icon: 'booking',
                     label: "Booking",
                     onTap: () => _navigateToScreen(HalamanKalender()),
                   ),
-        
+
                   SizedBox(width: 12),
                   _buildQuickAccessButton(
                     icon: 'harga',
@@ -367,7 +368,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                     onTap: () => _navigateToScreen(HalamanPrice()),
                   ),
                   SizedBox(width: 12),
-        
+
                   _buildQuickAccessButton(
                     icon: 'promo_event',
                     label: "Promo & Event",
@@ -378,7 +379,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
             ),
           ),
         );
-      }
+      },
     );
   }
 
@@ -474,12 +475,14 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
                 onPressed: () async {
                   try {
                     if (!kIsWeb) {
-                       OnesignalDeleteNotificationAdmin().deleteNotification(id!);
+                      OnesignalDeleteNotificationAdmin().deleteNotification(
+                        id!,
+                      );
                     }
                     SharedPreferences prefs =
                         await SharedPreferences.getInstance();
-                    await prefs.remove('admin_id');
-                    
+                    await prefs.clear();
+
                     if (!context.mounted) return;
                     Navigator.pop(context, true);
                   } catch (e) {

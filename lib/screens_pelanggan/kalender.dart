@@ -377,13 +377,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
       for (final slot in slots) {
         String timeRange = '${slot.startTime} - ${slot.endTime}';
-        print(
-          'SEBELUM --'
-          'court=${slot.courtId}, '
-          'time=${slot.startTime}-${slot.endTime}, '
-          'available=${slot.isAvailable}, '
-          'user=${slot.username}',
-        );
 
         tempData.putIfAbsent(
           timeRange,
@@ -400,14 +393,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           username: slot.username,
           type: slot.type,
         );
-
-        print(
-          'SESUDAH --'
-          '${tempData[timeRange]![slot.courtId]?.isAvailable} '
-          '${tempData[timeRange]![slot.courtId]?.username}',
-        );
       }
-
       setState(() {
         bookingData = tempData;
         isLoading = false;
@@ -754,16 +740,14 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       await _loadUserData();
       final username = _cachedUsername ?? '';
 
-      print('_cacheRole di _showBookingDialog: $_cacheRole');
-
-      if (_cacheRole == 'member') {
-        if (!mounted) return;
-        showErrorSnackBar(
-          context,
-          'Anda tidak dapat melakukan pembookingan pada mode member, harap ubah status menjadi non member untuk melakukan pembookingan. Untuk melakukan perubahan jadwal pada member, harap hubungi admin.',
-        );
-        return;
-      }
+      // if (_cacheRole == 'member') {
+      //   if (!mounted) return;
+      //   showErrorSnackBar(
+      //     context,
+      //     'Anda tidak dapat melakukan pembookingan pada mode member, harap ubah status menjadi non member untuk melakukan pembookingan. Untuk melakukan perubahan jadwal pada member, harap hubungi admin.',
+      //   );
+      //   return;
+      // }
 
       if (!isAvailable) {
         _showBookingInfoDialog(time, court, selectedDate, isAvailable: false);

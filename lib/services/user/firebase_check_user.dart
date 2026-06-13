@@ -62,6 +62,20 @@ class FirebaseCheckUser {
     return snapshot.docs.isNotEmpty;
   }
 
+  Future<bool> checkExistenceOther(
+    String field,
+    dynamic value,
+    String username,
+  ) async {
+    final snapshot =
+        await firestore
+            .collection('users')
+            .where(field, isEqualTo: value)
+            .where("username", isNotEqualTo: username)
+            .get();
+    return snapshot.docs.isNotEmpty;
+  }
+
   Future<void> checkMembership(String username) async {
     try {
       if (await checkExistence('username', username)) {
@@ -76,34 +90,14 @@ class FirebaseCheckUser {
           final daysLeft = difference.inDays;
 
           if (daysLeft < 0) {
-            await FirebaseUpdateUser().updateUser(
-              'role',
-              username,
-              'nonMember',
-            );
-            await FirebaseUpdateUser().updateUser(
-              'startTimeMember',
-              username,
-              FieldValue.delete(),
-            );
-            await FirebaseUpdateUser().updateUser(
-              'memberTotalBooking',
-              username,
-              FieldValue.delete(),
-            );
-            await FirebaseUpdateUser().updateUser(
-              'memberCurrentTotalBooking',
-              username,
-              FieldValue.delete(),
-            );
-            await FirebaseUpdateUser().updateUser(
-              'memberBookingLength',
-              username,
-              FieldValue.delete(),
-            );
+            await FirebaseUpdateUser().updateManyData({
+              "role": "nonMember",
+              "startTimeMember": "",
+              "memberTotalBooking": 0,
+              "memberCurrentTotalBooking": 0,
+              "memberBookingLength": 0,
+            }, username);
             // await FirebaseUpdateTimeSlot().updateMemberTimeSlots(username);
-
-            
           }
         }
       }

@@ -236,7 +236,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                       );
                     }),
                     const SizedBox(width: 8),
-                    itemGaleri("Musholla", "assets/image/Musholla.jpeg", () {
+                    itemGaleri("Musholla", "assets/image/Musholla1.jpeg", () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -245,7 +245,7 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                       );
                     }),
                     const SizedBox(width: 8),
-                    itemGaleri("Kantin", "assets/image/Toilet1.jpeg", () {
+                    itemGaleri("Toilet", "assets/image/Toilet1.jpeg", () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const Toilet()),

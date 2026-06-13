@@ -216,7 +216,7 @@ class _HalamanUtamaOwnerState extends State<HalamanUtamaOwner> {
                                     ),
                                     const SizedBox(height: 8),
                                     Text(
-                                      'Error loading chart',
+                                      'Error memuat chart',
                                       style: TextStyle(color: Colors.grey[600]),
                                     ),
                                   ],

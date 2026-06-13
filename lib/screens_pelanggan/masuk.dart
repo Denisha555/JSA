@@ -407,8 +407,8 @@ class _HalamanMasukState extends State<HalamanMasuk>
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscureText
-                                    ? Icons.visibility
-                                    : Icons.visibility_off,
+                                    ? Icons.visibility_off
+                                    : Icons.visibility,
                                 color: Colors.grey,
                               ),
                               onPressed: () {

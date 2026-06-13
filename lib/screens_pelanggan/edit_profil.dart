@@ -292,7 +292,7 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
           ),
           const SizedBox(height: 12),
           Text(
-            username ?? 'Loading...',
+            username ?? 'Memuat...',
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,

@@ -37,7 +37,7 @@ class FirebaseGetBooking {
       for (var booking in bookingDates) {
         final bookingMap = Map<String, dynamic>.from(booking);
 
-        final court = bookingMap['court'];
+        final court = bookingMap['courtId'];
         final date = bookingMap['date'];
         final startTime = bookingMap['startTime'];
         final endTime = bookingMap['endTime'];

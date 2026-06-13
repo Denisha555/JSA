@@ -107,19 +107,27 @@ class _HalamanProfilState extends State<HalamanProfil> {
                 endTime = 0;
                 userbooked = [];
               });
-              await FirebaseUpdateUser().updateManyData(
-                {"role": "nonMember", "startTimeMember": "", "memberTotalBooking": 0, "memberBookingLength": 0, "memberCurrentTotalBooking": 0}, username!
-              );
-              
+              await FirebaseUpdateUser().updateManyData({
+                "role": "nonMember",
+                "startTimeMember": "",
+                "memberTotalBooking": 0,
+                "memberBookingLength": 0,
+                "memberCurrentTotalBooking": 0,
+              }, username!);
+
               List<Map<String, dynamic>> bookingData = data[0].bookingDates;
               for (var booking in bookingData) {
-                if (booking["type"] == 'member' && DateTime.parse((booking["date"])).month < DateTime.now().month) {
+                if (booking["type"] == 'member' &&
+                    DateTime.parse((booking["date"])).month <
+                        DateTime.now().month) {
                   booking["status"] = 'finish';
                 }
               }
 
               await FirebaseUpdateUser().updateUser(
-                "bookingDates", username!, bookingData
+                "bookingDates",
+                username!,
+                bookingData,
               );
 
               SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -324,8 +332,10 @@ class _HalamanProfilState extends State<HalamanProfil> {
       if (username != null) {
         final bookingDates = data[0].bookingDates;
         if (bookingDates.isNotEmpty && mounted) {
-          setState(() { 
-            activity = List<TimeSlotModel>.from(bookingDates);
+          setState(() {
+            activity = List<TimeSlotModel>.from(
+              bookingDates.map((e) => TimeSlotModel.fromJson(e)),
+            );
           });
         }
       }
@@ -498,7 +508,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                       final total = price * userbooked.length;
 
                       return Text(
-                        'Total Harga: Rp ${price == 0 ? '0.00' : total.toStringAsFixed(2)}',
+                        'Total Harga: Rp ${price == 0 ? '0' : total.round().toString()}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
@@ -792,21 +802,21 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             ],
                           ),
                         ),
-                        isMemberDatabase == true
-                            ? Switch(
-                              value: isMemberUI!,
-                              onChanged: (value) async {
-                                setState(() {
-                                  isMemberUI = value;
-                                });
-                                SharedPreferences prefs =
-                                    await SharedPreferences.getInstance();
-                                await prefs.setBool('isMember', value);
-                                await prefs.setBool('isMemberUI', value);
-                              },
-                              activeColor: Colors.white,
-                            )
-                            : Text(''),
+                        // isMemberDatabase == true
+                        //     ? Switch(
+                        //       value: isMemberUI!,
+                        //       onChanged: (value) async {
+                        //         setState(() {
+                        //           isMemberUI = value;
+                        //         });
+                        //         SharedPreferences prefs =
+                        //             await SharedPreferences.getInstance();
+                        //         await prefs.setBool('isMember', value);
+                        //         await prefs.setBool('isMemberUI', value);
+                        //       },
+                        //       activeColor: Colors.white,
+                        //     )
+                        //     : Text(''),
                       ],
                     ),
                   ),
@@ -941,7 +951,11 @@ class _HalamanProfilState extends State<HalamanProfil> {
                         subtitle:
                             activity.isEmpty
                                 ? const Text('Mulai booking lapangan sekarang!')
-                                : Text(formatLongDate(DateTime.parse(activity[0].date))),
+                                : Text(
+                                  formatLongDate(
+                                    DateTime.parse(activity[0].date),
+                                  ),
+                                ),
                         trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                         onTap: () {
                           Navigator.pushReplacement(

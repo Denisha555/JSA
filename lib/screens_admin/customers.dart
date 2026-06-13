@@ -81,7 +81,6 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
     }
   }
 
-  // ✅ Bottom sheet — lebih modern dari dialog
   void _showUserInfoSheet(List<UserModel> users) {
     if (users.isEmpty) return;
     final user = users[0];
@@ -140,10 +139,10 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                         ),
                         const SizedBox(height: 4),
                         Container(
-                          
+                          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
                           decoration: BoxDecoration(
                             color:
-                                isMember ? Colors.blue[50] : Colors.grey[100],
+                                isMember ? Colors.blue[50] : Colors.grey[200],
                             borderRadius: BorderRadius.circular(99),
                           ),
                           child: Text(
@@ -172,7 +171,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                   user.noTelp == "" ? "-" : user.noTelp,
                 ),
                 _buildInfoRow(
-                  'Mulai point',
+                  'Mulai poin',
                   user.startTimePoint == "" ? "-" : user.startTimePoint,
                 ),
                 _buildInfoRow(
@@ -184,7 +183,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                   user.point.toString() == "" ? "0" : user.point.toString(),
                 ),
                 _buildInfoRow(
-                  'Cancel',
+                  'Batal',
                   user.cancel.toString() == "" ? "0" : user.cancel.toString(),
                 ),
                 const SizedBox(height: 20),
@@ -367,13 +366,36 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                               padding: const EdgeInsets.symmetric(vertical: 13),
                             ),
                             onPressed: () async {
-                              if (!_formKey.currentState!.validate()) return;
+                              try {
+                                if (!_formKey.currentState!.validate()) return;
+
+                              bool isClubUse = false;
+
+                              if (clubController.text.isNotEmpty) {
+                                isClubUse = await FirebaseCheckUser().checkExistenceOther("club", clubController.text, username);
+                              }
+                              final isPhoneUse = await FirebaseCheckUser().checkExistenceOther("phoneNumber", notelpController.text, username);
+
+                              if (isPhoneUse) {
+                                Navigator.of(ctx).pop(false);
+                                showErrorSnackBar(context, "Data gagal disimpan karena No. Telepon sudah digunakan");
+                                return;
+                              }
+                              if (isClubUse) {
+                                Navigator.of(ctx).pop(false);
+                                showErrorSnackBar(context, "Data gagal disimpan karena Club sudah digunakan");
+                                return;
+                              }
+
                               await FirebaseUpdateUser().updateManyData({
                                 "club": clubController.text,
                                 "phoneNumber": notelpController.text,
                               }, username);
                               Navigator.of(ctx).pop(true);
                               showSuccessSnackBar(context, "Data berhasil diubah");
+                              } catch (e) {
+                                print("Error update user: $e");
+                              }
                             },
                             child: const Text('Simpan'),
                           ),

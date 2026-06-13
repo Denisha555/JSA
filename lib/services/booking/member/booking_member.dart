@@ -145,7 +145,7 @@ class BookingMember {
       for (var court in courtId) {
         final bookingInfo = {
           "date": date,
-          "court": court,
+          "courtId": court,
           "startTime": startTime,
           "endTime": endTime,
           "id": '${court}_$date',

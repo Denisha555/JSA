@@ -487,7 +487,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       }
     } catch (e) {
       if (!mounted) return;
-      showErrorSnackBar(context, 'Error loading slots: $e');
+      showErrorSnackBar(context, 'Error memuat slots: $e');
 
       setState(() {
         hasError = true;
@@ -563,7 +563,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Customer: $username'),
+              Text('Pelanggan: $username'),
               Text('Lapangan: $court'),
               Text('Jam Mulai: $startTime'),
               Text('Jam Selesai: $endTime'),
@@ -1068,8 +1068,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           loadingCells.add(cellKey);
         });
 
-        debugPrint('Loading cells: $loadingCells'); // debug
-
         if (!isAvailable) {
           await _showBookingDetails(time, court, type, username);
         } else {
@@ -1272,7 +1270,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                         children: [
                           CircularProgressIndicator(),
                           SizedBox(height: 16),
-                          Text('Loading booking data...'),
+                          Text('Memuat data booking...'),
                         ],
                       ),
                     )
