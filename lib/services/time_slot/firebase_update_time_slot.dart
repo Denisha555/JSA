@@ -174,16 +174,16 @@ class FirebaseUpdateTimeSlot {
     String catatan,
     String keterangan,
   ) async {
-    try {
-      final bookedDates =
-          await FirebaseGetUser().getUserData(username.trim(), 'bookingDates')
-              as List<dynamic>?;
-      
-      QuerySnapshot user =
+    try {     
+      final user =
           await firestore
               .collection('users')
               .where('username', isEqualTo: username)
+              .limit(1)
               .get();
+
+      final data = user.docs[0].data();
+      final bookedDates = data['bookingDates'] as List<dynamic>?;
 
       if (bookedDates == null || bookedDates.isEmpty) return;
 
@@ -191,13 +191,13 @@ class FirebaseUpdateTimeSlot {
           bookedDates
               .map(
                 (date) =>
-                    FirebaseGetTimeSlot().getTimeSlot(DateTime.parse(date)),
+                    FirebaseGetTimeSlot().getTimeSlot(DateTime.parse(date["date"])),
               )
               .toList();
 
       final allSlotsArrays = await Future.wait(slotsFutures);
 
-      final updatesByDoc = {};
+      final updatesByDoc = <String, List<dynamic>>{};
 
       for (int i = 0; i < bookedDates.length; i++) {
         final date = bookedDates[i].toString();
@@ -247,6 +247,7 @@ class FirebaseUpdateTimeSlot {
       }
       await batch.commit();
     } catch (e) {
+      print("Error: $e");
       throw Exception('Failed to fetch time slots for report update: $e');
     }
   }

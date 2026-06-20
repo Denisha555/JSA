@@ -25,7 +25,6 @@ class FirebaseGetCourt {
 
   Future<List<CourtModel>> getAllLapanganToday() async {
     try {
-      int timeLoadAllLapangan = DateTime.now().millisecondsSinceEpoch;
       DateTime now = DateTime.now();
       String formattedDate = DateFormat('yyyy-MM-dd').format(now);
 
@@ -55,10 +54,16 @@ class FirebaseGetCourt {
             }),
           );
         }
+        courtsToday.sort((a, b) => a.courtId.compareTo(b.courtId));
         return courtsToday;
       }
 
       Map<String, List<QueryDocumentSnapshot>> courtSlots = {};
+      for (var slotDoc in existingSlots) {
+        final courtId =
+            slotDoc.get('courtId').toString(); 
+        courtSlots.putIfAbsent(courtId, () => []).add(slotDoc);
+      }
 
       for (var courtDoc in courtsSnapshot) {
         final courtId = courtDoc.get('nomor').toString();
@@ -72,7 +77,7 @@ class FirebaseGetCourt {
           final slots = slotDoc['slots'] as List<dynamic>;
 
           for (var slot in slots) {
-            if (slot['isAvailable'] == true && slot['isClosed'] != true) {
+            if (slot['isAvailable'] == true && slot['isClosed'] == false) {
               final startTime = slot['startTime'] as String;
               final parts = startTime.split(':');
 
@@ -108,9 +113,6 @@ class FirebaseGetCourt {
         }
       }
       courtsToday.sort((a, b) => a.courtId.compareTo(b.courtId));
-      print(
-        'Time to load all lapangan: ${DateTime.now().millisecondsSinceEpoch - timeLoadAllLapangan} ms',
-      );
       return courtsToday;
     } catch (e) {
       throw Exception('Error checking lapangan: $e');

@@ -6,8 +6,9 @@ import 'package:flutter/material.dart';
 
 class PilihHalamanPelanggan extends StatefulWidget {
   final int selectedIndex;
+  final int aktivitasTabIndex;
 
-  const PilihHalamanPelanggan({super.key, this.selectedIndex = 0});
+  const PilihHalamanPelanggan({super.key, this.selectedIndex = 0, this.aktivitasTabIndex = 0});
 
   @override
   State<PilihHalamanPelanggan> createState() => _PilihHalamanPelangganState();
@@ -15,12 +16,14 @@ class PilihHalamanPelanggan extends StatefulWidget {
 
 class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
   int _currentIndex = 0;
+  int _currentAktivitasIndex = 0;
   Key _aktivitasKey = UniqueKey(); // ← disimpan di level state
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.selectedIndex;
+    _currentAktivitasIndex = widget.aktivitasTabIndex;
   }
 
   Widget _getCurrentPage() {
@@ -28,7 +31,7 @@ class _PilihHalamanPelangganState extends State<PilihHalamanPelanggan> {
       case 0:
         return const HalamanUtamaPelanggan();
       case 1:
-        return HalamanAktivitas(key: _aktivitasKey); 
+        return HalamanAktivitas(key: _aktivitasKey, tabIndex: _currentAktivitasIndex,); 
       case 2:
         return const HalamanProfil();
       default:

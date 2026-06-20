@@ -39,6 +39,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
   List<TimeSlotModel> userbooked = [];
   RewardModel currentReward = RewardModel(currentHours: 0);
   int? endTime;
+  final now = DateTime.now();
 
   @override
   void initState() {
@@ -92,13 +93,9 @@ class _HalamanProfilState extends State<HalamanProfil> {
           try {
             final startDate = DateTime.parse(data[0].startTimeMember);
 
-            final finishDate = DateTime(
-              startDate.year,
-              startDate.month + 1,
-              startDate.day,
-            );
+            final firstDayOfNextMonth = DateTime(startDate.year, startDate.month + 1, 1);
+            final finishDate = firstDayOfNextMonth.subtract(const Duration(days: 1));
 
-            final now = DateTime.now();
             final difference = finishDate.difference(now);
             final daysLeft = difference.inDays;
 
@@ -119,7 +116,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
               for (var booking in bookingData) {
                 if (booking["type"] == 'member' &&
                     DateTime.parse((booking["date"])).month <
-                        DateTime.now().month) {
+                        now.month) {
                   booking["status"] = 'finish';
                 }
               }
@@ -161,7 +158,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
       }
     } catch (e) {
       if (mounted) {
-        showErrorSnackBar(context, 'Failed to load profil data');
+        showErrorSnackBar(context, 'Failed to load profil data: $e');
       }
     } finally {
       if (mounted) {
@@ -331,6 +328,25 @@ class _HalamanProfilState extends State<HalamanProfil> {
     try {
       if (username != null) {
         final bookingDates = data[0].bookingDates;
+        List<dynamic> usedBookingDates = [];
+
+        for (var booking in bookingDates) {
+          final date = DateTime.parse(booking["date"].toString());
+          if (date.isAfter(now)) {
+            usedBookingDates.add(booking);
+          }
+        }
+
+        bookingDates.sort((a, b) {
+          try {
+            final dateA = DateTime.parse(a["date"].toString());
+            final dateB = DateTime.parse(b["date"].toString());
+            return dateA.compareTo(dateB); 
+          } catch (e) {
+            debugPrint('Error sorting booking dates: $e');
+            return 0;
+          }
+        });
         if (bookingDates.isNotEmpty && mounted) {
           setState(() {
             activity = List<TimeSlotModel>.from(
@@ -963,7 +979,7 @@ class _HalamanProfilState extends State<HalamanProfil> {
                             MaterialPageRoute(
                               builder:
                                   (context) =>
-                                      PilihHalamanPelanggan(selectedIndex: 1),
+                                      PilihHalamanPelanggan(selectedIndex: 1, aktivitasTabIndex: 1,),
                             ),
                           );
                         },

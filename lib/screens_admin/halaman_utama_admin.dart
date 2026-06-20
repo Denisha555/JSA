@@ -25,7 +25,8 @@ class HalamanUtamaAdmin extends StatefulWidget {
   State<HalamanUtamaAdmin> createState() => _HalamanUtamaAdminState();
 }
 
-class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
+class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin>
+    with WidgetsBindingObserver {
   DateTime selectedDate = DateTime.now();
   bool isLoading = true;
   bool hasError = false;
@@ -161,7 +162,7 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
     }
 
     try {
-      courtIds = await FirebaseGetCourt().getCourts(); // Load courts first
+      courtIds = await FirebaseGetCourt().getCourts();
 
       final slots = await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
 
@@ -444,11 +445,25 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin> {
   void initState() {
     super.initState();
 
+    WidgetsBinding.instance.addObserver(this);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadOrCreateSlots(selectedDate);
     });
-
     _loadPrefs();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // tambah ini
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadOrCreateSlots(selectedDate);
+    }
   }
 
   Future<void> _loadPrefs() async {

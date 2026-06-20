@@ -493,6 +493,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       //   await BookingMember().addBookingDates(username, [dateStr]);
       // }
     } catch (e) {
+      showErrorSnackBar(context, "Error Melakukan booking: $e");
       debugPrint('Error performing booking: $e');
       rethrow;
     }
@@ -628,14 +629,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                             username,
                           );
 
-                          final timeUpdateSlot =
-                              DateTime.now().millisecondsSinceEpoch;
-
                           await _updateSlot(selectedDate);
-
-                          print(
-                            "Time Update Slot: ${DateTime.now().millisecondsSinceEpoch - timeUpdateSlot}",
-                          );
 
                           await OneSignalSendNotificationAdmin()
                               .sendBookingNotification(
@@ -1099,15 +1093,16 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           'Waktu ini sudah lewat, tidak bisa dibooking',
         );
         return;
-      } else if (_cacheRole == 'member') {
-        if (_memberCurrentTotalBooking! >= _memberTotalBooking!) {
-          showErrorSnackBar(
-            context,
-            'Anda tidak dapat melakukan pembookingan pada mode member, harap ubah status menjadi non member untuk melakukan pembookingan. Untuk melakukan perubahan jadwal pada member, harap hubungi admin.',
-          );
-          return;
-        }
-      }
+      } 
+      // else if (_cacheRole == 'member') {
+        // if (_memberCurrentTotalBooking! >= _memberTotalBooking!) {
+        //   showErrorSnackBar(
+        //     context,
+        //     'Anda tidak dapat melakukan pembookingan pada mode member, harap ubah status menjadi non member untuk melakukan pembookingan. Untuk melakukan perubahan jadwal pada member, harap hubungi admin.',
+        //   );
+        //   return;
+        // }
+      // }
       _showBookingDialog(time, court, isAvailable, isClosed, selectedDate);
     }
 

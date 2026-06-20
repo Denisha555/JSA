@@ -476,8 +476,36 @@ class _HalamanJadwalState extends State<HalamanJadwal>
     return startMinutes < endMinutes;
   }
 
+  bool isValidHalfHour() {
+    return (jamMulaiKhusus.minute == 00 || jamMulaiKhusus.minute == 30) && (jamSelesaiKhusus.minute == 00 || jamSelesaiKhusus.minute == 30);
+  }
+
+  bool isInOperationTime() {
+    final start = DateFormat.Hm().parse('07:00');
+    final end = DateFormat.Hm().parse('23:00');
+    final selectedStart = DateFormat.Hm().parse(jamMulaiKhusus.format(context));
+    final selectedEnd = DateFormat.Hm().parse(jamSelesaiKhusus.format(context));
+
+    return (selectedStart.isAfter(start) ||
+            selectedStart.isAtSameMomentAs(start)) &&
+        (selectedEnd.isBefore(end) || selectedEnd.isAtSameMomentAs(end));
+  }
+
   Future<void> _saveJadwal() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (!isValidHalfHour()) {
+      showErrorSnackBar(context, 'Jam yang dipilih harus dalam interval 30 menit (08:00, 08:30, 09:00, dst)');
+      return;
+    }
+
+    if (!isInOperationTime()) {
+      showErrorSnackBar(
+        context,
+        "Harap pilih waktu dalam rentang 07:00 - 23:00",
+      );
+      return;
+    }
 
     // Additional validation
     if (!isDateValid(tanggalKhusus)) {

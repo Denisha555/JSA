@@ -46,7 +46,9 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
 
     await getUserData();
 
-    await FirebaseCheckUser().checkUserPoint(user.isNotEmpty ? user[0].username : '');
+    await FirebaseCheckUser().checkUserPoint(
+      user.isNotEmpty ? user[0].username : '',
+    );
 
     await Future.wait([_checkBooked(), _getPromoData()]);
 
@@ -66,26 +68,29 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getString('userId');
-      final username = await FirebaseGetUser().getUserDataById(userId!, "username");
-      prefs.setString('username', username);
-      if (username != null) {
-        await Future.wait([
-          FirebaseCheckUser().checkMembership(username),
-        ]);
-        final userData = await FirebaseGetUser().getUserByUsername(username);
+      final username = await FirebaseGetUser().getUserDataById(
+        userId!,
+        "username",
+      );
 
-        if (mounted) {
-          setState(() {
-            user = userData;
+      await prefs.setString('username', username);
 
-            final hours = (user.isNotEmpty) ? user[0].point.toDouble() : 0.0;
+      final userData = await FirebaseGetUser().getUserByUsername(username);
+      bool isMember = user.isNotEmpty ? userData[0].role == 'member' : false;
 
-            currentReward = RewardModel(currentHours: hours);
+      if (isMember) {
+        if (username != null) {
+          await Future.wait([FirebaseCheckUser().checkMembership(username)]);
 
-            bool isMember = user.isNotEmpty ? user[0].role == 'member' : false;
+          if (mounted) {
+            setState(() {
+              user = userData;
 
-            if (isMember) {
-              prefs.setBool('isMember', true);
+              final hours = (user.isNotEmpty) ? user[0].point.toDouble() : 0.0;
+
+              currentReward = RewardModel(currentHours: hours);
+
+              // prefs.setBool('isMember', true);
 
               int memberTotalBooking = user[0].memberTotalBooking;
               int memberCurrentTotalBooking = user[0].memberCurrentTotalBooking;
@@ -97,14 +102,12 @@ class _HalamanUtamaPelangganState extends State<HalamanUtamaPelanggan> {
                 memberCurrentTotalBooking,
               );
               prefs.setInt('memberBookingLength', memberBookingLength);
-              
-            } else {
-              prefs.setBool('isMember', false);
-            }
-          });
-        }
-      } else {
-        debugPrint('Username not found in SharedPreferences');
+            });
+          }
+        } 
+        // else {
+        //   prefs.setBool('isMember', false);
+        // }
       }
     } catch (e) {
       if (!mounted) return;

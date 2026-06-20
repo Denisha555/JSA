@@ -41,6 +41,7 @@ class FirebaseCheckTimeSlot {
 
           if (doc == null || !doc.exists) {
             await FirebaseAddTimeSlot().addTimeSlot(DateTime.parse(date));
+            courtMap[court] = (courtMap[court] ?? 0) + 1;
             continue;
           }
 

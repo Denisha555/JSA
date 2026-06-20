@@ -85,6 +85,25 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
     if (users.isEmpty) return;
     final user = users[0];
     final isMember = user.role == 'member';
+    final bookingDates = user.bookingDates;
+    // List lapanganList = [];
+    // List jamMainList = [];
+    // String lapangan = "";
+    // String jamMain = "";
+    // if (isMember) {
+    //   for (var booking in bookingDates) {
+    //     if (booking['status']=='now' && booking['type']=='member') {
+    //       lapanganList.add(booking['courtId']);
+    //       jamMainList.add("${booking['startTime']} - ${booking['endTime']}");
+    //     }
+    //   }
+
+    //   lapanganList.toSet();
+    //   jamMainList.toSet();
+
+    //   lapangan = lapanganList.join(", ");
+    //   jamMain = jamMainList.join(", ");
+    // }
 
     showModalBottomSheet(
       context: context,
@@ -172,11 +191,11 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                 ),
                 _buildInfoRow(
                   'Mulai poin',
-                  user.startTimePoint == "" ? "-" : user.startTimePoint,
+                  user.startTimePoint == "" ? "-" : formatStrToLongDate(user.startTimePoint),
                 ),
                 _buildInfoRow(
                   'Mulai member',
-                  user.startTimeMember == "" ? "-" : user.startTimeMember,
+                  user.startTimeMember == "" ? "-" : formatStrToLongDate(user.startTimeMember),
                 ),
                 _buildInfoRow(
                   'Poin',

@@ -11,18 +11,25 @@ import 'package:flutter_application_1/services/booking/member/cancel_member.dart
 import 'package:flutter_application_1/services/booking/nonmember/cancel_nonmember.dart';
 
 class HalamanAktivitas extends StatefulWidget {
-  const HalamanAktivitas({super.key});
+  final int tabIndex;
+  const HalamanAktivitas({super.key, this.tabIndex = 0});
 
   @override
   State<HalamanAktivitas> createState() => _HalamanAktivitasState();
 }
 
 class _HalamanAktivitasState extends State<HalamanAktivitas>
-    with WidgetsBindingObserver, AutomaticKeepAliveClientMixin {
+    with
+        WidgetsBindingObserver,
+        AutomaticKeepAliveClientMixin,
+        SingleTickerProviderStateMixin {
   List<TimeSlotModel> riwayats = [];
   List<TimeSlotModel> terjadwals = [];
+  List<TimeSlotModel> cancels = [];
   bool isLoading = true;
   String username = '';
+
+  late TabController _tabController;
 
   // Add loading states for individual bookings
   Set<String> cancellingBookings = {};
@@ -33,12 +40,18 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.tabIndex,
+    );
     WidgetsBinding.instance.addObserver(this);
     _initialize();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -84,38 +97,28 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
       ]);
 
       List<TimeSlotModel> allBookings = results[0];
-      List<TimeSlotModel> allDates = allBookings.toSet().toList();
 
-      for (var i = 0; i < allBookings.length; i++) {
-        print(
-          'allbooking: ${allBookings[i].date} ${allBookings[i].courtId} ${allBookings[i].startTime} ',
-        );
-      }
-      final cancelBookings = results[1];
-      for (var i = 0; i < cancelBookings.length; i++) {
-        print(
-          'cancelBookings: ${cancelBookings[i].date} ${cancelBookings[i].courtId} ${cancelBookings[i].startTime}',
-        );
-      }
+      List<TimeSlotModel> cancelBookings = results[1];
 
       if (!mounted) return;
 
       // Pre-calculate today once
       final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day, now.hour, now.minute);
-
-      // Process data in background using compute for heavy operations
-      final processedData = await _processBookingData(
-        allBookings,
-        cancelBookings,
-        today,
+      final today = DateTime(
+        now.year,
+        now.month,
+        now.day,
+        now.hour,
+        now.minute,
       );
 
-      print('processedData: $processedData');
+      // Process data in background using compute for heavy operations
+      final processedData = await _processBookingData(allBookings, today);
 
       setState(() {
         riwayats = processedData['past'] as List<TimeSlotModel>;
         terjadwals = processedData['upcoming'] as List<TimeSlotModel>;
+        cancels = cancelBookings;
         isLoading = false;
       });
     } catch (e) {
@@ -129,25 +132,23 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
 
   Future<Map<String, List<TimeSlotModel>>> _processBookingData(
     List<TimeSlotModel> allBookings,
-    List<TimeSlotModel> cancelBookings,
     DateTime today,
   ) async {
-
     List<TimeSlotModel> pastBookings = [];
     List<TimeSlotModel> upcomingBookings = [];
-    
+
     for (final entry in allBookings) {
       final dateStr = entry.date;
       final startTimeStr = entry.startTime;
       final endTimeStr = entry.endTime;
-      
+
       // Parse the booking date (only date part)
       final bookingDateOnly = DateFormat('yyyy-MM-dd').parse(dateStr);
-      
+
       // Parse start and end times
       final startTime = DateFormat('HH:mm').parse(startTimeStr);
       final endTime = DateFormat('HH:mm').parse(endTimeStr);
-      
+
       // Create complete DateTime objects for start and end
       final bookingStartDateTime = DateTime(
         bookingDateOnly.year,
@@ -156,7 +157,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
         startTime.hour,
         startTime.minute,
       );
-      
+
       final bookingEndDateTime = DateTime(
         bookingDateOnly.year,
         bookingDateOnly.month,
@@ -178,13 +179,15 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
         } else {
           upcomingBookings.add(entry);
         }
-      } 
+      }
     }
 
     return {'past': pastBookings, 'upcoming': upcomingBookings};
   }
 
-  Future<List<TimeSlotModel>> _groupConsecutiveBookings(List<TimeSlotModel> bookings) async {
+  Future<List<TimeSlotModel>> _groupConsecutiveBookings(
+    List<TimeSlotModel> bookings,
+  ) async {
     if (bookings.isEmpty) return [];
 
     final Map<String, List<TimeSlotModel>> groups = {};
@@ -229,7 +232,9 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     return result;
   }
 
-  Future<List<TimeSlotModel>> _createConsecutiveGroups(List<TimeSlotModel> timeSlots) async {
+  Future<List<TimeSlotModel>> _createConsecutiveGroups(
+    List<TimeSlotModel> timeSlots,
+  ) async {
     if (timeSlots.isEmpty) return [];
 
     final result = <TimeSlotModel>[];
@@ -275,10 +280,15 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     }
   }
 
-  Future<TimeSlotModel> _createGroupedTimeSlot(List<TimeSlotModel> group) async {
+  Future<TimeSlotModel> _createGroupedTimeSlot(
+    List<TimeSlotModel> group,
+  ) async {
     final first = group.first;
     final last = group.last;
-    final username = await FirebaseGetUser().getUserDataById(first.userId, 'username');
+    final username = await FirebaseGetUser().getUserDataById(
+      first.userId,
+      'username',
+    );
 
     return TimeSlotModel(
       slotId: first.slotId,
@@ -294,152 +304,6 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
       isHoliday: first.isHoliday,
       cancel: first.cancel,
     );
-  }
-
-  // Modified cancel booking function with loading state
-  Future<void> _cancelBooking(TimeSlotModel booking) async {
-    final bookingKey =
-        '${booking.date}_${booking.courtId}_${booking.startTime}_${booking.endTime}';
-
-    // Prevent multiple cancellations of the same booking
-    if (cancellingBookings.contains(bookingKey)) {
-      showCustomSnackBar(
-        context,
-        'Sedang memproses pembatalan, mohon tunggu...',
-      );
-      return;
-    }
-
-    try {
-      final shouldCancel = await _showCancelConfirmation(booking);
-      if (shouldCancel != true) return;
-
-      // Add to cancelling set and update UI
-      setState(() {
-        cancellingBookings.add(bookingKey);
-      });
-
-      // Parse time range untuk mendapatkan individual time slots
-      final timesCancel = _parseTimeRange(
-        '${booking.startTime} - ${booking.endTime}',
-      );
-
-      print('Cancelling booking: $timesCancel');
-      print('Booking type: ${booking.type}');
-
-      if (booking.type == 'member') {
-        for (final timeSlot in timesCancel) {
-          final times = timeSlot.split(' - ');
-
-          print('Cancel booking for ${times}');
-
-          await CancelMember().cancelBooking(
-            username,
-            booking.date,
-            booking.courtId,
-            times[0].trim(),
-            times[1].trim(),
-          );
-        }
-        await CancelMember().updateUserCancel(username, booking.date);
-      } else {
-        for (final timeSlot in timesCancel) {
-          final times = timeSlot.split(' - ');
-
-          await CancelNonMember().cancelBooking(
-            username,
-            booking.date,
-            booking.courtId,
-            times[0].trim(),
-            times[1].trim(),
-          );
-        }
-        await CancelNonMember().updateUserCancel(username, booking.date);
-      }
-
-      if (!mounted) return;
-      showSuccessSnackBar(context, 'Booking berhasil dibatalkan');
-      await _fetchBookingData();
-    } catch (e) {
-      debugPrint('Error cancelling booking: $e');
-      if (!mounted) return;
-      showErrorSnackBar(
-        context,
-        'Terjadi kesalahan saat membatalkan booking: $e',
-      );
-    } finally {
-      // Remove from cancelling set
-      if (mounted) {
-        setState(() {
-          cancellingBookings.remove(bookingKey);
-        });
-      }
-    }
-  }
-
-  // Modified confirmation dialog - simple version without internal loading
-  Future<bool?> _showCancelConfirmation(TimeSlotModel booking) {
-    return showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text('Konfirmasi Pembatalan'),
-            content: Text(
-              'Apakah Anda yakin ingin membatalkan booking?\n\n'
-              'Lapangan: ${booking.courtId}\n'
-              'Tipe: ${booking.type == 'member' ? 'Member' : 'Non Member'}\n'
-              'Waktu: ${booking.startTime} - ${booking.endTime}\n'
-              'Tanggal: ${booking.date}',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('Tidak'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: const Text('Ya, Batalkan'),
-              ),
-            ],
-          ),
-    );
-  }
-
-  List<String> _parseTimeRange(String timeRange) {
-    final times = timeRange.split(' - ');
-    final startTime = times[0];
-    final endTime = times[1];
-
-    final timeSlots = <String>[];
-    final start = DateFormat('HH:mm').parse(startTime);
-    final end = DateFormat('HH:mm').parse(endTime);
-
-    var current = start;
-    while (current.isBefore(end)) {
-      final next = current.add(const Duration(minutes: 30));
-      final currentStr = DateFormat('HH:mm').format(current);
-      final nextStr = DateFormat('HH:mm').format(next);
-      timeSlots.add('$currentStr - $nextStr');
-      current = next;
-    }
-
-    print('time slots : $timeSlots');
-    return timeSlots;
-  }
-
-  bool _isTimeInPast(String timeString) {
-    final now = DateTime.now();
-    final timeFormat = DateFormat('HH:mm');
-    final bookingTime = timeFormat.parse(timeString);
-    final bookingDateTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      bookingTime.hour,
-      bookingTime.minute,
-    );
-    return bookingDateTime.isBefore(now);
   }
 
   String _getStatusColor(String type) {
@@ -521,10 +385,14 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
   }
 
   Widget _buildHistoryTab() {
+    final combined = [
+      ...riwayats.map((b) => (booking: b, isCancelled: false)),
+      ...cancels.map((b) => (booking: b, isCancelled: true)),
+    ]..sort((a, b) => b.booking.date.compareTo(a.booking.date));
     return RefreshIndicator(
       onRefresh: _fetchBookingData,
       child:
-          riwayats.isEmpty
+          combined.isEmpty
               ? ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: const [
@@ -534,10 +402,11 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
               )
               : ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: riwayats.length,
+                itemCount: combined.length,
                 itemBuilder: (context, index) {
-                  final booking = riwayats[index];
-                  return booking.cancel.isEmpty
+                  final item = combined[index];
+                  final booking = item.booking;
+                  return !item.isCancelled
                       ? GestureDetector(
                         onTap: () => _showDetailDialog(booking),
                         child: Card(
@@ -819,47 +688,6 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
     );
   }
 
-  Widget _buildCancellingBadge() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 300),
-      child: Center(
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            CircularProgressIndicator(),
-            const SizedBox(width: 15),
-            const Text(
-              'Membatalkan...',
-              style: TextStyle(color: Colors.black, fontSize: 15),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDismissBackground() {
-    return Container(
-      alignment: Alignment.centerRight,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        color: Colors.red,
-      ),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Icon(Icons.cancel, color: Colors.white),
-          SizedBox(width: 8),
-          Text(
-            'Batal',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showDetailDialog(TimeSlotModel booking) {
     showDialog(
       context: context,
@@ -876,7 +704,8 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
       child: Scaffold(
         appBar: AppBar(
           title: const Text("Aktivitas"),
-          bottom: const TabBar(
+          bottom: TabBar(
+            controller: _tabController,
             labelColor: Colors.white,
             unselectedLabelColor: Colors.white,
             indicatorColor: Colors.white,
@@ -888,6 +717,7 @@ class _HalamanAktivitasState extends State<HalamanAktivitas>
             isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : TabBarView(
+                  controller: _tabController,
                   children: [_buildHistoryTab(), _buildScheduledTab()],
                 ),
       ),

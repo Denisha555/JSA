@@ -20,6 +20,8 @@ class HalamanMember extends StatefulWidget {
 }
 
 class _HalamanMemberState extends State<HalamanMember> {
+  DateTime now = DateTime.now();
+
   TimeOfDay jamMulai = const TimeOfDay(hour: 7, minute: 0);
   TimeOfDay jamSelesai = const TimeOfDay(hour: 8, minute: 0);
 
@@ -89,9 +91,23 @@ class _HalamanMemberState extends State<HalamanMember> {
 
   // Business logic methods
   List<DateTime> _getWeekdaysInRange(int weekday, DateTime baseDate) {
-    final endDate = DateTime(baseDate.year, baseDate.month + 1, 0);
+    final endDate = DateTime(
+      baseDate.year,
+      baseDate.month + 1,
+      0,
+      baseDate.hour,
+      baseDate.minute,
+    );
+    print("endDate : $endDate");
     final daysDifference = endDate.difference(baseDate).inDays + 1;
+    print("daysDifference : $daysDifference");
 
+    print(
+      List.generate(
+        daysDifference,
+        (i) => baseDate.add(Duration(days: i)),
+      ).where((date) => date.weekday == weekday).toList(),
+    );
     return List.generate(
       daysDifference,
       (i) => baseDate.add(Duration(days: i)),
@@ -107,13 +123,68 @@ class _HalamanMemberState extends State<HalamanMember> {
         .key;
   }
 
+  bool _isValidTimeRange(String startTime, String endTime) {
+    try {
+      final start = DateFormat.Hm().parse(startTime);
+      final end = DateFormat.Hm().parse(endTime);
+      return end.isAfter(start);
+    } catch (e) {
+      print('Error parsing time: $e');
+      return false;
+    }
+  }
+
+  bool isValidHalfHour() {
+    String startMinute = selectedStartTime.split(":")[1];
+    String endMinute = selectedEndTime.split(":")[1];
+    return (startMinute == "00" || startMinute == "30") &&
+        (endMinute == "00" || endMinute == "30");
+  }
+
+  bool isInOperationTime() {
+    final start = DateFormat.Hm().parse('07:00');
+    final end = DateFormat.Hm().parse('23:00');
+    final selectedStart = DateFormat.Hm().parse(selectedStartTime);
+    final selectedEnd = DateFormat.Hm().parse(selectedEndTime);
+
+    return (selectedStart.isAfter(start) ||
+            selectedStart.isAtSameMomentAs(start)) &&
+        (selectedEnd.isBefore(end) || selectedEnd.isAtSameMomentAs(end));
+  }
+
   // Validation methods
   bool _validateInputs() {
+    if (selectedDates.isEmpty) {
+      showErrorSnackBar(context, 'Pilih hari terlebih dahulu');
+      return false;
+    }
+
     final start = DateFormat.Hm().parse(selectedStartTime);
     final end = DateFormat.Hm().parse(selectedEndTime);
 
     if (!end.isAfter(start)) {
       showErrorSnackBar(context, 'Jam selesai harus setelah jam mulai.');
+      return false;
+    }
+
+    if (!_isValidTimeRange(selectedStartTime, selectedEndTime)) {
+      showErrorSnackBar(context, 'Jam selesai harus setelah jam mulai');
+      return false;
+    }
+
+    if (!isInOperationTime()) {
+      showErrorSnackBar(
+        context,
+        "Harap pilih waktu yang sesuai dengan jam operasional (07:00 - 23:00)",
+      );
+      return false;
+    }
+
+    if (!isValidHalfHour()) {
+      showErrorSnackBar(
+        context,
+        'Jam booking harus dalam interval 30 menit (08:00, 08:30, 09:00, dst)',
+      );
       return false;
     }
 
@@ -144,7 +215,7 @@ class _HalamanMemberState extends State<HalamanMember> {
       });
       return;
     }
-    availableCourts = getCourt.toList(); 
+    availableCourts = getCourt.toList();
 
     availableCourts.sort((a, b) => a.courtId.compareTo(b.courtId));
 
@@ -217,6 +288,9 @@ class _HalamanMemberState extends State<HalamanMember> {
             selectedEndTime,
             username,
           );
+          if (courtIds.first == courtId && selectedDates.first == date) {
+            length++;
+          }
         } catch (e) {
           if (!mounted) return;
           showErrorSnackBar(context, 'Gagal memesan slot: $e');
@@ -241,7 +315,13 @@ class _HalamanMemberState extends State<HalamanMember> {
         length,
       );
 
-      await BookingMember().addBookingDates(username, selectedDatesStr, courtIds, selectedStartTime, selectedEndTime);
+      await BookingMember().addBookingDates(
+        username,
+        selectedDatesStr,
+        courtIds,
+        selectedStartTime,
+        selectedEndTime,
+      );
     } catch (e) {
       if (!mounted) return;
       showErrorSnackBar(context, 'Gagal memperbarui role user: $e');
@@ -291,9 +371,9 @@ class _HalamanMemberState extends State<HalamanMember> {
                             builder: (context, snapshot) {
                               if (snapshot.connectionState ==
                                   ConnectionState.waiting) {
-                                return Text('Menghitung harga...');
+                                return Text('Menghitung harga...', );
                               } else if (snapshot.hasError) {
-                                return Text('Gagal menghitung harga');
+                                return Text('Gagal menghitung harga', );
                               } else {
                                 double price = snapshot.data ?? 0;
                                 price =
@@ -301,7 +381,7 @@ class _HalamanMemberState extends State<HalamanMember> {
                                     selectedDates.length *
                                     selectedCourts.length;
                                 return Text(
-                                  'Total Harga: Rp ${price.toStringAsFixed(0)}',
+                                  'Total Harga: Rp ${price.toStringAsFixed(0)}', 
                                 );
                               }
                             },
@@ -543,23 +623,24 @@ class _HalamanMemberState extends State<HalamanMember> {
                               selected: isSelected,
                               selectedColor: primaryColor,
                               onSelected: (_) {
-                                DateTime date = DateTime.now();
                                 selectedDates = _getWeekdaysInRange(
                                   entry.value,
-                                  date,
+                                  DateTime.parse(
+                                    '${DateFormat('yyyy-MM-dd').format(now)} $selectedEndTime',
+                                  ),
                                 );
-                                if (selectedDates.first.isBefore(date) ||
-                                    selectedDates.first.isAtSameMomentAs(
-                                      date,
-                                    )) {
-                                  date = date.add(Duration(days: 7));
+                                if (now.isAfter(selectedDates.first)) {
+                                  now = now.add(Duration(days: 7));
                                 }
                                 setState(() {
                                   selectedWeekday = entry.value;
                                   selectedDates = _getWeekdaysInRange(
                                     entry.value,
-                                    date,
+                                    DateTime.parse(
+                                      '${DateFormat('yyyy-MM-dd').format(now)} $selectedEndTime',
+                                    ),
                                   );
+                                  now = DateTime.now();
                                   // hasCheckedAvailability = false;
                                 });
                               },
@@ -576,15 +657,45 @@ class _HalamanMemberState extends State<HalamanMember> {
                     final picked = await showTimePicker(
                       context: context,
                       initialTime: jamMulai,
+                      initialEntryMode: TimePickerEntryMode.inputOnly,
+
+                      builder: (context, child) {
+                        return MediaQuery(
+                          data: MediaQuery.of(
+                            context,
+                          ).copyWith(alwaysUse24HourFormat: true),
+                          child: child!,
+                        );
+                      },
                     );
-                    print('picked: $picked');
                     if (picked != null) {
                       setState(() {
                         jamMulai = picked;
-                        selectedStartTime = formatTimeOfDay24(jamMulai);
+                        selectedStartTime =
+                            "${jamMulai.hour.toString().padLeft(2, '0')}:${jamMulai.minute.toString().padLeft(2, '0')}";
+
+                        if (selectedWeekday != null) {
+                          selectedDates = _getWeekdaysInRange(
+                            selectedWeekday!,
+                            DateTime.parse(
+                              '${DateFormat('yyyy-MM-dd').format(now)} $selectedEndTime',
+                            ),
+                          );
+                          if (now.isAfter(selectedDates.first)) {
+                            now = now.add(Duration(days: 7));
+                          }
+                          setState(() {
+                            selectedDates = _getWeekdaysInRange(
+                              selectedWeekday!,
+                              DateTime.parse(
+                                '${DateFormat('yyyy-MM-dd').format(DateTime.now())} $selectedEndTime',
+                              ),
+                            );
+                            now = DateTime.now();
+                            // hasCheckedAvailability = false;
+                          });
+                        }
                       });
-                      print('selectedStartTime: $selectedStartTime');
-                      print(jamMulai.format(context));
                     }
                   },
                   child: AbsorbPointer(
@@ -595,7 +706,8 @@ class _HalamanMemberState extends State<HalamanMember> {
                         suffixIcon: Icon(Icons.access_time),
                       ),
                       controller: TextEditingController(
-                        text: jamMulai.format(context),
+                        text:
+                            "${jamMulai.hour.toString().padLeft(2, '0')}:${jamMulai.minute.toString().padLeft(2, '0')}",
                       ),
                       validator: (value) {
                         if (value!.isEmpty) {
@@ -614,11 +726,45 @@ class _HalamanMemberState extends State<HalamanMember> {
                     final picked = await showTimePicker(
                       context: context,
                       initialTime: jamSelesai,
+                      initialEntryMode: TimePickerEntryMode.inputOnly,
+
+                      builder: (context, child) {
+                        return MediaQuery(
+                          data: MediaQuery.of(
+                            context,
+                          ).copyWith(alwaysUse24HourFormat: true),
+                          child: child!,
+                        );
+                      },
                     );
                     if (picked != null) {
                       setState(() {
                         jamSelesai = picked;
-                        selectedEndTime = formatTimeOfDay24(jamSelesai);
+                        selectedEndTime =
+                            "${jamSelesai.hour.toString().padLeft(2, '0')}:${jamSelesai.minute.toString().padLeft(2, '0')}";
+
+                        DateTime date = DateTime.now();
+
+                        if (selectedWeekday != null) {
+                          selectedDates = _getWeekdaysInRange(
+                            selectedWeekday!,
+                            DateTime.parse(
+                              '${DateFormat('yyyy-MM-dd').format(date)} $selectedEndTime',
+                            ),
+                          );
+                          if (date.isAfter(selectedDates.first)) {
+                            date = date.add(Duration(days: 7));
+                          }
+                          setState(() {
+                            selectedDates = _getWeekdaysInRange(
+                              selectedWeekday!,
+                              DateTime.parse(
+                                '${DateFormat('yyyy-MM-dd').format(date)} $selectedEndTime',
+                              ),
+                            );
+                            // hasCheckedAvailability = false;
+                          });
+                        }
                       });
                     }
                   },
@@ -630,7 +776,8 @@ class _HalamanMemberState extends State<HalamanMember> {
                         suffixIcon: Icon(Icons.access_time),
                       ),
                       controller: TextEditingController(
-                        text: jamSelesai.format(context),
+                        text:
+                            "${jamSelesai.hour.toString().padLeft(2, '0')}:${jamSelesai.minute.toString().padLeft(2, '0')}",
                       ),
                       validator: (value) {
                         if (value!.isEmpty) {
@@ -712,7 +859,7 @@ class _HalamanMemberState extends State<HalamanMember> {
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Text('$label: $value', style: const TextStyle(fontSize: 18)),
+      child: Text('$label: $value', ),
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 
 class BookingNonMember {
@@ -22,10 +23,6 @@ class BookingNonMember {
               .get();
 
       String userId = user.docs[0].id;
-
-      if (!doc.exists) {
-        throw Exception('Slot not found');
-      }
 
       final slots = doc.data()!['slots'] as List<dynamic>;
       var updatedSlot = List<Map<String, dynamic>>.from(slots);
@@ -92,40 +89,76 @@ class BookingNonMember {
     String endTime,
   ) async {
     try {
-      QuerySnapshot user =
+      final docRef =
           await firestore
               .collection('users')
-              .where('username', isEqualTo: username)
+              .where("username", isEqualTo: username)
               .get();
 
-      final userDoc = firestore.collection('users').doc(user.docs[0].id);
+      final docId = docRef.docs.first.id;
+      if (docRef.docs.isNotEmpty) {
+        final data = docRef.docs.first.data();
 
-      final snapshot = await userDoc.get();
-      List<Map<String, dynamic>> currentDates = [];
+        List<Map<String, dynamic>> currentDates =
+            data['bookingDates'] != null
+                ? (data['bookingDates'] as List<dynamic>)
+                    .map((e) => Map<String, dynamic>.from(e))
+                    .toList()
+                : [];
 
-      if (snapshot.exists && snapshot.data()!.containsKey('bookingDates')) {
-        final data = snapshot.data()!['bookingDates'];
+        final temp = {
+          "date": dates[0],
+          "courtId": court,
+          "startTime": startTime,
+          "endTime": endTime,
+          "id": '${court}_${dates[0]}',
+          "type": "nonMember",
+          "status": "",
+        };
 
-        if (data is List) {
-          currentDates = List<Map<String, dynamic>>.from(data);
+        currentDates.add(temp);
+
+        currentDates.sort((a, b) {
+          final dateCompare = a['date'].toString().compareTo(
+            b['date'].toString(),
+          );
+          
+          if (dateCompare != 0) return dateCompare;
+
+          final courtCompare = a['courtId'].toString().compareTo(
+            b['courtId'].toString(),
+          );  
+
+          if (courtCompare != 0) return courtCompare;
+
+          return timeToMinutes(
+            a['startTime'],
+          ).compareTo(timeToMinutes(b['startTime']));
+        });
+
+        for (int i = 0; i < currentDates.length - 1; i++) {
+          final curr = currentDates[i];
+          final next = currentDates[i + 1];
+
+          final sameCourt = curr['courtId'] == next['courtId'];
+          final sameDate = curr['date'] == next['date'];
+
+          final currEnd = curr['endTime'];
+          final nextStart = next['startTime'];
+
+          final isConnected = currEnd == nextStart;
+
+          if (sameCourt && sameDate && isConnected) {
+            currentDates.removeAt(i + 1);
+            curr['endTime'] = next['endTime'];
+            i--;
+          }
         }
+
+        await firestore.collection('users').doc(docId).set({
+          'bookingDates': currentDates,
+        }, SetOptions(merge: true));
       }
-
-      final bookingInfo = {
-        "date": dates[0],
-        "courtId": court,
-        "startTime": startTime,
-        "endTime": endTime,
-        "id": '${court}_${dates[0]}',
-        "type": "nonMember",
-        "status": "",
-      };
-
-      currentDates.add(bookingInfo);
-
-      await userDoc.set({
-        'bookingDates': currentDates,
-      }, SetOptions(merge: true));
     } catch (e) {
       throw Exception('Failed to add booking dates: $e');
     }

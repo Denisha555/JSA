@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 
 class CancelMember {
@@ -71,30 +72,100 @@ class CancelMember {
     }
   }
 
-  Future<void> updateUserCancel(String username, String dateStr) async {
+  Future<void> updateUserCancel(
+    String username,
+    String dateStr,
+    String startTime,
+    String endTime,
+    String court,
+  ) async {
     try {
-      QuerySnapshot user =
+      final docRef =
           await firestore
               .collection('users')
-              .where('username', isEqualTo: username)
+              .where("username", isEqualTo: username)
               .get();
-      String userId = user.docs[0].id;
-      final docRef = firestore.collection('users').doc(userId);
-      final docSnapshot = await docRef.get();
 
-      if (docSnapshot.exists) {
-        List<dynamic> currentDates = docSnapshot.data()?['bookingDates'] ?? [];
+      final docId = docRef.docs.first.id;
 
-        // Buat salinan & hapus satu kemunculan dateStr
-        List<String> updatedDates = List<String>.from(currentDates);
-        int indexToRemove = updatedDates.indexOf(dateStr);
-        if (indexToRemove != -1) {
-          updatedDates.removeAt(indexToRemove);
+      if (docRef.docs.isNotEmpty) {
+        final data = docRef.docs.first.data();
+        final List<Map<String, dynamic>> currentDates =
+            data['bookingDates'] != null
+                ? (data['bookingDates'] as List<dynamic>)
+                    .map((e) => Map<String, dynamic>.from(e))
+                    .toList()
+                : [];
+
+        currentDates.sort((a, b) {
+          final dateCompare = a['date'].toString().compareTo(
+            b['date'].toString(),
+          );
+          
+          if (dateCompare != 0) return dateCompare;
+
+          final courtCompare = a['courtId'].toString().compareTo(
+            b['courtId'].toString(),
+          );  
+
+          if (courtCompare != 0) return courtCompare;
+
+          return timeToMinutes(
+            a['startTime'],
+          ).compareTo(timeToMinutes(b['startTime']));
+        });
+
+        for (int i = 0; i < currentDates.length - 1; i++) {
+          final curr = currentDates[i];
+          final next = currentDates[i + 1];
+
+          final sameCourt = curr['courtId'] == next['courtId'];
+          final sameDate = curr['date'] == next['date'];
+
+          final currEnd = curr['endTime'];
+          final nextStart = next['startTime'];
+
+          final isConnected = currEnd == nextStart;
+
+          if (sameCourt && sameDate && isConnected) {
+            currentDates.removeAt(i + 1);
+            curr['endTime'] = next['endTime'];
+            i--;
+          }
         }
 
-        await docRef.set({
+        final List<Map<String, dynamic>> cancelDates =
+            data['cancelDate'] != null
+                ? (data['cancelDate'] as List<dynamic>)
+                    .map((e) => Map<String, dynamic>.from(e))
+                    .toList()
+                : [];
+
+        List<Map<String, dynamic>> updatedDates =
+            List<Map<String, dynamic>>.from(currentDates);
+        updatedDates.removeWhere(
+          (d) =>
+              d['date'] == dateStr &&
+              d['startTime'] == startTime &&
+              d['endTime'] == endTime &&
+              d['courtId'] == court,
+        );
+
+        List<Map<String, dynamic>> updatedCancelDates =
+            List<Map<String, dynamic>>.from(cancelDates);
+        final temp = {
+          'date': dateStr,
+          'startTime': startTime,
+          'endTime': endTime,
+          'courtId': court,
+          'type': "member",
+        };
+
+        updatedCancelDates.add(temp);
+
+        await firestore.collection('users').doc(docId).set({
           'cancel': FieldValue.increment(1),
-          'cancelDate': FieldValue.arrayUnion([dateStr]),
+          'cancelDate': updatedCancelDates,
           'bookingDates': updatedDates,
           'memberCurrentTotalBooking': FieldValue.increment(-1),
         }, SetOptions(merge: true));

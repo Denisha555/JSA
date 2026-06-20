@@ -19,6 +19,21 @@ class FirebaseGetUser {
     } 
   }
 
+  Future<List<UserModel>> getAllUsers() async {
+    List<UserModel> userList = [];
+    try {
+      QuerySnapshot snapshot = await firestore.collection('users').get();
+
+      for (DocumentSnapshot doc in snapshot.docs) {
+        userList.add(UserModel.fromJson(doc.data() as Map<String, dynamic>));
+      }
+
+      return userList;
+    } catch (e) {
+      throw Exception('Error Fetching Users: $e');
+    } 
+  }
+
   Future<List<UserModel>> getUserByUsername(String username) async {
     try {
       List<UserModel> userList = [];

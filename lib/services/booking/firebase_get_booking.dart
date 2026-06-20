@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/function/price/price.dart';
+import 'package:flutter_application_1/function/schedule/holiday/get_holiday.dart';
 import 'package:flutter_application_1/model/time_slot_model.dart';
+import 'package:flutter_application_1/services/price/firebase_get_price.dart';
 import 'package:flutter_application_1/services/user/firebase_get_user.dart';
 import 'package:intl/intl.dart';
 
@@ -23,14 +25,12 @@ class FirebaseGetBooking {
 
       final userData = userSnapshot.docs.first.data() as Map<String, dynamic>;
 
-      dynamic bookingDates = userData['bookingDates'];
-
-      print('Booking dates for $username: $bookingDates');
-
-      // Kalau tidak ada bookingDates, return list kosong
-      if (bookingDates == null || bookingDates.isEmpty) {
-        return [];
-      }
+      final List<Map<String, dynamic>> bookingDates =
+            userData['bookingDates'] != null
+                ? (userData['bookingDates'] as List<dynamic>)
+                    .map((e) => Map<String, dynamic>.from(e))
+                    .toList()
+                : [];
 
       List<TimeSlotModel> allSlots = [];
 
@@ -52,7 +52,7 @@ class FirebaseGetBooking {
             type: type,
             isAvailable: false,
           ),
-        );
+        ); 
       }
       return allSlots;
     } catch (e) {
@@ -64,57 +64,46 @@ class FirebaseGetBooking {
     String username,
   ) async {
     try {
-      // Ambil dokumen user berdasarkan username
-      QuerySnapshot userSnapshot =
+      final docRef =
           await firestore
               .collection('users')
-              .where('username', isEqualTo: username)
+              .where("username", isEqualTo: username)
               .get();
 
-      String userId = userSnapshot.docs[0].id;
+      String userId = docRef.docs[0].id;
 
-      final userData = userSnapshot.docs.first.data() as Map<String, dynamic>;
+      final data = docRef.docs.first.data();
 
-      // Ambil daftar tanggal cancel dari field 'cancelDate'
-      final cancelDate = userData['cancelDate'];
-
-      print('cancel date: $cancelDate');
-
-      // Kalau tidak ada cancelDate, return list kosong
-      if (cancelDate == null || cancelDate.isEmpty) {
-        return [];
-      }
-
-      final uniqueCancelDates = cancelDate.toSet().toList();
+      final List<Map<String, dynamic>> cancelDates =
+            data['cancelDate'] != null
+                ? (data['cancelDate'] as List<dynamic>)
+                    .map((e) => Map<String, dynamic>.from(e))
+                    .toList()
+                : [];
 
       List<TimeSlotModel> allSlots = [];
 
       // Loop semua tanggal cancel
-      for (var date in uniqueCancelDates) {
-        final timeSlots =
-            await firestore
-                .collection('time_slots')
-                .where('date', isEqualTo: date)
-                .get();
+      for (var data in cancelDates) {
+        final bookingMap = Map<String, dynamic>.from(data);
 
-        for (var doc in timeSlots.docs) {
-          final slots = doc.data()['slots'] as List<dynamic>;
-          for (var slot in slots) {
-            print('cancel slot: $slot');
-            if (slot['cancel'].contains(userId)) {
-              allSlots.add(
-                TimeSlotModel.fromJson(
-                  Map<String, dynamic>.from(slot),
-                  courtId: doc.id.split('_')[0],
-                  date: doc.id.split('_')[1],
-                ),
-              );
-            }
-          }
-        }
+        final court = bookingMap['courtId'];
+        final date = bookingMap['date'];
+        final startTime = bookingMap['startTime'];
+        final endTime = bookingMap['endTime'];
+        final type = bookingMap['type'];
+
+        allSlots.add(
+          TimeSlotModel(
+            courtId: court,
+            date: date,
+            startTime: startTime,
+            endTime: endTime,
+            type: type,
+            isAvailable: false,
+          ),
+        );
       }
-
-      print('allslot: $allSlots');
 
       return allSlots;
     } catch (e) {
@@ -321,6 +310,11 @@ class FirebaseGetBooking {
         return [];
       }
 
+      final hargaList = await FirebaseGetPrice().getHarga();
+      final holiday = await GetHoliday().getAllHolidays();
+
+      final userData = await FirebaseGetUser().getAllUsers();
+
       List<TimeSlotModel> allSlots = [];
 
       for (var doc in timeSlotsSnapshot.docs) {
@@ -343,12 +337,13 @@ class FirebaseGetBooking {
               endTime: slot['endTime'] as String,
               selectedDate: DateTime.parse(doc.id.split('_')[1]),
               type: slot['type'] as String,
+              hargaList: hargaList,
+              holiday: holiday,
             );
 
-            final username = await FirebaseGetUser().getUserDataById(
-              slot['userId'] ?? '',
-              'username',
-            );
+            final username = userData
+                .firstWhere((user) => user.userId == slot['userId'].toString())
+                .username;
 
             allSlots.add(
               TimeSlotModel.fromJson(

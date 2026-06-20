@@ -1,3 +1,4 @@
+import 'package:flutter_application_1/model/court_model.dart' show CourtModel;
 import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/constants_file.dart';
@@ -304,13 +305,15 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     _safeNavigatorPop(dialogContext); // Tutup dialog input
 
     if (!mounted) return;
-    _showLoadingDialog(context, 'Processing booking...');
+    _showLoadingDialog(context, 'Memproses booking...');
 
     try {
       bool userExists = await FirebaseCheckUser().checkExistence(
         'username',
         username,
       );
+
+      final userData = await FirebaseGetUser().getUserByUsername(username);
 
       if (!userExists) {
         if (!mounted) return;
@@ -370,20 +373,11 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
         // member booking
       } else {
-        final bookingDates = await FirebaseGetUser().getUserData(
-          username,
-          'memberTotalBooking',
-        );
-        final currentBookingDates = await FirebaseGetUser().getUserData(
-          username,
-          'memberCurrentTotalBooking',
-        );
-        final bookingLength = await FirebaseGetUser().getUserData(
-          username,
-          'memberBookingLength',
-        );
+        final memberTotalBooking = userData[0].memberTotalBooking;
+        final memberCurrentTotalBooking = userData[0].memberCurrentTotalBooking;
+        final memberBookingLength = userData[0].memberBookingLength;
 
-        if (currentBookingDates >= bookingDates) {
+        if (memberCurrentTotalBooking >= memberTotalBooking) {
           // // Jika melebihi jumlah hari
           // for (
           //   int minutes = startTotalMinutes;
@@ -406,16 +400,27 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             endTime,
             username,
           );
+
+          bookedDates.add(dateStr);
+
+          await BookingNonMember().addBookingDates(
+            username,
+            [bookedDates[0]],
+            court,
+            startTime,
+            endTime,
+          );
         } else {
           // Hitung jumlah slot
           int length = ((endTotalMinutes - startTotalMinutes) ~/ 30);
-          if (length > bookingLength) {
+
+          if (length != memberBookingLength) {
             if (!mounted) return;
-            _safeNavigatorPop(context);
             showErrorSnackBar(
               context,
-              'Anda hanya bisa booking maksimal $bookingLength slot',
+              'Harap booking $memberBookingLength slot',
             );
+            _safeNavigatorPop(context);
             return;
           }
 
@@ -426,9 +431,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             endTime,
             username,
           );
-          // bookedSlots.add(formattedTime);
 
           await BookingMember().addTotalBooking(username);
+
           await BookingMember().addBookingDates(
             username,
             dateStr,
@@ -443,7 +448,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       _safeNavigatorPop(context); // Tutup loading
       showSuccessSnackBar(
         context,
-        'Berhasil booking untuk $username, lapangan $court pada tanggal $dateStr, pukul $startTime - $endTime',
+        'Berhasil booking untuk $username, lapangan $court pada tanggal ${formatLongDate(selectedDate)}, pukul $startTime - $endTime',
       );
       await _loadOrCreateSlots(selectedDate);
     } catch (e) {
@@ -469,8 +474,8 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     }
 
     try {
-      final courts =
-          await FirebaseGetCourt().getCourts(); // ambil semua lapangan
+      final courts = await FirebaseGetCourt().getCourts();
+
       final slots = await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
 
       final expectedSlotCount =
@@ -481,9 +486,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
       if (!isComplete) {
         await FirebaseAddTimeSlot().addTimeSlot(selectedDate);
         final newSlots = await FirebaseGetTimeSlot().getTimeSlot(selectedDate);
-        _processBookingData(newSlots);
+        await _processBookingData(newSlots);
       } else {
-        _processBookingData(slots);
+        await _processBookingData(slots);
       }
     } catch (e) {
       if (!mounted) return;
@@ -497,11 +502,15 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     }
   }
 
-  void _processBookingData(List<TimeSlotModel> slots) {
+  Future<void> _processBookingData(List<TimeSlotModel> slots) async {
     try {
       timeSlot = slots;
 
-      courtIds = slots.map((slot) => slot.courtId).toSet().toList()..sort();
+      List<dynamic> courtTemp = await FirebaseGetCourt().getCourts();
+      List<String> temp =
+          courtTemp
+              .map((e) => e is CourtModel ? e.courtId : e['courtId'].toString())
+              .toList();
 
       timeRanges =
           slots
@@ -517,7 +526,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
       if (mounted) {
         setState(() {
-          courtIds = courtIds;
+          courtIds = temp;
           timeRanges = timeRanges;
           isLoading = false;
         });
@@ -530,6 +539,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           errorMessage = e.toString();
           isLoading = false;
         });
+        print("Error processing booking data: $e");
       }
     }
   }
@@ -644,15 +654,10 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     if (user != 'member') {
       return 'nonMember';
     } else {
-      final bookingDates = await FirebaseGetUser().getUserData(
-        username,
-        'memberTotalBooking',
-      );
-      final currentBookingDates = await FirebaseGetUser().getUserData(
-        username,
-        'memberCurrentTotalBooking',
-      );
-      if (currentBookingDates >= bookingDates) {
+      final userData = await FirebaseGetUser().getUserByUsername(username);
+      final memberTotalBooking = userData[0].memberTotalBooking;
+      final memberCurrentTotalBooking = userData[0].memberCurrentTotalBooking;
+      if (memberCurrentTotalBooking >= memberTotalBooking) {
         return 'nonMember';
       } else {
         return 'member';
@@ -688,7 +693,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Customer: $username',
+                      'Pelanggan: $username',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                     SizedBox(height: 8),
@@ -700,14 +705,15 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                     ),
                     SizedBox(height: 8),
                     FutureBuilder<double>(
-                      future: _memberOrNonMember(username).then((type) {
-                        return totalPrice(
-                          startTime: startTime,
-                          endTime: endTime,
-                          selectedDate: selectedDate,
-                          type: type,
-                        );
-                      }),
+                      future:
+                      // _memberOrNonMember(username).then((type) {
+                      totalPrice(
+                        startTime: startTime,
+                        endTime: endTime,
+                        selectedDate: selectedDate,
+                        type: type,
+                      ),
+                      // }),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState ==
                             ConnectionState.waiting) {
@@ -842,7 +848,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     String startTime = consecutiveSlots.first.split(' - ')[0];
     String endTime = consecutiveSlots.last.split(' - ')[1];
 
-    String CancelRange = '$startTime - $endTime';
+    String cancelRange = '$startTime - $endTime';
 
     // Show confirmation with booking details
     bool? confirm = await showDialog<bool>(
@@ -856,9 +862,9 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Customer: $username'),
+                  Text('Pelanggan: $username'),
                   Text('Lapangan: $court'),
-                  Text('Durasi pembatalan: $startTime - $endTime'),
+                  Text('Waktu: $startTime - $endTime'),
                   SizedBox(height: 10),
                   Text(
                     'Apakah Anda yakin ingin membatalkan booking ini?',
@@ -894,7 +900,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
 
         if (timeSlotData.type == 'member') {
-          String selectedEnd = CancelRange.split(' - ')[1];
+          String selectedEnd = cancelRange.split(' - ')[1];
           int endIndex = consecutiveSlots.indexWhere(
             (slot) => slot.split(' - ')[1] == selectedEnd,
           );
@@ -910,12 +916,18 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             );
           }
 
-          await CancelMember().updateUserCancel(username, dateStr);
+          await CancelMember().updateUserCancel(
+            username,
+            dateStr,
+            startTime,
+            endTime,
+            court,
+          );
 
           if (!mounted) return;
           _safeNavigatorPop(context); // Close loading dialog
         } else {
-          String selectedEnd = CancelRange.split(' - ')[1];
+          String selectedEnd = cancelRange.split(' - ')[1];
           int endIndex = consecutiveSlots.indexWhere(
             (slot) => slot.split(' - ')[1] == selectedEnd,
           );
@@ -931,7 +943,13 @@ class _HalamanKalenderState extends State<HalamanKalender> {
             );
           }
 
-          await CancelNonMember().updateUserCancel(username, dateStr);
+          await CancelNonMember().updateUserCancel(
+            username,
+            dateStr,
+            startTime,
+            endTime,
+            court,
+          );
 
           if (!mounted) return;
           _safeNavigatorPop(context); // Close loading dialog
@@ -940,7 +958,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         if (mounted) {
           showSuccessSnackBar(
             context,
-            'Berhasil membatalkan bookingan untuk $username, hari ${DateFormat('EEEE, d MMMM yyyy').format(selectedDate)}, pukul $CancelRange',
+            'Berhasil membatalkan bookingan untuk $username pada tanggal ${formatLongDate(selectedDate)}, pukul $cancelRange',
           );
 
           // Refresh data
@@ -1051,7 +1069,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           if (username.isNotEmpty) {
             await _showBookingDetails(time, court, type, username);
           } else {
-            showCustomSnackBar(
+            showErrorSnackBar(
               context,
               'Waktu ini sudah lewat, tidak bisa dibooking',
             );
@@ -1060,7 +1078,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         }
 
         if (isClosed) {
-          showCustomSnackBar(context, 'Lapangan ditutup pada waktu ini');
+          showErrorSnackBar(context, 'Lapangan ditutup pada waktu ini');
           return;
         }
 

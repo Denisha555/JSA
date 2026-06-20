@@ -62,6 +62,7 @@ class FirebaseCheckUser {
     return snapshot.docs.isNotEmpty;
   }
 
+
   Future<bool> checkExistenceOther(
     String field,
     dynamic value,

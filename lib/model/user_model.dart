@@ -13,7 +13,7 @@ class UserModel {
   final int memberCurrentTotalBooking;
   final int memberBookingLength;
   final int cancel;
-  final List<String> cancelDate;
+  final List<Map<String, dynamic>> cancelDate;
   final List<Map<String, dynamic>> bookingDates;
   final String noTelp;
   final String club;
@@ -55,9 +55,9 @@ class UserModel {
       totalBooking: (json['totalBooking'] ?? 0).toInt(),
       memberTotalBooking: (json['memberTotalBooking'] ?? 0).toInt(),
       memberCurrentTotalBooking: (json['memberCurrentTotalBooking'] ?? 0).toInt(),
-      memberBookingLength: (json['memberBookingLenght'] ?? 0).toInt(),
+      memberBookingLength: (json['memberBookingLength'] ?? 0).toInt(),
       cancel: (json['cancel'] ?? 0).toInt(),
-      cancelDate: List<String>.from(json['cancelDate'] ?? []),
+      cancelDate: List<Map<String, dynamic>>.from(json['cancelDate'] ?? []),
       bookingDates: List<Map<String, dynamic>>.from(json['bookingDates'] ?? []),
       noTelp: json['phoneNumber'] ?? '',
       club: json['club'] ?? '',

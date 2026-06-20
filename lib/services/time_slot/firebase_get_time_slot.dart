@@ -9,16 +9,27 @@ import 'package:flutter_application_1/services/time_slot/firebase_check_time_slo
 class FirebaseGetTimeSlot {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  Future<List<TimeSlotModel>> getTimeSlot(DateTime selectedDate) async {
+  Future<List<TimeSlotModel>> getTimeSlot(DateTime selectedDate, {String? courtId}) async {
     try {
-      int timeGetTimeSlot = DateTime.now().millisecondsSinceEpoch;
       final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
 
-      final querySnapshot =
+      QuerySnapshot<Map<String, dynamic>> querySnapshot;
+
+      if (courtId != null) {
+        querySnapshot =
+          await firestore
+              .collection('time_slots')
+              .where('date', isEqualTo: dateStr)
+              .where('courtId', isEqualTo: courtId)
+              .get();
+      } else {
+        querySnapshot =
           await firestore
               .collection('time_slots')
               .where('date', isEqualTo: dateStr)
               .get();
+      }
+      
 
       if (querySnapshot.docs.isEmpty) {
         await FirebaseAddTimeSlot().addTimeSlot(selectedDate);
@@ -85,7 +96,6 @@ class FirebaseGetTimeSlot {
           }),
         );
       }
-      print('Time to get time slot: ${DateTime.now().millisecondsSinceEpoch - timeGetTimeSlot} ms');
       return result;
     } catch (e) {
       throw Exception('Failed to get time slots: $e');

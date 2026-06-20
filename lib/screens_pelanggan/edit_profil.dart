@@ -114,7 +114,7 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
   }
 
   // Enhanced validation with better rules
-  bool _validateForm() {
+  Future<bool> _validateForm() async {
     bool isValid = true;
 
     setState(() {
@@ -130,9 +130,9 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
         errorTextNama = 'Nama lengkap tidak boleh kosong';
       });
       isValid = false;
-    } else if (!RegExp(r'^[a-zA-Z\s]+$').hasMatch(fullName)) {
+    } else if (await _isNameUsed(fullName)) {
       setState(() {
-        errorTextNama = 'Nama lengkap hanya boleh berisi huruf dan spasi';
+        errorTextNama = 'Nama sudah digunakan';
       });
       isValid = false;
     }
@@ -149,9 +149,40 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
         errorTextNoTelp = 'Format nomor telepon tidak valid';
       });
       isValid = false;
+    } else if (await _isPhoneNumberUsed(phoneNumber)) {
+      setState(() {
+        errorTextNoTelp = 'Nomor telepon sudah digunakan';
+      });
+      isValid = false;
     }
 
+    String club = clubController.text.trim();
+    if (club.isNotEmpty) {
+      final iseUsed = await _isClubUsed(club);
+
+      if (iseUsed) {
+        setState(() {
+          errorTextClub = 'Club sudah digunakan';
+        });
+        isValid = false;
+      }
+    } 
     return isValid;
+  }
+
+  Future<bool> _isClubUsed(String club) async {
+    final exist = await FirebaseCheckUser().checkExistenceOther("club", clubController.text, username!);
+    return exist;
+  }
+
+  Future<bool> _isPhoneNumberUsed(String phoneNumber) async {
+    final exist = await FirebaseCheckUser().checkExistenceOther("phoneNumber", noTelpController.text, username!);
+    return exist;
+  }
+
+  Future<bool> _isNameUsed(String name) async {
+    final exist = await FirebaseCheckUser().checkExistenceOther("name", namaController.text, username!);
+    return exist;
   }
 
   // Phone number validation helper
@@ -165,15 +196,11 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
     if (cleanNumber.startsWith('08') && cleanNumber.length >= 10 && cleanNumber.length <= 13) {
       return true;
     }
-    if (cleanNumber.startsWith('628') && cleanNumber.length >= 11 && cleanNumber.length <= 14) {
-      return true;
-    }
-    
     return false;
   }
 
   Future<void> _saveProfile() async {
-    if (!_validateForm()) return;
+    if (!await _validateForm()) return;
 
     setState(() {
       _isLoading = true;
@@ -354,9 +381,9 @@ class _HalamanEditProfilState extends State<HalamanEditProfil> {
                           hintText: "Masukkan nama lengkap Anda",
                           icon: Icons.person,
                           errorText: errorTextNama,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
-                          ],
+                          // inputFormatters: [
+                          //   FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]')),
+                          // ],
                           onChanged: () => setState(() => errorTextNama = null),
                         ),
 

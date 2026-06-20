@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/services/user/firebase_update_user.dart';
@@ -18,6 +21,12 @@ class _EditPasswordState extends State<EditPassword> {
   bool obscureText = true;
   bool obscureText2 = true;
 
+  String hashPassword(String password) {
+    final bytes = utf8.encode(password);
+    final digest = sha256.convert(bytes);
+    return digest.toString();
+  }
+
   Future<void> _updatePassword(String newPassword) async {
     if (newPassword.trim().isEmpty) {
       showErrorSnackBar(context, 'Password tidak boleh kosong');
@@ -36,7 +45,7 @@ class _EditPasswordState extends State<EditPassword> {
         await FirebaseUpdateUser().updateUser(
           'password',
           username,
-          newPassword.trim(),
+          hashPassword(newPassword.trim()),
         );
         // SharedPreferences prefs = await SharedPreferences.getInstance();
         // await prefs.setString('password', newPassword.trim());
@@ -81,7 +90,7 @@ class _EditPasswordState extends State<EditPassword> {
                       prefixIcon: const Icon(Icons.lock),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          obscureText ? Icons.visibility : Icons.visibility_off,
+                          obscureText ? Icons.visibility_off : Icons.visibility,
                         ),
                         onPressed: () {
                           setState(() {
@@ -116,8 +125,8 @@ class _EditPasswordState extends State<EditPassword> {
                       suffixIcon: IconButton(
                         icon: Icon(
                           obscureText2
-                              ? Icons.visibility
-                              : Icons.visibility_off,
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                         ),
                         onPressed: () {
                           setState(() {

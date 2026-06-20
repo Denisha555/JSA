@@ -9,22 +9,19 @@ Future<double> totalPrice({
   required String endTime,
   required DateTime selectedDate,
   required dynamic type,
+  dynamic hargaList,
+  dynamic holiday,
 }) async {
   final dateStr = DateFormat('yyyy-MM-dd').format(selectedDate);
-  final hargaList = await FirebaseGetPrice().getHarga();
-  final holiday = await GetHoliday().getAllHolidays();
+  if (hargaList == null || holiday == null) {
+    hargaList = await FirebaseGetPrice().getHarga();
+    holiday = await GetHoliday().getAllHolidays();
+  }
   final isHoliday = holiday.any((item) => item.date == dateStr);
-
-  // debugPrint(
-  //   'startTime: $startTime, endTime: $endTime, date: $dateStr, type: $type',
-  // );
 
   final hariBooking = namaHari(selectedDate.weekday);
   final startMinutes = timeToMinutes(startTime);
   final endMinutes = timeToMinutes(endTime);
-
-  // debugPrint('startMinutes: $startMinutes, endMinutes: $endMinutes');
-  // debugPrint('hariBooking: $hariBooking');
 
   double totalPrice = 0;
 
@@ -48,8 +45,6 @@ Future<double> totalPrice({
                   harga.hariMulai,
                   harga.hariSelesai,
                 );
-
-        // debugPrint('type: $type, cocokHari: $cocokHari, time: $time, hargaStartMinutes: $hargaStartMinutes, hargaEndMinutes: $hargaEndMinutes');
 
         return harga.type == type &&
             cocokHari &&

@@ -131,7 +131,8 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
   bool isValidHalfHour() {
     String startMinute = selectedStartTime.split(":")[1];
     String endMinute = selectedEndTime.split(":")[1];
-    return (startMinute == "0" || startMinute == "30") && (endMinute == "0" || endMinute == "30");
+    return (startMinute == "00" || startMinute == "30") &&
+        (endMinute == "00" || endMinute == "30");
   }
 
   int timeToMinutes(String time) {
@@ -142,7 +143,13 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
 
   // Date management
   List<DateTime> _getWeekdaysInRange(int weekday, DateTime baseDate) {
-    final endDate = DateTime(baseDate.year, baseDate.month + 1, 0);
+    final endDate = DateTime(
+      baseDate.year,
+      baseDate.month + 1,
+      0,
+      baseDate.hour,
+      baseDate.minute,
+    );
     final totalDays = endDate.difference(baseDate).inDays + 1;
 
     return List.generate(
@@ -250,7 +257,10 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
     }
 
     if (!isValidHalfHour()) {
-      showErrorSnackBar(context, 'Jam booking harus dalam interval 30 menit (08:00, 08:30, 09:00, dst)');
+      showErrorSnackBar(
+        context,
+        'Jam booking harus dalam interval 30 menit (08:00, 08:30, 09:00, dst)',
+      );
       return false;
     }
 
@@ -287,6 +297,7 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                           _buildInfoRow('Jam Mulai', selectedStartTime),
                           _buildInfoRow('Jam Selesai', selectedEndTime),
 
+                          SizedBox(height: 4),
                           FutureBuilder<double>(
                             future: totalPrice(
                               startTime: selectedStartTime,
@@ -297,9 +308,9 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                             builder: (context, snapshot) {
                               if (snapshot.connectionState ==
                                   ConnectionState.waiting) {
-                                return Text('Menghitung harga...');
+                                return Text('Menghitung harga...',);
                               } else if (snapshot.hasError) {
-                                return Text('Gagal menghitung harga');
+                                return Text('Gagal menghitung harga', );
                               } else {
                                 double price = snapshot.data ?? 0;
                                 price =
@@ -522,7 +533,7 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                         style: const TextStyle(fontSize: 12),
                       ),
                       Text(
-                        'Total Tanggal: ${selectedDates.length} hari',
+                        'Total Hari: ${selectedDates.length} hari',
                         style: const TextStyle(fontSize: 12),
                       ),
                       FutureBuilder<double>(
@@ -689,13 +700,17 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
     final startMinutes = timeToMinutes(selectedStartTime);
     final endMinutes = timeToMinutes(selectedEndTime);
 
-    List<String> bookedDates = [];
+    final selectedDatesStr =
+        selectedDates
+            .map((date) => DateFormat('yyyy-MM-dd').format(date))
+            .toList();
+
     try {
       int length = 0;
-      for (final courtId in courtIds) {
-        for (final date in selectedDates) {
+
+      for (final date in selectedDates) {
+        for (final courtId in courtIds) {
           final dateStr = formatDateStr(date);
-          bookedDates.add(dateStr);
 
           await BookingMember().bookSlotForMember(
             courtId,
@@ -710,6 +725,14 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
         }
       }
 
+      final firstDateStr = DateFormat('yyyy-MM-dd').format(selectedDates.first);
+      await FirebaseUpdateUser().updateUser('role', username, 'member');
+      await FirebaseUpdateUser().updateUser(
+        'startTimeMember',
+        username,
+        firstDateStr,
+      );
+
       await BookingMember().addTotalBookingDays(
         username,
         selectedDates.length * courtIds.length,
@@ -718,7 +741,7 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
 
       await BookingMember().addBookingDates(
         username,
-        bookedDates,
+        selectedDatesStr,
         courtIds,
         selectedStartTime,
         selectedEndTime,
@@ -751,15 +774,16 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 100,
             child: Text(
-              '$label:',
-              style: const TextStyle(fontWeight: FontWeight.w500),
+              '$label: ',
+              style: const TextStyle(fontWeight: FontWeight.w500,),
             ),
           ),
-          Expanded(child: Text(value)),
+          Text(value),
         ],
       ),
     );
@@ -827,7 +851,9 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                                   DateTime date = DateTime.now();
                                   selectedDates = _getWeekdaysInRange(
                                     entry.value,
-                                    date,
+                                    DateTime.parse(
+                                      '${DateFormat('yyyy-MM-dd').format(date)} $selectedEndTime',
+                                    ),
                                   );
                                   if (selectedDates.first.isBefore(date) ||
                                       selectedDates.first.isAtSameMomentAs(
@@ -839,7 +865,9 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                                     selectedWeekday = entry.value;
                                     selectedDates = _getWeekdaysInRange(
                                       entry.value,
-                                      date,
+                                      DateTime.parse(
+                                        '${DateFormat('yyyy-MM-dd').format(date)} $selectedEndTime',
+                                      ),
                                     );
                                     hasCheckedAvailability = false;
                                   });
@@ -874,6 +902,29 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                           jamMulai = picked;
                           selectedStartTime =
                               "${jamMulai.hour.toString().padLeft(2, '0')}:${jamMulai.minute.toString().padLeft(2, '0')}";
+
+                          DateTime date = DateTime.now();
+
+                          if (selectedWeekday != null) {
+                            selectedDates = _getWeekdaysInRange(
+                              selectedWeekday!,
+                              DateTime.parse(
+                                '${DateFormat('yyyy-MM-dd').format(date)} $selectedEndTime',
+                              ),
+                            );
+                            if (date.isAfter(selectedDates.first)) {
+                              date = date.add(Duration(days: 7));
+                            }
+                            setState(() {
+                              selectedDates = _getWeekdaysInRange(
+                                selectedWeekday!,
+                                DateTime.parse(
+                                  '${DateFormat('yyyy-MM-dd').format(date)} $selectedEndTime',
+                                ),
+                              );
+                              // hasCheckedAvailability = false;
+                            });
+                          }
                         });
                       }
                     },
@@ -914,6 +965,29 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                           jamSelesai = picked;
                           selectedEndTime =
                               "${jamSelesai.hour.toString().padLeft(2, '0')}:${jamSelesai.minute.toString().padLeft(2, '0')}";
+
+                          DateTime date = DateTime.now();
+
+                          if (selectedWeekday != null) {
+                            selectedDates = _getWeekdaysInRange(
+                              selectedWeekday!,
+                              DateTime.parse(
+                                '${DateFormat('yyyy-MM-dd').format(date)} $selectedEndTime',
+                              ),
+                            );
+                            if (date.isAfter(selectedDates.first)) {
+                              date = date.add(Duration(days: 7));
+                            }
+                            setState(() {
+                              selectedDates = _getWeekdaysInRange(
+                                selectedWeekday!,
+                                DateTime.parse(
+                                  '${DateFormat('yyyy-MM-dd').format(date)} $selectedEndTime',
+                                ),
+                              );
+                              // hasCheckedAvailability = false;
+                            });
+                          }
                         });
                       }
                     },
