@@ -11,7 +11,6 @@ import 'package:flutter_application_1/services/court/firebase_update_court.dart'
 import 'package:flutter_application_1/services/court/firebase_check_court.dart';
 import 'package:flutter_application_1/services/court/firebase_add_court.dart';
 
-
 class HalamanLapangan extends StatefulWidget {
   const HalamanLapangan({super.key});
 
@@ -23,6 +22,7 @@ class _HalamanLapanganState extends State<HalamanLapangan>
     with SingleTickerProviderStateMixin {
   final TextEditingController _deskripsiController = TextEditingController();
   final TextEditingController _nomorController = TextEditingController();
+  String originalNomor = "";
   File? _imageFile;
   String? _imageBase64;
   bool _isLoading = false;
@@ -92,7 +92,7 @@ class _HalamanLapanganState extends State<HalamanLapangan>
         source: source,
         maxWidth: 800, // Batasi ukuran untuk mengurangi ukuran base64
         maxHeight: 600,
-        imageQuality: 85 // Kompres gambar
+        imageQuality: 85, // Kompres gambar
       );
 
       if (picked != null) {
@@ -119,12 +119,21 @@ class _HalamanLapanganState extends State<HalamanLapangan>
     }
 
     // Cek lapangan yang sudah dibuat (kecuali saat editing)
-    if (!_isEditing) {
+    if (_isEditing == false) {
       bool isLapanganExist = await FirebaseCheckCourt().checkCourt(nomor);
       if (isLapanganExist) {
-        if (!mounted) return; 
-        showErrorSnackBar(context, 'Nomor lapangan sudah ada');
+        if (!mounted) return;
+        showErrorSnackBar(context, 'Nama lapangan sudah ada');
         return;
+      }
+    } else {
+      if (originalNomor != _nomorController.text) {
+        final lapanganList = await FirebaseCheckCourt().checkOtherCourt(nomor);
+        if (lapanganList.isNotEmpty) {
+          if (!mounted) return;
+          showErrorSnackBar(context, 'Nama lapangan sudah ada');
+          return;
+        }
       }
     }
 
@@ -155,7 +164,7 @@ class _HalamanLapanganState extends State<HalamanLapangan>
         bool check = await FirebaseCheckCourt().checkCourt(nomor);
         if (check) {
           if (!mounted) return;
-          showErrorSnackBar(context, 'Nomor lapangan sudah ada');
+          showErrorSnackBar(context, 'Nama lapangan sudah ada');
           return;
         }
 
@@ -193,6 +202,7 @@ class _HalamanLapanganState extends State<HalamanLapangan>
       _currentLapanganId = doc.id;
       _isEditing = true;
       _nomorController.text = data['nomor'] ?? '';
+      originalNomor = data['nomor'] ?? '';
       _deskripsiController.text = data['deskripsi'] ?? '';
       _imageBase64 = data['image']; // Set base64 string dari database
       _imageFile = null; // Reset file image karena kita pakai base64

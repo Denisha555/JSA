@@ -811,14 +811,14 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           final localSlot = bookingData[timeRange]![court];
           isLocallyAvailable =
               localSlot.isAvailable &&
-              !localSlot.isClosed &&
-              !localSlot.isHoliday;
+              !localSlot.isClosed;
+              // !localSlot.isHoliday;
         }
 
         // Slot tersedia jika tersedia di Firebase DAN di data lokal
         if (slot.isAvailable &&
             !slot.isClosed &&
-            !slot.isHoliday &&
+            // !slot.isHoliday &&
             isLocallyAvailable) {
           consecutiveSlots++;
         } else {

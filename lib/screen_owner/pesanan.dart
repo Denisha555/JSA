@@ -39,7 +39,6 @@ class _HalamanPesananState extends State<HalamanPesanan> {
         _selectedDate = picked;
         _controller.text = DateFormat('dd/MM/yyyy').format(picked);
       });
-
       // Reload data for the new date
       await getDetail();
     }
@@ -49,7 +48,6 @@ class _HalamanPesananState extends State<HalamanPesanan> {
     setState(() {
       _isLoading = true;
     });
-
     try {
       List<TimeSlotModel> newDetail = await FirebaseGetBooking()
           .getBookingByDate(_selectedDate);
@@ -78,7 +76,9 @@ class _HalamanPesananState extends State<HalamanPesanan> {
             mergedDetail.add(booking);
           }
         }
+        mergedDetail.sort((a, b) => a.startTime.compareTo(b.startTime));
         setState(() {
+          detail = [];
           detail = mergedDetail;
           _isLoading = false;
         });

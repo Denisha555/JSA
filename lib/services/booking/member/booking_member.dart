@@ -159,13 +159,14 @@ class BookingMember {
 
           final sameCourt = curr['courtId'] == next['courtId'];
           final sameDate = curr['date'] == next['date'];
+          final sameType = curr['type'] == next['type'];
 
           final currEnd = curr['endTime'];
           final nextStart = next['startTime'];
 
           final isConnected = currEnd == nextStart;
 
-          if (sameCourt && sameDate && isConnected) {
+          if (sameCourt && sameDate && isConnected && sameType) {
             currentDates.removeAt(i + 1);
             curr['endTime'] = next['endTime'];
             i--;

@@ -29,8 +29,10 @@ class DeleteCloseDay {
           List<Map<String, dynamic>> updatedSlots = [];
           for (var slot in slots) {
             var updatedSlot = Map<String, dynamic>.from(slot);
-            updatedSlot['isClosed'] = false;
-            updatedSlot['isAvailable'] = true;
+            if (updatedSlot['isClosed'] == true) {
+              updatedSlot['isClosed'] = false;
+              updatedSlot['isAvailable'] = true;
+            } 
             updatedSlots.add(updatedSlot);
           }
           doc.reference.set({'slots': updatedSlots}, SetOptions(merge: true));

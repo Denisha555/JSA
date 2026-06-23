@@ -155,89 +155,90 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
     ];
 
     memberColumns = <PlutoColumn>[
-    PlutoColumn(
-      title: 'Nama Member',
-      field: 'nama_member',
-      type: PlutoColumnType.text(),
-      readOnly: true,
-      width: _calcColumnWidth('nama_member', 'Nama Member'),
-    ),
-    PlutoColumn(
-      title: 'Kontak',
-      field: 'kontak',
-      type: PlutoColumnType.text(),
-      readOnly: true,
-      width: _calcColumnWidth('kontak', 'Kontak'),
-    ),
-    PlutoColumn(
-      title: 'Jadwal Main',
-      field: 'jadwal_main',
-      type: PlutoColumnType.text(),
-      readOnly: true,
-      width: _calcColumnWidth('jadwal_main', 'Jadwal Main'),
-    ),
-    PlutoColumn(
-      title: 'Total Hari',
-      field: 'total_hari',
-      type: PlutoColumnType.text(),
-      readOnly: true,
-      width: _calcColumnWidth('total_hari', 'Total Hari'),
-    ),
-    PlutoColumn(
-      title: 'Jam',
-      field: 'jam',
-      type: PlutoColumnType.text(),
-      readOnly: true,
-      width: _calcColumnWidth('jam', 'Jam'),
-    ),
-    PlutoColumn(
-      title: 'Durasi',
-      field: 'durasi',
-      type: PlutoColumnType.text(),
-      readOnly: true,
-      width: _calcColumnWidth('durasi', 'Durasi'),
-    ),
-    PlutoColumn(
-      title: 'Lapangan',
-      field: 'lapangan',
-      type: PlutoColumnType.text(),
-      readOnly: true,
-      width: _calcColumnWidth('lapangan', 'Lapangan'),
-    ),
-    PlutoColumn(
-      title: 'Harga per Jam',
-      field: 'harga_per_jam',
-      type: PlutoColumnType.text(),
-      readOnly: true,
-      width: _calcColumnWidth('harga_per_jam', 'Harga per Jam'),
-    ),
-    PlutoColumn(
-      title: 'Jumlah Harga',
-      field: 'jumlah_harga',
-      type: PlutoColumnType.text(),
-      readOnly: true,
-      width: _calcColumnWidth('jumlah_harga', 'Jumlah Harga'),
-    ),
-    PlutoColumn(
-      title: 'Keterangan',
-      field: 'keterangan',
-      type: PlutoColumnType.text(),
-      readOnly: _isEditing ? false : true,
-      width: _calcColumnWidth('keterangan', 'Keterangan'),
-    ),
-    PlutoColumn(
-      title: 'Catatan',
-      field: 'catatan',
-      type: PlutoColumnType.text(),
-      readOnly: _isEditing ? false : true,
-      width: _calcColumnWidth('catatan', 'Catatan'),
-    ),
-  ];
+      PlutoColumn(
+        title: 'Nama Member',
+        field: 'nama_member',
+        type: PlutoColumnType.text(),
+        readOnly: true,
+        width: _calcColumnWidth('nama_member', 'Nama Member'),
+      ),
+      PlutoColumn(
+        title: 'Kontak',
+        field: 'kontak',
+        type: PlutoColumnType.text(),
+        readOnly: true,
+        width: _calcColumnWidth('kontak', 'Kontak'),
+      ),
+      PlutoColumn(
+        title: 'Jadwal Main',
+        field: 'jadwal_main',
+        type: PlutoColumnType.text(),
+        readOnly: true,
+        width: _calcColumnWidth('jadwal_main', 'Jadwal Main'),
+      ),
+      PlutoColumn(
+        title: 'Total Hari',
+        field: 'total_hari',
+        type: PlutoColumnType.text(),
+        readOnly: true,
+        width: _calcColumnWidth('total_hari', 'Total Hari'),
+      ),
+      PlutoColumn(
+        title: 'Jam',
+        field: 'jam',
+        type: PlutoColumnType.text(),
+        readOnly: true,
+        width: _calcColumnWidth('jam', 'Jam'),
+      ),
+      PlutoColumn(
+        title: 'Durasi',
+        field: 'durasi',
+        type: PlutoColumnType.text(),
+        readOnly: true,
+        width: _calcColumnWidth('durasi', 'Durasi'),
+      ),
+      PlutoColumn(
+        title: 'Lapangan',
+        field: 'lapangan',
+        type: PlutoColumnType.text(),
+        readOnly: true,
+        width: _calcColumnWidth('lapangan', 'Lapangan'),
+      ),
+      PlutoColumn(
+        title: 'Harga per Jam',
+        field: 'harga_per_jam',
+        type: PlutoColumnType.text(),
+        readOnly: true,
+        width: _calcColumnWidth('harga_per_jam', 'Harga per Jam'),
+      ),
+      PlutoColumn(
+        title: 'Jumlah Harga',
+        field: 'jumlah_harga',
+        type: PlutoColumnType.text(),
+        readOnly: true,
+        width: _calcColumnWidth('jumlah_harga', 'Jumlah Harga'),
+      ),
+      PlutoColumn(
+        title: 'Keterangan',
+        field: 'keterangan',
+        type: PlutoColumnType.text(),
+        readOnly: _isEditing ? false : true,
+        width: _calcColumnWidth('keterangan', 'Keterangan'),
+      ),
+      PlutoColumn(
+        title: 'Catatan',
+        field: 'catatan',
+        type: PlutoColumnType.text(),
+        readOnly: _isEditing ? false : true,
+        width: _calcColumnWidth('catatan', 'Catatan'),
+      ),
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text(
           'Laporan',
@@ -261,153 +262,189 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                 ),
               )
               : Padding(
-                padding: const EdgeInsets.all(16.0),
+                padding: EdgeInsets.only(
+                  left: 16,
+                  right: 16,
+                  top: 16,
+                  bottom: 16,
+                ),
                 child: CustomScrollView(
                   slivers: [
                     SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Card(
-                            elevation: 4,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceAround,
-                                    children: [
-                                      SizedBox(
-                                        width:
-                                            MediaQuery.of(context).size.width /
-                                                2 -
-                                            55,
-                                        height: 50,
-                                        child: DropdownButton(
-                                          hint: const Text('Pilih Tahun'),
-                                          isExpanded: true,
-                                          value: _selectedTahun,
-                                          items:
-                                              tahunList.map((String item) {
-                                                return DropdownMenuItem<String>(
-                                                  value: item,
-                                                  child: Text(item),
-                                                );
-                                              }).toList(),
-                                          onChanged:
-                                              _isLoading
-                                                  ? null
-                                                  : (String? value) {
-                                                    setState(() {
-                                                      _selectedTahun = value;
-                                                    });
-                                                  },
-                                        ),
-                                      ),
-
-                                      const SizedBox(width: 15),
-
-                                      SizedBox(
-                                        height: 50,
-                                        width:
-                                            MediaQuery.of(context).size.width /
-                                                2 -
-                                            55,
-                                        child: DropdownButton(
-                                          hint: const Text('Pilih Bulan'),
-                                          isExpanded: true,
-                                          value: _selectedBulan,
-                                          items:
-                                              bulanList.map((String item) {
-                                                return DropdownMenuItem<String>(
-                                                  value: item,
-                                                  child: Text(item),
-                                                );
-                                              }).toList(),
-                                          onChanged:
-                                              _isLoading
-                                                  ? null
-                                                  : (String? value) {
-                                                    setState(() {
-                                                      _selectedBulan = value;
-                                                    });
-                                                  },
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-
-                                  const SizedBox(height: 12),
-
-                                  SizedBox(
-                                    height: 50,
-                                    width: double.infinity,
-                                    child: DropdownButton(
-                                      hint: const Text('Pilih Status'),
-                                      isExpanded: true,
-                                      value: _selectedStatus,
-                                      items:
-                                          statusList.map((
-                                            Map<String, String> item,
-                                          ) {
-                                            return DropdownMenuItem<String>(
-                                              value: item['value'],
-                                              child: Text(item['label']!),
-                                            );
-                                          }).toList(),
-                                      onChanged:
-                                          _isLoading
-                                              ? null
-                                              : (String? value) {
-                                                setState(() {
-                                                  _selectedStatus = value;
-                                                });
-                                              },
-                                    ),
-                                  ),
-
-                                  const SizedBox(height: 20),
-
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: ElevatedButton.icon(
-                                      // ← pakai null langsung kalau loading, bukan fungsi kosong
-                                      onPressed:
-                                          _isLoading
-                                              ? null
-                                              : () async {
-                                                await _getLaporan();
-                                              },
-
-                                      label: Text(
-                                        _isLoading
-                                            ? 'Memuat...'
-                                            : 'Tampilkan Laporan',
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.blue,
-                                        foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(
-                                          vertical: 12,
-                                        ),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            8,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 500),
+                        transitionBuilder:
+                            (child, animation) => SizeTransition(
+                              sizeFactor: animation,
+                              axisAlignment: -1,
+                              child: FadeTransition(
+                                opacity: animation,
+                                child: child,
                               ),
                             ),
-                          ),
-                        ],
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _isEditing
+                                ? SizedBox.shrink(key: ValueKey('hidden'))
+                                : Card(
+                                  elevation: 4,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceAround,
+                                          children: [
+                                            SizedBox(
+                                              width:
+                                                  MediaQuery.of(
+                                                        context,
+                                                      ).size.width /
+                                                      2 -
+                                                  55,
+                                              height: 50,
+                                              child: DropdownButton(
+                                                hint: const Text('Pilih Tahun'),
+                                                isExpanded: true,
+                                                value: _selectedTahun,
+                                                items:
+                                                    tahunList.map((
+                                                      String item,
+                                                    ) {
+                                                      return DropdownMenuItem<
+                                                        String
+                                                      >(
+                                                        value: item,
+                                                        child: Text(item),
+                                                      );
+                                                    }).toList(),
+                                                onChanged:
+                                                    _isLoading
+                                                        ? null
+                                                        : (String? value) {
+                                                          setState(() {
+                                                            _selectedTahun =
+                                                                value;
+                                                          });
+                                                        },
+                                              ),
+                                            ),
+
+                                            const SizedBox(width: 15),
+
+                                            SizedBox(
+                                              height: 50,
+                                              width:
+                                                  MediaQuery.of(
+                                                        context,
+                                                      ).size.width /
+                                                      2 -
+                                                  55,
+                                              child: DropdownButton(
+                                                hint: const Text('Pilih Bulan'),
+                                                isExpanded: true,
+                                                value: _selectedBulan,
+                                                items:
+                                                    bulanList.map((
+                                                      String item,
+                                                    ) {
+                                                      return DropdownMenuItem<
+                                                        String
+                                                      >(
+                                                        value: item,
+                                                        child: Text(item),
+                                                      );
+                                                    }).toList(),
+                                                onChanged:
+                                                    _isLoading
+                                                        ? null
+                                                        : (String? value) {
+                                                          setState(() {
+                                                            _selectedBulan =
+                                                                value;
+                                                          });
+                                                        },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+
+                                        const SizedBox(height: 12),
+
+                                        SizedBox(
+                                          height: 50,
+                                          width: double.infinity,
+                                          child: DropdownButton(
+                                            hint: const Text('Pilih Status'),
+                                            isExpanded: true,
+                                            value: _selectedStatus,
+                                            items:
+                                                statusList.map((
+                                                  Map<String, String> item,
+                                                ) {
+                                                  return DropdownMenuItem<
+                                                    String
+                                                  >(
+                                                    value: item['value'],
+                                                    child: Text(item['label']!),
+                                                  );
+                                                }).toList(),
+                                            onChanged:
+                                                _isLoading
+                                                    ? null
+                                                    : (String? value) {
+                                                      setState(() {
+                                                        _selectedStatus = value;
+                                                      });
+                                                    },
+                                          ),
+                                        ),
+
+                                        const SizedBox(height: 20),
+
+                                        SizedBox(
+                                          width: double.infinity,
+                                          child: ElevatedButton.icon(
+                                            // ← pakai null langsung kalau loading, bukan fungsi kosong
+                                            onPressed:
+                                                _isLoading
+                                                    ? null
+                                                    : () async {
+                                                      await _getLaporan();
+                                                    },
+
+                                            label: Text(
+                                              _isLoading
+                                                  ? 'Memuat...'
+                                                  : 'Tampilkan Laporan',
+                                            ),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.blue,
+                                              foregroundColor: Colors.white,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    vertical: 12,
+                                                  ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                          ],
+                        ),
                       ),
                     ),
 
@@ -556,18 +593,30 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
 
                                                       final rows =
                                                           _stateManager!.rows;
+
+                                                      final futures =
+                                                          <Future>[];
                                                       for (var row in rows) {
                                                         final username =
                                                             row.cells.containsKey(
-                                                                  'nama_member',
+                                                                  '_username',
                                                                 )
                                                                 ? row
-                                                                    .cells['nama_member']!
+                                                                    .cells['_username']!
                                                                     .value
+                                                                    .toString()
                                                                 : row
                                                                     .cells['nama_pelanggan']!
-                                                                    .value;
-
+                                                                    .value
+                                                                    .toString();
+                                                        final court =
+                                                            row
+                                                                .cells['lapangan']!
+                                                                .value;
+                                                        dynamic date =
+                                                            row
+                                                                .cells['jadwal_main']!
+                                                                .value;
                                                         final startTime =
                                                             row
                                                                 .cells['jam']!
@@ -590,15 +639,65 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                                                             row
                                                                 .cells['keterangan']!
                                                                 .value;
-                                                        await FirebaseUpdateTimeSlot()
-                                                            .updateReportTimeSlots(
-                                                              username,
-                                                              startTime,
-                                                              endTime,
-                                                              catatan,
-                                                              keterangan,
+
+                                                        if (row.cells
+                                                            .containsKey(
+                                                              '_username',
+                                                            )) {
+                                                          String jadwal =
+                                                              row
+                                                                  .cells['jadwal_main']!
+                                                                  .value
+                                                                  .toString();
+                                                          String insideBracket =
+                                                              jadwal
+                                                                  .split('(')[1]
+                                                                  .replaceAll(
+                                                                    ')',
+                                                                    '',
+                                                                  )
+                                                                  .trim();
+                                                          List<String> date =
+                                                              insideBracket
+                                                                  .split(', ')
+                                                                  .map(
+                                                                    (e) =>
+                                                                        e.trim(),
+                                                                  )
+                                                                  .toList();
+                                                          for (var d in date) {
+                                                            futures.add(
+                                                              FirebaseUpdateTimeSlot()
+                                                                  .updateReportTimeSlots(
+                                                                    username,
+                                                                    d,
+                                                                    court,
+                                                                    startTime,
+                                                                    endTime,
+                                                                    catatan,
+                                                                    keterangan,
+                                                                  ),
                                                             );
+                                                          }
+                                                        } else {
+                                                          futures.add(
+                                                            FirebaseUpdateTimeSlot()
+                                                                .updateReportTimeSlots(
+                                                                  username,
+                                                                  date,
+                                                                  court,
+                                                                  startTime,
+                                                                  endTime,
+                                                                  catatan,
+                                                                  keterangan,
+                                                                ),
+                                                          );
+                                                        }
                                                       }
+                                                      await Future.wait(
+                                                        futures,
+                                                      );
+
                                                       setState(() {
                                                         _isLoading = false;
                                                       });
@@ -607,6 +706,9 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
                                                         "Perubahan berhasil disimpan",
                                                       );
                                                     } catch (e) {
+                                                      setState(() {
+                                                        _isLoading = false;
+                                                      });
                                                       showErrorSnackBar(
                                                         context,
                                                         "Gagal menyimpan perubahan: $e",
@@ -733,7 +835,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
     });
   }
 
-  void generateLaporan() async {
+  Future<void> generateLaporan() async {
     _zoomScale = 1.0;
     _originalColumnWidths.clear();
 
@@ -861,7 +963,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
       }
 
       for (var data in result) {
-        data.price = data.pricePerHour * data.totalHari;
+        data.price = data.pricePerHour * ((timeToMinutes(data.endTime) - timeToMinutes(data.startTime)) / 30) * data.totalHari;
       }
 
       _laporanSummary = result;
@@ -901,6 +1003,7 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
               ),
               'keterangan': PlutoCell(value: data.keterangan ?? ""),
               'catatan': PlutoCell(value: data.catatan ?? ""),
+              '_username': PlutoCell(value: data.username),
             },
           );
         });
@@ -967,10 +1070,13 @@ class _HalamanLaporanState extends State<HalamanLaporan> {
 
       setState(() {
         _laporanData = data;
-        _isLoading = false;
       });
 
-      generateLaporan();
+      await generateLaporan();
+
+      setState(() {
+        _isLoading = false;
+      });
     } catch (e) {
       setState(() {
         _isLoading = false;

@@ -318,6 +318,9 @@ class _HalamanUtamaAdminState extends State<HalamanUtamaAdmin>
       context,
       MaterialPageRoute(builder: (context) => screen),
     );
+    if (mounted) {
+    _loadOrCreateSlots(selectedDate);
+  }
   }
 
   // Quick access menu buttons

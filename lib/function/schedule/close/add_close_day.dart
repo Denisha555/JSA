@@ -26,16 +26,12 @@ class AddCloseDay {
               .where('date', isEqualTo: dateStr)
               .get();
 
-      print('Courts count: ${courts.docs.length}');
-      print('Initialized slots count: ${isDateInitialized.docs.length}');
-
       if (isDateInitialized.docs.length != courts.docs.length) {
         await FirebaseAddTimeSlot().addTimeSlot(selectedDate);
       }
 
       final startMins = timeToMinutes(startTime);
       final endMins = timeToMinutes(endTime);
-      print('Start mins: $startMins, End mins: $endMins');
 
       for (final court in courts.docs) {
         final courtNumber = court['nomor'];
@@ -43,14 +39,8 @@ class AddCloseDay {
 
         final doc = await firestore.collection('time_slots').doc(docId).get();
         final slots = doc.data()!['slots'] as List<dynamic>;
-        print('Processing court: $courtNumber');
 
-        Map<String, double> pointDeduction = {};
-        Map<String, double> totalHourDeduction = {};
-        Map<String, double> totalBookingDeduction = {};
-        Map<String, List<String>> removedBookingDates = {};
-
-        var beforeUserId = "";
+        List<String> userList = [];
 
         for (int mins = startMins; mins < endMins; mins += 30) {
           String start = minutesToFormattedTime(mins);
@@ -67,47 +57,47 @@ class AddCloseDay {
           String userId = slots[slotIndex]['userId'] ?? "";
 
           if (userId.isNotEmpty) {
-            pointDeduction[userId] = (pointDeduction[userId] ?? 0) + 0.5;
-            totalHourDeduction[userId] =
-                (totalHourDeduction[userId] ?? 0) + 0.5;
-            removedBookingDates[userId] =
-                (removedBookingDates[userId] ?? []) + [dateStr];
-
-            if (beforeUserId != userId) {
-              totalBookingDeduction[userId] =
-                  (totalBookingDeduction[userId] ?? 0) + 1;
-            }
-
-            beforeUserId = userId;
+            userList.add(userId);
           }
           slots[slotIndex]['isClosed'] = true;
           slots[slotIndex]['isAvailable'] = false;
+          slots[slotIndex]['userId'] = "";
+          slots[slotIndex]['type'] = "";
         }
 
-        for (var userId in pointDeduction.keys) {
+        for (var userId in userList) {
           final username = await FirebaseGetUser().getUserDataById(
             userId,
             'username',
           );
-          await FirebaseUpdateUser().updateUser(
-            'point',
-            username,
-            FieldValue.increment(-pointDeduction[userId]!),
+
+          List<dynamic> bookingDates = List<dynamic>.from(
+            await FirebaseGetUser().getUserData(username, 'bookingDates') ?? [],
           );
-          await FirebaseUpdateUser().updateUser(
-            'totalHour',
-            username,
-            FieldValue.increment(-totalHourDeduction[userId]!),
+          bookingDates.removeWhere(
+            (data) =>
+                data["date"] == dateStr &&
+                timeToMinutes(data["startTime"]).toInt() >= startMins &&
+                timeToMinutes(data["endTime"]).toInt() <= endMins,
           );
-          await FirebaseUpdateUser().updateUser(
-            'totalBooking',
-            username,
-            FieldValue.increment(-totalBookingDeduction[userId]!),
-          );
-          List<String> bookingDates = List<String>.from(await FirebaseGetUser().getUserData(username, 'bookingDates') ?? []);
-          String removedDate = removedBookingDates[userId]!.first;
-          bookingDates.remove(removedDate);
-          
+
+          if (bookingDates.isNotEmpty) {
+            for (var data in bookingDates) {
+              if (data["date"] == dateStr) {
+                if (timeToMinutes(data["startTime"]).toInt() < startMins) {
+                  if (timeToMinutes(data["endTime"]).toInt() > startMins) {
+                    data["endTime"] = minutesToFormattedTime(startMins);
+                  }
+                }
+                if (timeToMinutes(data["endTime"]).toInt() > endMins) {
+                  if (timeToMinutes(data["startTime"]).toInt() < endMins) {
+                    data["startTime"] = minutesToFormattedTime(endMins);
+                  }
+                }
+              }
+            }
+          }
+
           await FirebaseUpdateUser().updateUser(
             'bookingDates',
             username,
@@ -116,7 +106,7 @@ class AddCloseDay {
 
           await OnesignalSendNotificationCustomers().sendNotification(
             "Perubahan Jadwal",
-            'Booking Anda pada tanggal ${formatDate(DateTime.parse(removedDate))} telah dibatalkan karena operasioanl JSA ditutup. Mohon maaf atas ketidaknyamananya',
+            'Booking Anda pada tanggal ${formatDate(DateTime.parse(dateStr))} telah dibatalkan karena operasioanl JSA ditutup. Mohon maaf atas ketidaknyamananya',
             username,
           );
         }
@@ -143,6 +133,7 @@ class AddCloseDay {
 
       await batch.commit();
     } catch (e) {
+      print("Failde to close range: ${e.toString()}");
       throw Exception('Failed to close range: ${e.toString()}');
     }
   }
@@ -182,66 +173,42 @@ class AddCloseDay {
         List<Map<String, dynamic>> updatedSlots = [];
         final slots = doc.data()['slots'] as List<dynamic>;
 
-        Map<String, double> pointDeduction = {};
-        Map<String, double> totalHourDeduction = {};
-        Map<String, double> totalBookingDeduction = {};
-        Map<String, List<String>> removedBookingDates = {};
+        List<String> userList = [];
 
-        var beforeUserId = "";
         for (var slot in slots) {
           var updatedSlot = Map<String, dynamic>.from(slot);
           String userId = updatedSlot['userId'] ?? "";
-          if (updatedSlot['userId'] == "" ||
-              updatedSlot['userId'] == null) {
+          if (updatedSlot['userId'] == "" || updatedSlot['userId'] == null) {
             updatedSlot['isClosed'] = true;
             updatedSlot['isAvailable'] = false;
             updatedSlots.add(updatedSlot);
           } else {
             updatedSlot['isClosed'] = true;
             updatedSlot['isAvailable'] = false;
+            updatedSlot['userId'] = "";
+            updatedSlot['type'] = "";
+          
+          if (updatedSlot['isHoliday'] == true ) {
+            updatedSlot['isHoliday'] = false;
+          }
 
-            pointDeduction[userId] = (pointDeduction[userId] ?? 0) + 0.5;
-            totalHourDeduction[userId] =
-                (totalHourDeduction[userId] ?? 0) + 0.5;
-            removedBookingDates[userId] =
-                (removedBookingDates[userId] ?? []) + [dateStr];
-
-            if (beforeUserId != userId && userId.isNotEmpty) {
-              totalBookingDeduction[userId] =
-                  (totalBookingDeduction[userId] ?? 0) + 1;
-            }
-
-            beforeUserId = userId;
+            userList.add(userId);
 
             updatedSlots.add(updatedSlot);
           }
         }
 
-        for (var userId in pointDeduction.keys) {
+        for (var userId in userList) {
           final username = await FirebaseGetUser().getUserDataById(
             userId,
             'username',
           );
-          await FirebaseUpdateUser().updateUser(
-            'point',
-            username,
-            FieldValue.increment(-pointDeduction[userId]!),
-          );
-          await FirebaseUpdateUser().updateUser(
-            'totalHour',
-            username,
-            FieldValue.increment(-totalHourDeduction[userId]!),
-          );
-          await FirebaseUpdateUser().updateUser(
-            'totalBooking',
-            username,
-            FieldValue.increment(-totalBookingDeduction[userId]!),
-          );
 
-          List<String> bookingDates = List<String>.from(await FirebaseGetUser().getUserData(username, 'bookingDates') ?? []);
-          String removedDate = removedBookingDates[userId]!.first;
-          bookingDates.remove(removedDate);
-          
+          List<dynamic> bookingDates = List<dynamic>.from(
+            await FirebaseGetUser().getUserData(username, 'bookingDates') ?? [],
+          );
+          bookingDates.removeWhere((data) => data["date"] == dateStr);
+
           await FirebaseUpdateUser().updateUser(
             'bookingDates',
             username,
@@ -250,7 +217,7 @@ class AddCloseDay {
 
           await OnesignalSendNotificationCustomers().sendNotification(
             "Perubahan Jadwal",
-            'Booking Anda pada tanggal ${formatDate(DateTime.parse(removedDate))} telah dibatalkan karena operasional JSA ditutup. Mohon maaf atas ketidaknyamananya',
+            'Booking Anda pada tanggal ${formatDate(DateTime.parse(dateStr))} telah dibatalkan karena operasional JSA ditutup. Mohon maaf atas ketidaknyamananya',
             username,
           );
         }
@@ -281,6 +248,7 @@ class AddCloseDay {
         'type': 'closed',
       });
     } catch (e) {
+      print('Failed to close all day: $e');
       throw Exception('Failed to close all day: $e');
     }
   }

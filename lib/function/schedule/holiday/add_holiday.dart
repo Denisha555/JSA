@@ -43,7 +43,11 @@ class AddHoliday {
         final slots = doc.data()['slots'] as List<dynamic>;
         for (var slot in slots) {
           var updatedSlot = Map<String, dynamic>.from(slot);
-          updatedSlot['isHoliday'] = true;
+          if (updatedSlot['isClosed']) {
+            updatedSlot['isHoliday'] = false;
+          } else {
+            updatedSlot['isHoliday'] = true;
+          }
           updatedSlots.add(updatedSlot);
           if (updatedSlot['userId'] != "" && updatedSlot['userId'] != null) {
             affectedUsers.add(updatedSlot['userId']);
@@ -72,6 +76,7 @@ class AddHoliday {
         'startTime': '07:00',
         'endTime': '23:00',
         'type': 'holiday',
+        'description': "",
       });
     } catch (e) {
       throw Exception('Failed to add holiday: $e');

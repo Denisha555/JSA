@@ -124,7 +124,7 @@ class FirebaseGetBooking {
       for (var doc in timeSlotsSnapshot.docs) {
         final slots = doc.data()['slots'] as List<dynamic>;
         for (var slot in slots) {
-          if (slot["isAvailable"] == false) {
+          if (slot["isAvailable"] == false && slot["isClosed"] == false) {
             String userId = slot['userId'] ?? '';
             slot['username'] = await FirebaseGetUser().getUserDataById(
               userId,
@@ -355,7 +355,6 @@ class FirebaseGetBooking {
               ),
             );
 
-            print('price: $price');
           } else {
             allSlots.add(
               TimeSlotModel.fromJson(

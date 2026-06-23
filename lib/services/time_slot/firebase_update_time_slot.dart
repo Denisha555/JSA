@@ -169,12 +169,14 @@ class FirebaseUpdateTimeSlot {
 
   Future<void> updateReportTimeSlots(
     String username,
+    String date,
+    String court,
     String startTime,
     String endTime,
     String catatan,
     String keterangan,
   ) async {
-    try {     
+    try {
       final user =
           await firestore
               .collection('users')
@@ -187,11 +189,22 @@ class FirebaseUpdateTimeSlot {
 
       if (bookedDates == null || bookedDates.isEmpty) return;
 
+      List<dynamic> usedBookedDates = [];
+      for (var data in bookedDates) {
+        if (data["date"].contains(date) &&
+            data["startTime"].contains(startTime) &&
+            data["endTime"].contains(endTime) &&
+            data["courtId"].contains(court)) {
+          usedBookedDates.add(data);
+        }
+      }
+
       final slotsFutures =
-          bookedDates
+          usedBookedDates
               .map(
-                (date) =>
-                    FirebaseGetTimeSlot().getTimeSlot(DateTime.parse(date["date"])),
+                (date) => FirebaseGetTimeSlot().getTimeSlot(
+                  DateTime.parse(date["date"]),
+                ),
               )
               .toList();
 
@@ -199,15 +212,16 @@ class FirebaseUpdateTimeSlot {
 
       final updatesByDoc = <String, List<dynamic>>{};
 
-      for (int i = 0; i < bookedDates.length; i++) {
-        final date = bookedDates[i].toString();
+      // Step 1: kumpulkan semua doc dulu
+      for (int i = 0; i < usedBookedDates.length; i++) {
         final slots = allSlotsArrays[i];
 
         for (var slot in slots) {
-          if (slot.username == username && slot.startTime == startTime) {
+          if (slot.username == username &&
+              slot.startTime == startTime &&
+              slot.courtId == court) {
             final key = '${slot.courtId}_${slot.date}';
 
-            // Ambil dokumen Firestore-nya
             if (!updatesByDoc.containsKey(key)) {
               final docSnapshot =
                   await firestore
@@ -224,21 +238,25 @@ class FirebaseUpdateTimeSlot {
                   List<Map<String, dynamic>>.from(slotsData ?? []),
                 ];
               }
-
-              final docData = updatesByDoc[key];
-              if (docData != null) {
-                final slotsList = docData[1] as List<Map<String, dynamic>>;
-                for (var timeSlot in slotsList) {
-                  if (timeSlot['userId'] == user.docs[0].id) {
-                    timeSlot['catatan'] = catatan;
-                    timeSlot['keterangan'] = keterangan;
-                  }
-                }
-              }
             }
           }
         }
       }
+
+      // Step 2: update catatan/keterangan ke semua doc yang sudah dikumpulkan
+      for (var entry in updatesByDoc.entries) {
+        final slotsList = entry.value[1] as List<Map<String, dynamic>>;
+        for (var timeSlot in slotsList) {
+          if (timeSlot['userId'] == user.docs[0].id &&
+              timeSlot['startTime'] == startTime) {
+            // ← pastikan slot yang tepat
+            timeSlot['catatan'] = catatan;
+            timeSlot['keterangan'] = keterangan;
+          }
+        }
+      }
+
+      // Step 3: batch commit
       final batch = firestore.batch();
       for (var entry in updatesByDoc.entries) {
         final doc = entry.value[0] as DocumentSnapshot;
