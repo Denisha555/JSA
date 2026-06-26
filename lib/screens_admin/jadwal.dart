@@ -541,10 +541,15 @@ class _HalamanJadwalState extends State<HalamanJadwal>
           );
           return;
         }
-        if (data.type == 'holiday' && isCloseAllTime) {
-          await DeleteHoliday().deleteHoliday(
-            DateFormat('yyyy-MM-dd').format(tanggalKhusus),
-          );
+
+        if (editingDocId == null) {
+          if (data.type == 'holiday' && isCloseAllTime) {
+            showErrorSnackBar(
+              context,
+              "Hari dipilih sudah dijadwalkan sebagai hari libur, harap melakukan edit untuk mengubah jadwal",
+            );
+            return;
+          }
         }
 
         if (data.type == 'closed' &&

@@ -72,10 +72,10 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
           });
         }
       } catch (e) {
-        // Lewati error tanpa menampilkan pesan
+        print("Error mendapatkan lokasi pengguna: $e");
       }
     } catch (e) {
-      // Lewati error tanpa menampilkan pesan
+      print("Error cek lokasi: $e");
     }
   }
 
@@ -283,27 +283,47 @@ class _HalamanTentangKamiState extends State<HalamanTentangKami> {
                             interactionOptions: const InteractionOptions(
                               flags: ~InteractiveFlag.doubleTapZoom,
                             ),
+                            // onMapReady: () {
+                            //   setState(() {
+                            //     _mapReady = true;
+                            //   });
+                            //   // Move to user location if available
+                            //   if (_lokasiPengguna != null) {
+                            //     _mapController.move(_lokasiPengguna!, 16);
+                            //   }
+                            // },
                             onMapReady: () {
-                              setState(() {
-                                _mapReady = true;
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (mounted) {
+                                  setState(() {
+                                    _mapReady = true;
+                                  });
+                                }
                               });
-                              // Move to user location if available
-                              if (_lokasiPengguna != null) {
-                                _mapController.move(_lokasiPengguna!, 16);
-                              }
                             },
                           ),
                           children: [
-                            TileLayer(
-                              urlTemplate:
-                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              userAgentPackageName: 'com.example.app',
-                              tileProvider: NetworkTileProvider(),
-                              errorImage:
-                                  Image.asset(
-                                    'assets/image/map_placeholder.png',
-                                    fit: BoxFit.cover,
-                                  ).image,
+                            GestureDetector(
+                              onTap: () {
+                                _bukaGoogleMaps();
+                              },
+                              child: TileLayer(
+                                // urlTemplate:
+                                //     'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                // userAgentPackageName: 'com.example.app',
+                                urlTemplate:
+                                    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                                subdomains: const ['a', 'b', 'c', 'd'],
+                                userAgentPackageName:
+                                    'com.example.flutter_application_1',
+                                tileProvider: NetworkTileProvider(),
+                                errorImage:
+                                    Image.asset(
+                                      'assets/image/map_placeholder.png',
+                                      fit: BoxFit.cover,
+                                    ).image,
+                              
+                              ),
                             ),
                             MarkerLayer(
                               markers: [
