@@ -1,4 +1,5 @@
 **Aplikasi Booking Lapangan**
+
 Aplikasi mobile untuk melakukan pemesanan lapangan olahraga yang dikembangkan menggunakan Flutter, Firestore sebagai database dan OneSignal untuk mengirimkan notifikasi kepada pengguna. 
 
 **Tech Stack**
@@ -8,6 +9,7 @@ Aplikasi mobile untuk melakukan pemesanan lapangan olahraga yang dikembangkan me
 4. OneSignal
 
 **Development Team**
+
 **UI/UX Design**
 1. Agustina Amun Anggraini
 2. Denisha Firdianti
