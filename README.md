@@ -1,6 +1,6 @@
 **Aplikasi Booking Lapangan**
 
-Aplikasi mobile untuk melakukan pemesanan lapangan olahraga yang dikembangkan menggunakan Flutter, Firestore sebagai database dan OneSignal untuk mengirimkan notifikasi kepada pengguna. 
+Aplikasi mobile untuk melakukan pemesanan lapangan olahraga badminton yang dikembangkan menggunakan Flutter, Firestore sebagai database dan OneSignal untuk mengirimkan notifikasi kepada pengguna. 
 
 **Tech Stack**
 1. Flutter
@@ -27,10 +27,5 @@ Aplikasi mobile untuk melakukan pemesanan lapangan olahraga yang dikembangkan me
 1. Denisha Firdianti
 2. Silvia Fransisca
 
-**Testing**
-1. Agustina Amun Anggraini
-2. Denisha Firdianti
-3. Pasri Nanda
-4. Ryanti
-5. Silvia Fransisca
-6. Wiranda Emaus Jaya
+**Quality Control**
+1. Silvia Fransisca
