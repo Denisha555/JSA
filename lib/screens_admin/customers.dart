@@ -86,24 +86,33 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
     final user = users[0];
     final isMember = user.role == 'member';
     final bookingDates = user.bookingDates;
-    // List lapanganList = [];
-    // List jamMainList = [];
-    // String lapangan = "";
-    // String jamMain = "";
-    // if (isMember) {
-    //   for (var booking in bookingDates) {
-    //     if (booking['status']=='now' && booking['type']=='member') {
-    //       lapanganList.add(booking['courtId']);
-    //       jamMainList.add("${booking['startTime']} - ${booking['endTime']}");
-    //     }
-    //   }
 
-    //   lapanganList.toSet();
-    //   jamMainList.toSet();
+    List<String> lapanganList = [];
+    List<String> jamMainList = [];
+    List<String> hariMainList = [];
 
-    //   lapangan = lapanganList.join(", ");
-    //   jamMain = jamMainList.join(", ");
-    // }
+    String lapangan = "";
+    String jamMain = "";
+    String hariMain = "";
+
+    if (isMember) {
+      for (var booking in bookingDates) {
+        if (booking['status'] == '' && booking['type'] == 'member') {
+          lapanganList.add(booking['courtId']);
+          jamMainList.add("${booking['startTime']} - ${booking['endTime']}");
+          final tanggalMain = booking['date'];
+          hariMainList.add(namaHari(DateTime.parse(tanggalMain).weekday));
+        }
+      }
+      
+      lapanganList = lapanganList.toSet().toList();
+      jamMainList = jamMainList.toSet().toList();
+      hariMainList = hariMainList.toSet().toList();
+
+      lapangan = lapanganList.join(", ");
+      jamMain = jamMainList.join(", ");
+      hariMain = hariMainList.join(", ");
+    }
 
     showModalBottomSheet(
       context: context,
@@ -158,7 +167,10 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                         ),
                         const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 2,
+                            horizontal: 8,
+                          ),
                           decoration: BoxDecoration(
                             color:
                                 isMember ? Colors.blue[50] : Colors.grey[200],
@@ -191,12 +203,27 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                 ),
                 _buildInfoRow(
                   'Mulai poin',
-                  user.startTimePoint == "" ? "-" : formatStrToLongDate(user.startTimePoint),
+                  user.startTimePoint == ""
+                      ? "-"
+                      : formatStrToLongDate(user.startTimePoint),
                 ),
-                _buildInfoRow(
-                  'Mulai member',
-                  user.startTimeMember == "" ? "-" : formatStrToLongDate(user.startTimeMember),
-                ),
+                isMember
+                    ? _buildInfoRow(
+                      'Mulai member',
+                      user.startTimeMember == ""
+                          ? "-"
+                          : formatStrToLongDate(user.startTimeMember),
+                    )
+                    : const SizedBox.shrink(),
+                isMember
+                    ? _buildInfoRow('Lapangan', lapangan)
+                    : const SizedBox.shrink(),
+                isMember
+                    ? _buildInfoRow('Jam main', jamMain)
+                    : const SizedBox.shrink(),
+                isMember
+                    ? _buildInfoRow('Hari main', hariMain)
+                    : const SizedBox.shrink(),
                 _buildInfoRow(
                   'Poin',
                   user.point.toString() == "" ? "0" : user.point.toString(),
@@ -263,7 +290,11 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
               TextButton(
                 onPressed: () async {
                   // await FirebaseDeleteUser().deleteUser(username);
-                  await FirebaseUpdateUser().updateUser("status", username, "nonaktif");
+                  await FirebaseUpdateUser().updateUser(
+                    "status",
+                    username,
+                    "nonaktif",
+                  );
                   if (!ctx.mounted) return;
                   Navigator.of(ctx).pop(true);
                 },
@@ -388,30 +419,49 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                               try {
                                 if (!_formKey.currentState!.validate()) return;
 
-                              bool isClubUse = false;
+                                bool isClubUse = false;
 
-                              if (clubController.text.isNotEmpty) {
-                                isClubUse = await FirebaseCheckUser().checkExistenceOther("club", clubController.text, username);
-                              }
-                              final isPhoneUse = await FirebaseCheckUser().checkExistenceOther("phoneNumber", notelpController.text, username);
+                                if (clubController.text.isNotEmpty) {
+                                  isClubUse = await FirebaseCheckUser()
+                                      .checkExistenceOther(
+                                        "club",
+                                        clubController.text,
+                                        username,
+                                      );
+                                }
+                                final isPhoneUse = await FirebaseCheckUser()
+                                    .checkExistenceOther(
+                                      "phoneNumber",
+                                      notelpController.text,
+                                      username,
+                                    );
 
-                              if (isPhoneUse) {
-                                Navigator.of(ctx).pop(false);
-                                showErrorSnackBar(context, "Data gagal disimpan karena No. Telepon sudah digunakan");
-                                return;
-                              }
-                              if (isClubUse) {
-                                Navigator.of(ctx).pop(false);
-                                showErrorSnackBar(context, "Data gagal disimpan karena Club sudah digunakan");
-                                return;
-                              }
+                                if (isPhoneUse) {
+                                  Navigator.of(ctx).pop(false);
+                                  showErrorSnackBar(
+                                    context,
+                                    "Data gagal disimpan karena No. Telepon sudah digunakan",
+                                  );
+                                  return;
+                                }
+                                if (isClubUse) {
+                                  Navigator.of(ctx).pop(false);
+                                  showErrorSnackBar(
+                                    context,
+                                    "Data gagal disimpan karena Club sudah digunakan",
+                                  );
+                                  return;
+                                }
 
-                              await FirebaseUpdateUser().updateManyData({
-                                "club": clubController.text,
-                                "phoneNumber": notelpController.text,
-                              }, username);
-                              Navigator.of(ctx).pop(true);
-                              showSuccessSnackBar(context, "Data berhasil diubah");
+                                await FirebaseUpdateUser().updateManyData({
+                                  "club": clubController.text,
+                                  "phoneNumber": notelpController.text,
+                                }, username);
+                                Navigator.of(ctx).pop(true);
+                                showSuccessSnackBar(
+                                  context,
+                                  "Data berhasil diubah",
+                                );
                               } catch (e) {
                                 print("Error update user: $e");
                               }
@@ -597,31 +647,31 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
                   },
                 ),
                 const SizedBox(height: 10),
-_buildAddOption(
-  title: 'Non Member',
-  subtitle: 'Akun tanpa keanggotaan',
-  icon: Icons.person_outline,
-  onTap: () async {
-    Navigator.pop(ctx);
+                _buildAddOption(
+                  title: 'Non Member',
+                  subtitle: 'Akun tanpa keanggotaan',
+                  icon: Icons.person_outline,
+                  onTap: () async {
+                    Navigator.pop(ctx);
 
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const HalamanNonMemberAdmin(),
-      ),
-    );
+                    final result = await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const HalamanNonMemberAdmin(),
+                      ),
+                    );
 
-    if (mounted) {
-      _fetchUsers();
-    }
+                    if (mounted) {
+                      _fetchUsers();
+                    }
 
-    if (result != null) {
-      setState(() {
-        currentTab = result;
-      });
-    }
-  },
-),
+                    if (result != null) {
+                      setState(() {
+                        currentTab = result;
+                      });
+                    }
+                  },
+                ),
               ],
             ),
           ),

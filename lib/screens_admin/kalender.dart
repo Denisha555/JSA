@@ -32,6 +32,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
   Set<String> processingCells = {};
   Set<String> loadingCells = {}; // Track which cells are loading
   bool isBookingInProgress = false; // Global booking state
+  String? typeSelected;
 
   List<TimeSlotModel> timeSlot = [];
   List<String> courtIds = [];
@@ -264,11 +265,29 @@ class _HalamanKalenderState extends State<HalamanKalender> {
                   ),
                   actions: [
                     TextButton(
-                      onPressed: () => _safeNavigatorPop(dialogContext),
+                      onPressed: () {
+                        _safeNavigatorPop(dialogContext);
+                        setState(() {
+                          typeSelected = null;
+                        });
+                      },
                       child: Text('Batal'),
                     ),
                     TextButton(
                       onPressed: () async {
+                        final checkUserType = await _memberOrNonMember(
+                          usernameController.text.trim(),
+                        );
+                        if (checkUserType == 'nonMember' &&
+                            typeSelected == 'member') {
+                          if (!mounted) return;
+                          showErrorSnackBar(
+                            context,
+                            'Pelanggan belum terdaftar sebagai member, silahkan pilih tipe Non Member atau lakukan pendaftaran menjadi member terlebih dahulu',
+                          );
+                          Navigator.of(dialogContext).pop();
+                          return;
+                        }
                         if (formKey.currentState!.validate()) {
                           _confirmationDialog(
                             dialogContext,
@@ -317,7 +336,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
       if (!userExists) {
         if (!mounted) return;
-        _safeNavigatorPop(context); // Tutup loading
+        _safeNavigatorPop(context);
         showErrorSnackBar(
           context,
           'Username tidak ditemukan, pastikan username yang diinputkan benar atau lakukan pendaftaran terlebih dahulu',
@@ -373,75 +392,76 @@ class _HalamanKalenderState extends State<HalamanKalender> {
 
         // member booking
       } else {
-        final memberTotalBooking = userData[0].memberTotalBooking;
-        final memberCurrentTotalBooking = userData[0].memberCurrentTotalBooking;
-        final memberBookingLength = userData[0].memberBookingLength;
+        // final memberTotalBooking = userData[0].memberTotalBooking;
+        // final memberCurrentTotalBooking = userData[0].memberCurrentTotalBooking;
+        // final memberBookingLength = userData[0].memberBookingLength;
 
-        if (memberCurrentTotalBooking >= memberTotalBooking) {
-          // // Jika melebihi jumlah hari
-          // for (
-          //   int minutes = startTotalMinutes;
-          //   minutes < endTotalMinutes;
-          //   minutes += 30
-          // ) {
-          //   final formattedTime = minutesToFormattedTime(minutes);
-          //   await BookingNonMember().bookSlotForNonMember(
-          //     court,
-          //     dateStr,
-          //     formattedTime,
-          //     username,
-          //   );
-          //   bookedSlots.add(formattedTime);
-          // }
-          await BookingNonMember().bookSlotForNonMember(
-            court,
-            dateStr,
-            startTime,
-            endTime,
-            username,
-          );
+        // if (memberCurrentTotalBooking >= memberTotalBooking) {
+        // // Jika melebihi jumlah hari
+        // for (
+        //   int minutes = startTotalMinutes;
+        //   minutes < endTotalMinutes;
+        //   minutes += 30
+        // ) {
+        //   final formattedTime = minutesToFormattedTime(minutes);
+        //   await BookingNonMember().bookSlotForNonMember(
+        //     court,
+        //     dateStr,
+        //     formattedTime,
+        //     username,
+        //   );
+        //   bookedSlots.add(formattedTime);
+        // }
+        // await BookingNonMember().bookSlotForNonMember(
+        //   court,
+        //   dateStr,
+        //   startTime,
+        //   endTime,
+        //   username,
+        // );
 
-          bookedDates.add(dateStr);
+        // bookedDates.add(dateStr);
 
-          await BookingNonMember().addBookingDates(
-            username,
-            [bookedDates[0]],
-            court,
-            startTime,
-            endTime,
-          );
-        } else {
-          // Hitung jumlah slot
-          int length = ((endTotalMinutes - startTotalMinutes) ~/ 30);
+        // await BookingNonMember().addBookingDates(
+        //   username,
+        //   [bookedDates[0]],
+        //   court,
+        //   startTime,
+        //   endTime,
+        // );
+        // }
+        // else {
+        //   // Hitung jumlah slot
+        //   int length = ((endTotalMinutes - startTotalMinutes) ~/ 30);
 
-          if (length != memberBookingLength) {
-            if (!mounted) return;
-            showErrorSnackBar(
-              context,
-              'Harap booking $memberBookingLength slot',
-            );
-            _safeNavigatorPop(context);
-            return;
-          }
+        //   if (length != memberBookingLength) {
+        //     if (!mounted) return;
+        //     showErrorSnackBar(
+        //       context,
+        //       'Harap booking $memberBookingLength slot',
+        //     );
+        //     _safeNavigatorPop(context);
+        //     return;
+        //   }
 
-          await BookingMember().bookSlotForMember(
-            court,
-            dateStr,
-            startTime,
-            endTime,
-            username,
-          );
+        await BookingMember().bookSlotForMember(
+          court,
+          dateStr,
+          startTime,
+          endTime,
+          username,
+        );
 
-          await BookingMember().addTotalBooking(username);
+        // await BookingMember().addTotalBooking(username);
 
-          await BookingMember().addBookingDates(
-            username,
-            dateStr,
-            court,
-            startTime,
-            endTime,
-          );
-        }
+        await BookingMember().addBookingDates(
+          username,
+          dateStr,
+          court,
+          startTime,
+          endTime,
+        );
+        // }
       }
 
       if (!mounted) return;
@@ -577,33 +597,38 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               Text('Lapangan: $court'),
               Text('Jam Mulai: $startTime'),
               Text('Jam Selesai: $endTime'),
-              FutureBuilder(
-                future: _memberOrNonMember(username).then((type) {
-                  return type;
-                }),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Text('Memeriksa status user...');
-                  } else if (snapshot.hasError) {
-                    return Text('Gagal memeriksa status user');
-                  } else {
-                    final type = snapshot.data ?? 'nonMember';
-                    return Text(
-                      'Status: ${type == "member" ? "Member" : "Non Member"}',
-                    );
-                  }
-                },
+              Text(
+                'Status: ${typeSelected == "member" ? "Member" : "Non Member"}',
               ),
+              // FutureBuilder(
+              //   future: _memberOrNonMember(username).then((type) {
+              //     return type;
+              //   }),
+              //   builder: (context, snapshot) {
+              //     if (snapshot.connectionState == ConnectionState.waiting) {
+              //       return Text('Memeriksa status user...');
+              //     } else if (snapshot.hasError) {
+              //       return Text('Gagal memeriksa status user');
+              //     } else {
+              //       final type = snapshot.data ?? 'nonMember';
+              //       return Text(
+              //         'Status: ${type == "member" ? "Member" : "Non Member"}',
+              //       );
+              //     }
+              //   },
+              // ),
               SizedBox(height: 8),
               FutureBuilder<double>(
-                future: _memberOrNonMember(username).then((type) {
-                  return totalPrice(
-                    startTime: startTime,
-                    endTime: endTime,
-                    selectedDate: selectedDate,
-                    type: type,
-                  );
-                }),
+                future:
+                // _memberOrNonMember(username).then((type) {
+                // return
+                totalPrice(
+                  startTime: startTime,
+                  endTime: endTime,
+                  selectedDate: selectedDate,
+                  type: typeSelected,
+                ),
+                // }),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Text('Menghitung harga...');
@@ -625,11 +650,21 @@ class _HalamanKalenderState extends State<HalamanKalender> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(confirmContext).pop(false),
+              onPressed: () {
+                Navigator.of(confirmContext).pop(false);
+                setState(() {
+                  typeSelected = null;
+                });
+              },
               child: Text('Batal'),
             ),
             TextButton(
-              onPressed: () => Navigator.of(confirmContext).pop(true),
+              onPressed: () {
+                Navigator.of(confirmContext).pop(true);
+                setState(() {
+                  typeSelected = null;
+                });
+              },
               style: TextButton.styleFrom(foregroundColor: Colors.red),
               child: Text('Konfirmasi'),
             ),
@@ -654,14 +689,62 @@ class _HalamanKalenderState extends State<HalamanKalender> {
     if (user != 'member') {
       return 'nonMember';
     } else {
-      final userData = await FirebaseGetUser().getUserByUsername(username);
-      final memberTotalBooking = userData[0].memberTotalBooking;
-      final memberCurrentTotalBooking = userData[0].memberCurrentTotalBooking;
-      if (memberCurrentTotalBooking >= memberTotalBooking) {
-        return 'nonMember';
-      } else {
-        return 'member';
-      }
+      // final userData = await FirebaseGetUser().getUserByUsername(username);
+      // final memberTotalBooking = userData[0].memberTotalBooking;
+      // final memberCurrentTotalBooking = userData[0].memberCurrentTotalBooking;
+      // if (memberCurrentTotalBooking >= memberTotalBooking) {
+      //   return 'nonMember';
+      // } else {
+      return 'member';
+      // }
+    }
+  }
+
+  Future<void> _showTypeChoiceDialog() async {
+    final String? selectedType = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Pilih Tipe Pengguna"),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.person),
+                title: const Text("Member"),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  setState(() {
+                    typeSelected = "member";
+                  });
+                  Navigator.of(context).pop();
+                },
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.person_outline),
+                title: const Text("Non Member"),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  setState(() {
+                    typeSelected = "nonMember";
+                  });
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selectedType != null) {
+      setState(() {
+        typeSelected = selectedType;
+      });
     }
   }
 
@@ -1089,6 +1172,7 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         if (!isAvailable) {
           await _showBookingDetails(time, court, type, username);
         } else {
+          await _showTypeChoiceDialog();
           await _showAddBookingDialog(time, court);
         }
       } finally {

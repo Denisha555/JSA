@@ -183,25 +183,25 @@ class BookingMember {
   }
 
   // digunakan saat melakukan booking ulang di kalender
-  Future<void> addTotalBooking(String username) async {
-    try {
-      final exist = await FirebaseCheckUser().checkExistence(
-        'username',
-        username,
-      );
-      if (exist) {
-        QuerySnapshot user =
-            await firestore
-                .collection('users')
-                .where('username', isEqualTo: username)
-                .get();
-        String userId = user.docs[0].id;
-        await firestore.collection('users').doc(userId).set({
-          'memberCurrentTotalBooking': FieldValue.increment(1),
-        }, SetOptions(merge: true));
-      }
-    } catch (e) {
-      throw Exception('Failed to add total booking: $e');
-    }
-  }
+  // Future<void> addTotalBooking(String username) async {
+  //   try {
+  //     final exist = await FirebaseCheckUser().checkExistence(
+  //       'username',
+  //       username,
+  //     );
+  //     if (exist) {
+  //       QuerySnapshot user =
+  //           await firestore
+  //               .collection('users')
+  //               .where('username', isEqualTo: username)
+  //               .get();
+  //       String userId = user.docs[0].id;
+  //       await firestore.collection('users').doc(userId).set({
+  //         'memberCurrentTotalBooking': FieldValue.increment(1),
+  //       }, SetOptions(merge: true));
+  //     }
+  //   } catch (e) {
+  //     throw Exception('Failed to add total booking: $e');
+  //   }
+  // }
 }

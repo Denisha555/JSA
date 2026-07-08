@@ -890,8 +890,8 @@ class _HalamanProfilState extends State<HalamanProfil> {
                                   // Navigate to member schedule or details
                                   showDialog(
                                     context: context,
-                                    builder: (context) => _memberSchedule(),
-                                  ).then((_) => _init());
+                                    builder: (context) => _memberSchedule(),);
+                                  // ).then((_) => _init());
                                 }
                                 : null,
                       ),

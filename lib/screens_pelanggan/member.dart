@@ -620,6 +620,7 @@ class _HalamanMemberState extends State<HalamanMember> {
                                       isSelected ? Colors.white : Colors.black,
                                 ),
                               ),
+                              checkmarkColor: Colors.white,
                               selected: isSelected,
                               selectedColor: primaryColor,
                               onSelected: (_) {
