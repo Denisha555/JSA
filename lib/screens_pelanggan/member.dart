@@ -309,11 +309,11 @@ class _HalamanMemberState extends State<HalamanMember> {
         firstDateStr,
       );
 
-      await BookingMember().addTotalBookingDays(
-        username,
-        selectedDates.length * courtIds.length,
-        length,
-      );
+      // await BookingMember().addTotalBookingDays(
+      //   username,
+      //   selectedDates.length * courtIds.length,
+      //   length,
+      // );
 
       await BookingMember().addBookingDates(
         username,

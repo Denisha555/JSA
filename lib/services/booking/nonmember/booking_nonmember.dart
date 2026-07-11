@@ -161,6 +161,7 @@ class BookingNonMember {
         }, SetOptions(merge: true));
       }
     } catch (e) {
+      print("Failed to add booking dates: $e");
       throw Exception('Failed to add booking dates: $e');
     }
   }

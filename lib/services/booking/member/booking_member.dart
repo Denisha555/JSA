@@ -59,36 +59,36 @@ class BookingMember {
   }
 
   // digunakan saat mendaftar sebagai member
-  Future<void> addTotalBookingDays(
-    String username,
-    int days,
-    int length,
-  ) async {
-    try {
-      print('add total booking days');
-      print(length);
-      final exist = await FirebaseCheckUser().checkExistence(
-        'username',
-        username,
-      );
-      if (exist) {
-        QuerySnapshot user =
-            await firestore
-                .collection('users')
-                .where('username', isEqualTo: username)
-                .get();
+  // Future<void> addTotalBookingDays(
+  //   String username,
+  //   int days,
+  //   int length,
+  // ) async {
+  //   try {
+  //     print('add total booking days');
+  //     print(length);
+  //     final exist = await FirebaseCheckUser().checkExistence(
+  //       'username',
+  //       username,
+  //     );
+  //     if (exist) {
+  //       QuerySnapshot user =
+  //           await firestore
+  //               .collection('users')
+  //               .where('username', isEqualTo: username)
+  //               .get();
 
-        String userId = user.docs[0].id;
-        await firestore.collection('users').doc(userId).set({
-          'memberTotalBooking': FieldValue.increment(days),
-          'memberCurrentTotalBooking': FieldValue.increment(days),
-          'memberBookingLength': FieldValue.increment(length),
-        }, SetOptions(merge: true));
-      }
-    } catch (e) {
-      throw Exception('Failed to add total days: $e');
-    }
-  }
+  //       String userId = user.docs[0].id;
+  //       await firestore.collection('users').doc(userId).set({
+  //         'memberTotalBooking': FieldValue.increment(days),
+  //         'memberCurrentTotalBooking': FieldValue.increment(days),
+  //         'memberBookingLength': FieldValue.increment(length),
+  //       }, SetOptions(merge: true));
+  //     }
+  //   } catch (e) {
+  //     throw Exception('Failed to add total days: $e');
+  //   }
+  // }
 
   Future<void> addBookingDates(
     String username,
@@ -127,7 +127,7 @@ class BookingMember {
               "endTime": endTime,
               "id": '${court}_$date',
               "type": "member",
-              "status": "",
+              "status": "now",
             };
             temp.add(data);
           }

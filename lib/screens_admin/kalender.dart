@@ -372,24 +372,33 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         //   bookedDates.add(dateStr);
         // }
 
-        await BookingNonMember().bookSlotForNonMember(
-          court,
-          dateStr,
-          startTime,
-          endTime,
-          username,
-        );
+        if (typeSelected == 'member') {
+          if (!mounted) return;
+          showErrorSnackBar(
+            context,
+            'Pelanggan belum terdaftar sebagai member, silahkan pilih tipe Non Member atau lakukan pendaftaran menjadi member terlebih dahulu',
+          );
+          Navigator.of(dialogContext).pop();
+          return;
+        } else {
+          await BookingNonMember().bookSlotForNonMember(
+            court,
+            dateStr,
+            startTime,
+            endTime,
+            username,
+          );
 
-        bookedDates.add(dateStr);
+          bookedDates.add(dateStr);
 
-        await BookingNonMember().addBookingDates(
-          username,
-          [bookedDates[0]],
-          court,
-          startTime,
-          endTime,
-        );
-
+          await BookingNonMember().addBookingDates(
+            username,
+            bookedDates,
+            court,
+            startTime,
+            endTime,
+          );
+        }
         // member booking
       } else {
         // final memberTotalBooking = userData[0].memberTotalBooking;
@@ -444,24 +453,44 @@ class _HalamanKalenderState extends State<HalamanKalender> {
         //     return;
         //   }
 
-        await BookingMember().bookSlotForMember(
-          court,
-          dateStr,
-          startTime,
-          endTime,
-          username,
-        );
+        if (typeSelected == 'member') {
+          await BookingMember().bookSlotForMember(
+            court,
+            dateStr,
+            startTime,
+            endTime,
+            username,
+          );
 
-        // await BookingMember().addTotalBooking(username);
+          // await BookingMember().addTotalBooking(username);
 
-        await BookingMember().addBookingDates(
-          username,
-          dateStr,
-          court,
-          startTime,
-          endTime,
-        );
-        // }
+          await BookingMember().addBookingDates(
+            username,
+            dateStr,
+            court,
+            startTime,
+            endTime,
+          );
+          // }
+        } else {
+          await BookingNonMember().bookSlotForNonMember(
+            court,
+            dateStr,
+            startTime,
+            endTime,
+            username,
+          );
+
+          bookedDates.add(dateStr);
+
+          await BookingNonMember().addBookingDates(
+            username,
+            bookedDates,
+            court,
+            startTime,
+            endTime,
+          );
+        }
       }
 
       if (!mounted) return;
@@ -600,23 +629,6 @@ class _HalamanKalenderState extends State<HalamanKalender> {
               Text(
                 'Status: ${typeSelected == "member" ? "Member" : "Non Member"}',
               ),
-              // FutureBuilder(
-              //   future: _memberOrNonMember(username).then((type) {
-              //     return type;
-              //   }),
-              //   builder: (context, snapshot) {
-              //     if (snapshot.connectionState == ConnectionState.waiting) {
-              //       return Text('Memeriksa status user...');
-              //     } else if (snapshot.hasError) {
-              //       return Text('Gagal memeriksa status user');
-              //     } else {
-              //       final type = snapshot.data ?? 'nonMember';
-              //       return Text(
-              //         'Status: ${type == "member" ? "Member" : "Non Member"}',
-              //       );
-              //     }
-              //   },
-              // ),
               SizedBox(height: 8),
               FutureBuilder<double>(
                 future:

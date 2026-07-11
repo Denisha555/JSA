@@ -4,6 +4,8 @@ import 'package:flutter_application_1/model/user_model.dart';
 import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/screens_admin/daftar_member.dart';
 import 'package:flutter_application_1/screens_admin/daftar_non_member.dart';
+import 'package:flutter_application_1/services/booking/member/booking_member.dart';
+import 'package:flutter_application_1/services/time_slot/firebase_check_time_slot.dart';
 import 'package:flutter_application_1/services/user/firebase_check_user.dart';
 import 'package:flutter_application_1/services/user/firebase_update_user.dart';
 import 'package:flutter_application_1/services/user/firebase_get_user.dart';
@@ -19,6 +21,8 @@ class HalamanCustomers extends StatefulWidget {
 class _HalamanCustomersState extends State<HalamanCustomers> {
   Map<String, Map<String, String>> userdata = {};
   bool isLoading = true;
+  bool isOneWeekLeft = false;
+  bool checking = false;
 
   late int currentTab;
 
@@ -26,7 +30,34 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
   void initState() {
     super.initState();
     _fetchUsers();
+    _isOneWeekLeft();
     currentTab = widget.tabIndex;
+  }
+
+  Future<void> _isOneWeekLeft() async {
+    try {
+      final now = DateTime.now();
+      final nextMonth = DateTime(now.year, now.month + 1, 1);
+      final lastDateThisMonth = nextMonth.subtract(const Duration(days: 1));
+      final difference = lastDateThisMonth.difference(now).inDays;
+      if (difference <= 7) {
+        if (mounted) {
+          setState(() {
+            isOneWeekLeft = true;
+          });
+        }
+      } else {
+        if (mounted) {
+          setState(() {
+            isOneWeekLeft = false;
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        showErrorSnackBar(context, 'Gagal memeriksa status member: $e');
+      }
+    }
   }
 
   Future<void> _fetchUsers() async {
@@ -57,6 +88,258 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
     });
   }
 
+  Future<void> _bookAllSlotsMultipleCourts(
+    List<String> courtIds,
+    List<String> selectedDates,
+    String username,
+    String startTime,
+    String endTime,
+  ) async {
+    final startMinutes = timeToMinutes(startTime);
+    final endMinutes = timeToMinutes(endTime);
+
+    try {
+      int length = 0;
+
+      for (final date in selectedDates) {
+        for (final courtId in courtIds) {
+          await BookingMember().bookSlotForMember(
+            courtId,
+            date,
+            startTime,
+            endTime,
+            username,
+          );
+          if (courtIds.first == courtId && selectedDates.first == date) {
+            length++;
+          }
+        }
+      }
+
+      final firstDateStr = selectedDates[0];
+      await FirebaseUpdateUser().updateUser('role', username, 'member');
+      await FirebaseUpdateUser().updateUser(
+        'startTimeMember',
+        username,
+        firstDateStr,
+      );
+
+      await BookingMember().addBookingDates(
+        username,
+        selectedDates,
+        courtIds,
+        startTime,
+        endTime,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showErrorSnackBar(context, 'Gagal mendaftarkan member: $e');
+    }
+
+    // Update user role hanya sekali setelah semua booking selesai
+    if (selectedDates.isNotEmpty) {
+      try {
+        await FirebaseUpdateUser().updateUser('role', username, 'member');
+        await FirebaseUpdateUser().updateUser(
+          'startTimeMember',
+          username,
+          selectedDates[0],
+        );
+      } catch (e) {
+        if (!mounted) return;
+        showErrorSnackBar(context, 'Gagal memperbarui peran pengguna: $e');
+      }
+    }
+  }
+
+  DateTime getSameWeekdayNextMonth(DateTime date) {
+    // minggu ke berapa dalam bulan
+    int weekNumber = ((date.day - 1) ~/ 7) + 1;
+
+    int nextMonth = date.month + 1;
+    int year = date.year;
+
+    if (nextMonth > 12) {
+      nextMonth = 1;
+      year++;
+    }
+
+    // tanggal 1 bulan berikutnya
+    DateTime firstDay = DateTime(year, nextMonth, 1);
+
+    // cari weekday pertama yang sama
+    int diff = (date.weekday - firstDay.weekday + 7) % 7;
+    DateTime result = firstDay.add(Duration(days: diff));
+
+    // tambah minggu
+    result = result.add(Duration(days: (weekNumber - 1) * 7));
+
+    return result;
+  }
+
+  Future<void> _bookMemberNextMonth(String username) async {
+    try {
+      List<UserModel> user = await FirebaseGetUser().getUserByUsername(
+        username,
+      );
+      List<dynamic> bookingDates = user[0].bookingDates;
+
+      List<Map<String, dynamic>> bookingDataNextMonth = [];
+
+      for (var data in bookingDates) {
+        if (data['status'] == 'now' && data['type'] == 'member') {
+          bookingDataNextMonth.add({
+            'date': data['date'],
+            'startTime': data['startTime'],
+            'endTime': data['endTime'],
+            'courtId': data['courtId'],
+          });
+        }
+      }
+
+      // sort bookingDateNextMonth by date
+      bookingDataNextMonth.sort(
+        (a, b) =>
+            DateTime.parse(a['date']).compareTo(DateTime.parse(b['date'])),
+      );
+
+      for (var data in bookingDataNextMonth) {
+        DateTime date = DateTime.parse(data['date']);
+        DateTime nextMonthDate = getSameWeekdayNextMonth(date);
+        data['date'] = nextMonthDate.toString().split(' ')[0];
+      }
+
+      bool isSameStartTimeEndTime = true;
+      final firstStartTime = bookingDataNextMonth[0]['startTime'];
+      final firstEndTime = bookingDataNextMonth[0]['endTime'];
+
+      for (var data in bookingDataNextMonth) {
+        if (data['startTime'] != firstStartTime ||
+            data['endTime'] != firstEndTime) {
+          isSameStartTimeEndTime = false;
+          break;
+        }
+      }
+
+      List<String> dates = [];
+      for (var data in bookingDataNextMonth) {
+        dates.add(data['date']);
+      }
+      dates.toSet();
+
+      for (var d in dates) {
+        await FirebaseCheckTimeSlot().checkTimeSlots(
+          DateTime.parse(d),
+          "07:00",
+        );
+      }
+
+      if (isSameStartTimeEndTime) {
+        final court = await FirebaseCheckTimeSlot().isSlotAvailable(
+          bookingDataNextMonth
+              .map((data) => data['courtId'].toString())
+              .toSet()
+              .toList(),
+          bookingDataNextMonth
+              .map((data) => data['date'].toString())
+              .toSet()
+              .toList(),
+          firstStartTime,
+          firstEndTime,
+        );
+        if (court.length ==
+            bookingDataNextMonth
+                .map((data) => data['courtId'].toString()).toSet()
+                .toList()
+                .length) {
+          _bookAllSlotsMultipleCourts(
+            bookingDataNextMonth
+                .map((data) => data['courtId'].toString()).toSet()
+                .toList(),
+            bookingDataNextMonth
+                .map((data) => data['date'].toString()).toSet()
+                .toList(),
+            username,
+            firstStartTime,
+            firstEndTime,
+          );
+        } else {
+          showErrorSnackBar(
+            context,
+            'Mohon maaf, terdapat lapangan yang tidak tersedia. Harap daftar ulang member di bulan berikutnya',
+          );
+          setState(() {
+            checking = false;
+          });
+          return;
+        }
+      } else {
+        List<String> time = [];
+        for (var data in bookingDataNextMonth) {
+          final startTimeEndTime = "${data['startTime']} - ${data['endTime']}";
+          time.add(startTimeEndTime);
+        }
+        time.toSet();
+
+        List<bool> isAvailable = [];
+        for (var i = 0; i < time.length; i++) {
+          final temp =
+              bookingDataNextMonth
+                  .where(
+                    (data) =>
+                        data['startTime'] == time[i].split(' - ')[0] &&
+                        data['endTime'] == time[i].split(' - ')[1],
+                  )
+                  .toList();
+          final court = await FirebaseCheckTimeSlot().isSlotAvailable(
+            temp.map((data) => data['courtId'].toString()).toSet().toList(),
+            temp.map((data) => data['date'].toString()).toSet().toList(),
+            time[i].split(' - ')[0],
+            time[i].split(' - ')[1],
+          );
+          if (court.length ==
+              temp.map((data) => data['courtId'].toString()).toSet().toList().length) {
+            isAvailable.add(true);
+          } else {
+            showErrorSnackBar(
+              context,
+              'Mohon maaf, terdapat lapangan yang tidak tersedia. Harap daftar ulang member di bulan berikutnya',
+            );
+            setState(() {
+              checking = false;
+            });
+            return;
+          }
+        }
+
+        if (isAvailable.every((element) => element == true)) {
+          for (var i = 0; i < time.length; i++) {
+            final temp =
+                bookingDataNextMonth
+                    .where(
+                      (data) =>
+                          data['startTime'] == time[i].split(' - ')[0] &&
+                          data['endTime'] == time[i].split(' - ')[1],
+                    )
+                    .toList();
+            _bookAllSlotsMultipleCourts(
+              temp.map((data) => data['courtId'].toString()).toSet().toList(),
+              temp.map((data) => data['date'].toString()).toSet().toList(),
+              username,
+              time[i].split(' - ')[0],
+              time[i].split(' - ')[1],
+            );
+          }
+        }
+      }
+    } catch (e) {
+      showErrorSnackBar(context, 'Gagal melakukan booking member: $e');
+      setState(() {
+        checking = false;
+      });
+    }
+  }
+
   void _navigateToUserInfo(String username) async {
     // Tampilkan loading indicator saat fetch
     showDialog(
@@ -72,7 +355,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
       await FirebaseCheckUser().checkUserPoint(username);
       final users = await FirebaseGetUser().getUserByUsername(username);
       if (!mounted) return;
-      Navigator.of(context).pop(); // tutup loading
+      Navigator.of(context).pop();
       _showUserInfoSheet(users);
     } catch (e) {
       if (!mounted) return;
@@ -104,7 +387,7 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
           hariMainList.add(namaHari(DateTime.parse(tanggalMain).weekday));
         }
       }
-      
+
       lapanganList = lapanganList.toSet().toList();
       jamMainList = jamMainList.toSet().toList();
       hariMainList = hariMainList.toSet().toList();
@@ -785,25 +1068,25 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
     final isMember = status == 'member';
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Dismissible(
         key: Key(username),
         direction: DismissDirection.horizontal,
         background: Container(
           alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           decoration: BoxDecoration(
             color: Colors.green,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(18),
           ),
           child: const Icon(Icons.edit, color: Colors.white),
         ),
         secondaryBackground: Container(
           alignment: Alignment.centerRight,
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           decoration: BoxDecoration(
             color: Colors.red,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(18),
           ),
           child: const Icon(Icons.delete, color: Colors.white),
         ),
@@ -814,67 +1097,146 @@ class _HalamanCustomersState extends State<HalamanCustomers> {
             return await _showEditDialog(context, username);
           }
         },
-        child: GestureDetector(
-          onTap: () => _navigateToUserInfo(username),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Colors.grey.shade100),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor:
-                      isMember ? Colors.blueAccent : Colors.grey[400],
-                  child: Text(
-                    username.isNotEmpty ? username[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        child: Material(
+          color: Colors.white,
+          elevation: 2,
+          shadowColor: Colors.black12,
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () => _navigateToUserInfo(username),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        username,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isMember ? Colors.blue[50] : Colors.grey[100],
-                          borderRadius: BorderRadius.circular(99),
-                        ),
+                      CircleAvatar(
+                        radius: 24,
+                        backgroundColor:
+                            isMember
+                                ? Colors.blue.shade100
+                                : Colors.grey.shade300,
                         child: Text(
-                          isMember ? 'Member' : 'Non Member',
+                          username.isEmpty ? '?' : username[0].toUpperCase(),
                           style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
                             color:
-                                isMember ? Colors.blue[800] : Colors.grey[700],
+                                isMember
+                                    ? Colors.blue.shade800
+                                    : Colors.grey.shade800,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
                           ),
                         ),
                       ),
+
+                      const SizedBox(width: 16),
+
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              username,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color:
+                                    isMember
+                                        ? Colors.blue.shade50
+                                        : Colors.grey.shade200,
+                                borderRadius: BorderRadius.circular(50),
+                              ),
+                              child: Text(
+                                isMember ? "Member" : "Non Member",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color:
+                                      isMember
+                                          ? Colors.blue.shade700
+                                          : Colors.grey.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        size: 16,
+                        color: Colors.grey.shade400,
+                      ),
                     ],
                   ),
-                ),
-                Icon(Icons.chevron_right, color: Colors.grey[300], size: 18),
-              ],
+
+                  if (!isOneWeekLeft && isMember) ...[
+                    const SizedBox(height: 14),
+                    Divider(color: Colors.grey.shade200),
+                    const SizedBox(height: 10),
+
+                    InkWell(
+                      borderRadius: BorderRadius.circular(8),
+                      onTap: () async {
+                        setState(() {
+                          checking = true;
+                        });
+                        await _bookMemberNextMonth(username);
+                        showSuccessSnackBar(context, "Berhasil memperpanjang member");
+                        setState(() {
+                          checking = false;
+                        });
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child:
+                            checking
+                                ? Row(
+                                  children: [
+                                    Text(
+                                      "Harap tunggu, sedang memproses...",
+                                      style: TextStyle(
+                                        color: primaryColor,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                )
+                                : Row(
+                                  children: [
+                                    Icon(
+                                      Icons.calendar_month,
+                                      size: 18,
+                                      color: primaryColor,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      "Lanjut member bulan depan",
+                                      style: TextStyle(
+                                        color: primaryColor,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
         ),

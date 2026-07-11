@@ -4,7 +4,6 @@ import 'package:flutter_application_1/constants_file.dart';
 import 'package:flutter_application_1/model/court_model.dart';
 import 'package:flutter_application_1/function/price/price.dart';
 import 'package:flutter_application_1/model/time_slot_model.dart';
-import 'package:flutter_application_1/screens_admin/customers.dart';
 import 'package:flutter_application_1/function/snackbar/snackbar.dart';
 import 'package:flutter_application_1/services/court/firebase_get_court.dart';
 import 'package:flutter_application_1/services/user/firebase_check_user.dart';
@@ -507,7 +506,6 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
       barrierDismissible: false,
       builder:
           (ctx) => StatefulBuilder(
-            // ✅ urutan yang benar
             builder:
                 (ctx, setDialogState) => AlertDialog(
                   title: const Text('Input Username'),
@@ -733,11 +731,11 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
         firstDateStr,
       );
 
-      await BookingMember().addTotalBookingDays(
-        username,
-        selectedDates.length * courtIds.length,
-        length,
-      );
+      // await BookingMember().addTotalBookingDays(
+      //   username,
+      //   selectedDates.length * courtIds.length,
+      //   length,
+      // );
 
       await BookingMember().addBookingDates(
         username,
@@ -846,6 +844,7 @@ class _HalamanMemberAdminState extends State<HalamanMemberAdmin> {
                                   ),
                                 ),
                                 selected: isSelected,
+                                checkmarkColor: Colors.white,
                                 selectedColor: primaryColor,
                                 onSelected: (_) {
                                   DateTime date = DateTime.now();

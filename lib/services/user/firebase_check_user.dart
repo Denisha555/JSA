@@ -62,7 +62,6 @@ class FirebaseCheckUser {
     return snapshot.docs.isNotEmpty;
   }
 
-
   Future<bool> checkExistenceOther(
     String field,
     dynamic value,
@@ -90,11 +89,32 @@ class FirebaseCheckUser {
           final difference = finishDate.difference(now);
           final daysLeft = difference.inDays;
 
+          List<Map<String, dynamic>> userBookingDates = userData[0].bookingDates;
+
+          // sort userBookingDates by date
+          userBookingDates.sort((a, b) => DateTime.parse(a['date'])
+              .compareTo(DateTime.parse(b['date'])));
+
+          for (var data in userBookingDates) {
+            if(data['type'] != 'member' || data['status'] != 'now') continue;
+            if (data['type'] == 'member' && data['status'] == 'now' && DateTime.parse(data['date']).month != now.month) {
+              data['status'] = 'finish';
+            }
+          }
+
+          String startTimeMember = "";
           if (daysLeft < 0) {
+            for (var data in userBookingDates) {
+              if (data['type'] == 'member' && data['status'] == 'now' && DateTime.parse(data['date']).month == now.month) {
+                startTimeMember = data['date'];
+              }
+            }
+
             await FirebaseUpdateUser().updateManyData({
               "role": "nonMember",
-              "startTimeMember": "",
+              "startTimeMember": startTimeMember,
               "memberTotalBooking": 0,
+              "bookingDates": userBookingDates,
               "memberCurrentTotalBooking": 0,
               "memberBookingLength": 0,
             }, username);
@@ -102,6 +122,27 @@ class FirebaseCheckUser {
           }
         }
       }
+    } catch (e) {
+      throw Exception('Error checking membership: $e');
+    }
+  }
+
+  Future<bool> isMemberOneWeekLeft(String username) async {
+    try {
+      final userData = await FirebaseGetUser().getUserByUsername(username);
+      if (userData[0].role == 'member') {
+        final startDate = DateTime.parse(userData[0].startTimeMember);
+        final finishDate = DateTime(startDate.year, startDate.month + 1, 0);
+
+        final now = DateTime.now();
+        final difference = finishDate.difference(now);
+        final daysLeft = difference.inDays;
+
+        if (daysLeft <= 7) {
+          return true;
+        }
+      }
+      return false;
     } catch (e) {
       throw Exception('Error checking membership: $e');
     }
